@@ -216,7 +216,17 @@ class CliTestCase(unittest.TestCase):
             mix_stderr = kwargs['mix_stderr']
             del kwargs['mix_stderr']
 
-        return CliRunner(mix_stderr=mix_stderr).invoke(main, args, catch_exceptions=False, **kwargs)
+        # Disable rich colors for testing by setting the environment variable
+        import os
+        old_no_color = os.environ.get('NO_COLOR')
+        os.environ['NO_COLOR'] = '1'
+        try:
+            return CliRunner(mix_stderr=mix_stderr).invoke(main, args, catch_exceptions=False, **kwargs)
+        finally:
+            if old_no_color is None:
+                os.environ.pop('NO_COLOR', None)
+            else:
+                os.environ['NO_COLOR'] = old_no_color
 
     def assert_success(self, result: click.testing.Result):
         self.assert_exit_code(result, 0)
