@@ -175,6 +175,16 @@ class APIErrorTest(CliTestCase):
     @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token})
     def test_record_session(self):
         build = "internal_server_error"
+        # Mock session name check
+        responses.add(
+            responses.GET,
+            "{base}/intake/organizations/{org}/workspaces/{ws}/builds/{build}/test_sessions/{session}".format(
+                base=get_base_url(),
+                org=self.organization,
+                ws=self.workspace,
+                build=build,
+                session=self.session_name),
+            status=404)
         responses.add(
             responses.POST,
             "{base}/intake/organizations/{org}/workspaces/{ws}/builds/{build}/test_sessions".format(
@@ -189,12 +199,22 @@ class APIErrorTest(CliTestCase):
                 base=get_base_url()),
             body=ReadTimeout("error"))
 
-        result = self.cli("record", "session", "--build", build)
+        result = self.cli("record", "session", "--build", build, "--session", self.session_name)
         self.assert_success(result)
-        # Since HTTPError is occurred outside of LaunchableClient, the count is 1.
-        self.assert_tracking_count(tracking=tracking, count=1)
+        # Since HTTPError is occurred outside of LaunchableClient, the count is 2 (one for GET check, one for POST).
+        self.assert_tracking_count(tracking=tracking, count=2)
 
         build = "not_found"
+        # Mock session name check
+        responses.add(
+            responses.GET,
+            "{base}/intake/organizations/{org}/workspaces/{ws}/builds/{build}/test_sessions/{session}".format(
+                base=get_base_url(),
+                org=self.organization,
+                ws=self.workspace,
+                build=build,
+                session=self.session_name),
+            status=404)
         responses.add(
             responses.POST,
             "{base}/intake/organizations/{org}/workspaces/{ws}/builds/{build}/test_sessions".format(
@@ -209,13 +229,14 @@ class APIErrorTest(CliTestCase):
                 base=get_base_url()),
             body=ReadTimeout("error"))
 
-        result = self.cli("record", "session", "--build", build)
+        result = self.cli("record", "session", "--build", build, "--session", self.session_name)
         self.assert_exit_code(result, 1)
         self.assert_tracking_count(tracking=tracking, count=1)
 
-        responses.replace(
+        # Mock session name check with ReadTimeout error
+        responses.add(
             responses.GET,
-            "{}/intake/organizations/{}/workspaces/{}/builds/{}/test_session_names/{}".format(
+            "{}/intake/organizations/{}/workspaces/{}/builds/{}/test_sessions/{}".format(
                 get_base_url(),
                 self.organization,
                 self.workspace,
