@@ -88,18 +88,18 @@ public class CommitIngester {
   private void parseConfiguration() throws CmdLineException {
     String apiToken = launchableToken;
     if (launchableToken == null) {
-      apiToken = System.getenv("LAUNCHABLE_TOKEN");
+      apiToken = System.getenv("SMART_TESTS_TOKEN");
     }
     if (apiToken == null || apiToken.isEmpty()) {
       if (System.getenv("GITHUB_ACTIONS") != null) {
-        String o = System.getenv("LAUNCHABLE_ORGANIZATION");
+        String o = System.getenv("SMART_TESTS_ORGANIZATION");
         if (org == null && o == null) {
-          throw new CmdLineException("LAUNCHABLE_ORGANIZATION env variable is not set");
+          throw new CmdLineException("SMART_TESTS_ORGANIZATION env variable is not set");
         }
 
-        String w = System.getenv("LAUNCHABLE_WORKSPACE");
+        String w = System.getenv("SMART_TESTS_WORKSPACE");
         if (ws == null && w == null) {
-          throw new CmdLineException("LAUNCHABLE_WORKSPACE env variable is not set");
+          throw new CmdLineException("SMART_TESTS_WORKSPACE env variable is not set");
         }
 
         if (org == null) {
@@ -118,7 +118,7 @@ public class CommitIngester {
         return;
       }
 
-      throw new CmdLineException("LAUNCHABLE_TOKEN env variable is not set");
+      throw new CmdLineException("SMART_TESTS_TOKEN env variable is not set");
     }
 
     this.parseLaunchableToken(apiToken);
@@ -163,11 +163,11 @@ public class CommitIngester {
     if (token.startsWith("v1:")) {
       String[] v = token.split(":");
       if (v.length != 3) {
-        throw new IllegalStateException("Malformed LAUNCHABLE_TOKEN");
+        throw new IllegalStateException("Malformed SMART_TESTS_TOKEN");
       }
       v = v[1].split("/");
       if (v.length != 2) {
-        throw new IllegalStateException("Malformed LAUNCHABLE_TOKEN");
+        throw new IllegalStateException("Malformed SMART_TESTS_TOKEN");
       }
 
       // for backward compatibility, allow command line options to take precedence
