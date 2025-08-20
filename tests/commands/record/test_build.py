@@ -195,20 +195,20 @@ class BuildTest(CliTestCase):
         result = self.cli(
             "record",
             "build",
+            "--build",
+            self.build_name,
             "--no-commit-collection",
             "--commit",
             "A=abc12",
             "--branch",
-            "B=feature-yyy",
-            "--name",
-            self.build_name)
+            "B=feature-yyy")
         self.assert_success(result)
 
         payload = json.loads(responses.calls[1].request.body.decode())
         self.assert_json_orderless_equal(
             {
                 "buildNumber": "123",
-                "lineage": None,
+                "lineage": "B=feature-yyy",
                 "commitHashes": [
                     {
                         "repositoryName": "A",
@@ -226,6 +226,8 @@ class BuildTest(CliTestCase):
         result = self.cli(
             "record",
             "build",
+            "--build",
+            self.build_name,
             "--no-commit-collection",
             "--commit",
             "A=abc12",
@@ -234,9 +236,7 @@ class BuildTest(CliTestCase):
             "--commit",
             "B=56cde",
             "--branch",
-            "A=feature-xxx",
-            "--name",
-            self.build_name)
+            "A=feature-xxx")
         self.assert_success(result)
 
         payload = json.loads(responses.calls[1].request.body.decode())
