@@ -491,17 +491,17 @@ def subset(
             if target is not None:
                 payload["goal"] = {
                     "type": "subset-by-percentage",
-                    "percentage": target,
+                    "percentage": float(target),
                 }
             elif duration is not None:
                 payload["goal"] = {
                     "type": "subset-by-absolute-time",
-                    "duration": duration,
+                    "duration": float(duration),
                 }
             elif confidence is not None:
                 payload["goal"] = {
                     "type": "subset-by-confidence",
-                    "percentage": confidence
+                    "percentage": float(confidence)
                 }
             elif goal_spec is not None:
                 payload["goal"] = {
