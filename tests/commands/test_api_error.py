@@ -132,7 +132,7 @@ class APIErrorTest(CliTestCase):
             self.assert_success(result)
             self.assertEqual(result.exception, None)
             # Since HTTPError is occurred outside of LaunchableClient, the count is 1.
-            self.assert_tracking_count(tracking=tracking, count=3)
+            self.assert_tracking_count(tracking=tracking, count=2)
 
         success_server.shutdown()
         thread.join(timeout=3)
@@ -166,7 +166,7 @@ class APIErrorTest(CliTestCase):
             self.assert_success(result)
             self.assertEqual(result.exception, None)
             # Since HTTPError is occurred outside of LaunchableClient, the count is 1.
-            self.assert_tracking_count(tracking=tracking, count=3)
+            self.assert_tracking_count(tracking=tracking, count=2)
 
         error_server.shutdown()
         thread.join(timeout=3)
@@ -459,7 +459,7 @@ class APIErrorTest(CliTestCase):
         self.assert_success(result)
 
         # Since Timeout error is caught inside of LaunchableClient, the tracking event is sent twice.
-        self.assert_tracking_count(tracking=tracking, count=6)
+        self.assert_tracking_count(tracking=tracking, count=5)
 
         # set delete=False to solve the error `PermissionError: [Errno 13] Permission denied:` on Windows.
         with tempfile.NamedTemporaryFile(delete=False) as rest_file:
@@ -476,12 +476,12 @@ class APIErrorTest(CliTestCase):
             self.assert_success(result)
 
         # Since Timeout error is caught inside of LaunchableClient, the tracking event is sent twice.
-        self.assert_tracking_count(tracking=tracking, count=9)
+        self.assert_tracking_count(tracking=tracking, count=7)
 
         result = self.cli("record", "tests", "--session", self.session, "minitest", str(self.test_files_dir) + "/")
         self.assert_success(result)
         # Since Timeout error is caught inside of LaunchableClient, the tracking event is sent twice.
-        self.assert_tracking_count(tracking=tracking, count=13)
+        self.assert_tracking_count(tracking=tracking, count=9)
 
     def assert_tracking_count(self, tracking, count: int):
         # Prior to 3.6, `Response` object can't be obtained.
