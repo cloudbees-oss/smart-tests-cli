@@ -191,7 +191,7 @@ class BuildTest(CliTestCase):
             }, payload)
         responses.calls.reset()
 
-        # case --commit option and --branch option but another one
+        # case --commit option and --repo-branch-map option with invalid repo
         result = self.cli(
             "record",
             "build",
@@ -201,6 +201,8 @@ class BuildTest(CliTestCase):
             "--commit",
             "A=abc12",
             "--branch",
+            "main",
+            "--repo-branch-map",
             "B=feature-yyy")
         self.assert_success(result)
 
@@ -208,7 +210,7 @@ class BuildTest(CliTestCase):
         self.assert_json_orderless_equal(
             {
                 "buildNumber": "123",
-                "lineage": "B=feature-yyy",
+                "lineage": "main",
                 "commitHashes": [
                     {
                         "repositoryName": "A",
@@ -231,11 +233,11 @@ class BuildTest(CliTestCase):
             "--no-commit-collection",
             "--commit",
             "A=abc12",
-            "--branch",
+            "--repo-branch-map",
             "B=feature-yyy",
             "--commit",
             "B=56cde",
-            "--branch",
+            "--repo-branch-map",
             "A=feature-xxx")
         self.assert_success(result)
 
