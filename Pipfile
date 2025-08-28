@@ -15,7 +15,7 @@ wheel = "*"
 # 2.9.0, < 2.10.0". ref: https://github.com/PyCQA/flake8/pull/1633
 # The latest autopep8 specifies "pycodestyle >= 2.10.0". This conflict cannot be resolved. Pin the version to resolve this.
 autopep8 = "<=1.7.0"
-importlib-metadata = "<7.2"
+importlib-metadata = "<7.3"
 isort = "*"
 more_itertools = "<10.4"
 mypy = "<1.16.0"
