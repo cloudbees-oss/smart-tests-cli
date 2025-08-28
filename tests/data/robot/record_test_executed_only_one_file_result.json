@@ -14,7 +14,7 @@
       ],
       "duration": 0.001,
       "status": 0,
-      "stdout": "",
+      "stdout": "0 != -1",
       "stderr": "0 != -1",
       "data": null
     },
@@ -58,6 +58,6 @@
   "testRunner": "robot",
   "group": "",
   "noBuild": false,
-  "flavors": [],
-  "testSuite": ""
+  "testSuite": "",
+  "flavors": {}
 }
