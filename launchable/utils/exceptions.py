@@ -1,4 +1,10 @@
 # TODO: add cli-specific custom exceptions
+import sys
+
+import typer
+
+from smart_tests.utils.tracking import Tracking, TrackingClient
+
 
 class ParseSessionException(Exception):
     def __init__(
@@ -20,3 +26,9 @@ class InvalidJUnitXMLException(Exception):
         self.filename = filename
         self.message = "{message}: {filename}".format(message=message, filename=self.filename)
         super().__init__(self.message)
+
+
+def print_error_and_die(msg: str, tracking_client: TrackingClient, event: Tracking.ErrorEvent):
+    typer.secho(msg, fg=typer.colors.RED, err=True)
+    tracking_client.send_error_event(event_name=event, stack_trace=msg)
+    sys.exit(1)
