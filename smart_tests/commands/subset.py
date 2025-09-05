@@ -403,6 +403,7 @@ def subset(
                 # The status code 422 is returned when validation error of the test mapping file occurs.
                 if res.status_code == 422:
                     print_error_and_die("Error: {}".format(res.reason), Tracking.ErrorEvent.USER_ERROR)
+                res.raise_for_status()
 
                 return SubsetResult.from_response(res.json())
             except Exception as e:
