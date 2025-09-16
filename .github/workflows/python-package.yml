@@ -99,7 +99,7 @@ jobs:
         # Tell Launchable about the build you are producing and testing
         launchable record build --name ${GITHUB_RUN_ID}
 
-        launchable record session --build ${GITHUB_RUN_ID} --flavor os=${{ matrix.os }} --flavor python=${{ matrix.python-version }} > session.txt
+        launchable record session --build ${GITHUB_RUN_ID} --test-suite 'python-unittest' --flavor os=${{ matrix.os }} --flavor python=${{ matrix.python-version }} > session.txt
 
         # Find 25% of the relevant tests to run for this change
         find tests -name test_*.py | grep -v tests/data | launchable subset --target 25% --session $(cat session.txt) --rest launchable-remainder.txt file > subset.txt
@@ -117,3 +117,26 @@ jobs:
         # Test rest of tests
         pipenv run test-xml $(tr '\r\n' '\n' < launchable-remainder.txt)
       shell: bash
+
+    - name: Flake detection
+      run: |
+        # Early flake detection
+        while true; do
+          launchable detect-flakes --session "$(cat session.txt)" file > flake.txt
+          if [[ ! -s flake.txt ]]; then
+            echo "No tests to retry. Done."
+            break
+          fi
+          rc=0
+          # Run tests; if they fail, save the status but keep going
+          pipenv run test-xml $(tr '\r\n' '\n' < flake.txt) || rc=$?
+
+          launchable record tests --session "$(cat session.txt)" file test-results/*.xml
+
+          # If tests failed, exit with that code
+          if (( rc != 0 )); then
+            exit $rc
+          fi
+        done
+      shell: bash
+      if : always()
