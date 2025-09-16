@@ -10,9 +10,9 @@ import click
 from launchable.app import Application
 
 from .commands.compare import compare
+from .commands.detect_flake import detect_flake
 from .commands.inspect import inspect
 from .commands.record import record
-from .commands.retry import retry
 from .commands.split_subset import split_subset
 from .commands.stats import stats
 from .commands.subset import subset
@@ -92,7 +92,7 @@ main.add_command(verify)
 main.add_command(inspect)
 main.add_command(stats)
 main.add_command(compare)
-main.add_command(retry)
+main.add_command(detect_flake, 'detect-flake')
 
 if __name__ == '__main__':
     main()

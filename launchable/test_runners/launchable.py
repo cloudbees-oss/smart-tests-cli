@@ -5,8 +5,8 @@ import types
 
 import click
 
+from launchable.commands.detect_flake import detect_flake as detect_flake_cmd
 from launchable.commands.record.tests import tests as record_tests_cmd
-from launchable.commands.retry.flake_detection import flake_detection as flake_detection_cmd
 from launchable.commands.split_subset import split_subset as split_subset_cmd
 from launchable.commands.subset import subset as subset_cmd
 from launchable.testpath import unparse_test_path
@@ -46,7 +46,7 @@ record.tests = lambda f: wrap(f, record_tests_cmd)
 
 
 def flake_detection(f):
-    return wrap(f, flake_detection_cmd)
+    return wrap(f, detect_flake_cmd)
 
 
 def split_subset(f):
@@ -194,4 +194,4 @@ class CommonFlakeDetectionImpls:
 
             client.run()
 
-        return wrap(flake_detection, flake_detection_cmd, self.cmdname)
+        return wrap(flake_detection, detect_flake_cmd, self.cmdname)
