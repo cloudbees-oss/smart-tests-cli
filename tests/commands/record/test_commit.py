@@ -42,6 +42,7 @@ class CommitTest(CliTestCase):
 
         server.shutdown()
         thread.join()
+        self.assertEqual(1, 2)
 
     def test_proxy_options(self):
         self.assertEqual(_build_proxy_option("https://some_proxy:1234"),
