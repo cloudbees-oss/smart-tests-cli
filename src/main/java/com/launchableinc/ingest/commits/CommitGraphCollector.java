@@ -427,10 +427,14 @@ public class CommitGraphCollector {
         // and it drastically cuts down the initial commit consumption of a new large repository.
         // ... except we do want to capture the head commit, as that makes it easier to spot integration problems
         // when `record build` and `record commit` are separated.
+
+        // two RevFilters are order sensitive. This is because CommitTimeRevFilter.after doesn't return false to
+        // filter things out, it throws StopWalkException to terminate the walk, never giving a chance for the other
+        // branch of OR to be evaluated. So we need to put ObjectRevFilter first.
         walk.setRevFilter(
             OrRevFilter.create(
-                CommitTimeRevFilter.after(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(maxDays)),
-                new ObjectRevFilter(headId)));
+              new ObjectRevFilter(headId),
+              CommitTimeRevFilter.after(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(maxDays))));
 
         for (ObjectId id : advertised) {
           try {
