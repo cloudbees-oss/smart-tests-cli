@@ -51,14 +51,7 @@ def record_tests(client, reports, json_format):
     client.run()
 
 
-@launchable.subset
-def subset(client):
-    # read lines as test file names
-    for t in client.stdin():
-        client.test_path(t.rstrip("\n"))
-
-    client.run()
-
+subset = launchable.CommonSubsetImpls(__name__).scan_files()
 
 split_subset = launchable.CommonSplitSubsetImpls(__name__).split_subset()
 

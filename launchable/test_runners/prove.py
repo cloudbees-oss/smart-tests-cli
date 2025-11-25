@@ -14,14 +14,7 @@ def remove_leading_number_and_dash(input_string: str) -> str:
     return result
 
 
-@launchable.subset
-def subset(client):
-    # read lines as test file names
-    for t in client.stdin():
-        client.test_path(t.rstrip("\n"))
-
-    client.run()
-
+subset = launchable.CommonSubsetImpls(__name__).scan_files()
 
 @click.argument('reports', required=True, nargs=-1)
 @launchable.record.tests

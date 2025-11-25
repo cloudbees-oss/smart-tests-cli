@@ -5,14 +5,7 @@
 from . import launchable
 
 
-@launchable.subset
-def subset(client):
-    # read lines as test file names
-    for t in client.stdin():
-        client.test_path(t.rstrip("\n"))
-
-    client.run()
-
+subset = launchable.CommonSubsetImpls(__name__).scan_files()
 
 record_tests = launchable.CommonRecordTestImpls(__name__).file_profile_report_files()
 

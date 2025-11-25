@@ -63,17 +63,21 @@ class CommonSubsetImpls:
     def __init__(self, module_name):
         self.cmdname = cmdname(module_name)
 
-    def scan_files(self, pattern):
+    def scan_files(self, pattern=None):
         """
         Suitable for test runners that use files as unit of tests where file names follow a naming pattern.
 
         :param pattern: file masks that identify test files, such as '*_spec.rb'
+                        for test runners that do not have natural file naming conventions, pass in None,
+                        so that the implementation will refuse to accept directories.
         """
         @click.argument('files', required=True, nargs=-1)
         def subset(client, files):
             # client type: Optimize in def lauchable.commands.subset.subset
             def parse(fname: str):
                 if os.path.isdir(fname):
+                    if pattern is None:
+                        raise click.UsageError(f'{fname} is a directory, but expecting a file or GLOB')
                     client.scan(fname, '**/' + pattern)
                 elif fname == '@-':
                     # read stdin
