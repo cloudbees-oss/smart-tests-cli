@@ -1,0 +1,22 @@
+{
+  "testPaths": [
+    [
+      {
+        "type": "file",
+        "name": "a.ts"
+      }
+    ],
+    [
+      {
+        "type": "file",
+        "name": "b.ts"
+      }
+    ]
+  ],
+  "testRunner": "karma",
+  "session": { "id": "16" },
+  "goal": {"type": "subset-by-percentage", "percentage": 0.1},
+  "ignoreNewTests": false,
+  "getTestsFromGuess": false,
+  "getTestsFromPreviousSessions": false
+}
