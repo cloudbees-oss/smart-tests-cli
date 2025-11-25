@@ -10,6 +10,8 @@ from ..commands.record.case_event import CaseEvent
 from ..testpath import TestPath
 from . import launchable
 
+# TODO: implement the --with ng option
+subset = launchable.CommonSubsetImpls(__name__).scan_files()
 
 @click.argument('reports', required=True, nargs=-1)
 @launchable.record.tests
