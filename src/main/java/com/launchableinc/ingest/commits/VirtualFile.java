@@ -23,4 +23,34 @@ public interface VirtualFile {
 
   long size() throws IOException;
   void writeTo(OutputStream os) throws IOException;
+
+  static VirtualFile from(String repo, String path, ObjectId blob, byte[] payload) {
+    return new VirtualFile() {
+
+      @Override
+      public String repo() {
+        return repo;
+      }
+
+      @Override
+      public String path() {
+        return path;
+      }
+
+      @Override
+      public ObjectId blob() {
+        return blob;
+      }
+
+      @Override
+      public long size() {
+        return payload.length;
+      }
+
+      @Override
+      public void writeTo(OutputStream os) throws IOException {
+        os.write(payload);
+      }
+    };
+  }
 }

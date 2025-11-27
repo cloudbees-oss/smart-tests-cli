@@ -7,6 +7,8 @@ import java.io.File;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.file.Files;
+
+import org.eclipse.jgit.api.CommitCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.revwalk.RevCommit;
@@ -32,12 +34,12 @@ public class CommitIngesterTest {
     RevCommit subCommit;
     try (Git subrepo = Git.init().setDirectory(subrepoDir).call()) {
       Files.writeString(subrepoDir.toPath().resolve("a"), "");
-      subCommit = subrepo.commit().setAll(true).setMessage("sub").call();
+      subCommit = commit(subrepo).setMessage("sub").call();
     }
     RevCommit mainCommit;
     try (Git mainrepo = Git.init().setDirectory(mainrepoDir).call()) {
       mainrepo.submoduleAdd().setPath("sub").setURI(subrepoDir.toURI().toString()).call();
-      mainCommit = mainrepo.commit().setAll(true).setMessage("created a submodule").call();
+      mainCommit = commit(mainrepo).setMessage("created a submodule").call();
     }
 
     mockServerClient
@@ -72,5 +74,9 @@ public class CommitIngesterTest {
         new URL(String.format("http://%s:%s/intake/", addr.getHostString(), addr.getPort()));
     commitIngester.launchableToken = "v1:testorg/testws:dummy-token";
     commitIngester.run();
+  }
+
+  private CommitCommand commit(Git r) {
+    return r.commit().setAll(true).setSign(false);
   }
 }

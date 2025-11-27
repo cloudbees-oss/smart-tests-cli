@@ -1,11 +1,13 @@
 package com.launchableinc.ingest.commits;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.NullOutputStream;
 import org.apache.http.entity.ContentProducer;
+import org.eclipse.jgit.api.CommitCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.PersonIdent;
@@ -26,7 +28,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.Collection;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static com.google.common.truth.Truth.*;
@@ -87,7 +90,7 @@ public class CommitGraphCollectorTest {
     try (Repository r = Git.open(barerepoDir).getRepository()) {
       CommitGraphCollector cgc = collectCommit(r, ImmutableList.of());
       assertThat(cgc.getCommitsSent()).isEqualTo(1);
-      assertThat(cgc.getFilesSent()).isEqualTo(1);
+      assertThat(cgc.getFilesSent()).isEqualTo(2); // header + .gitmodules
     }
   }
 
@@ -118,7 +121,7 @@ public class CommitGraphCollectorTest {
           2);
     }
     assertThat(councCommitChunks[0]).isEqualTo(2);
-    assertThat(countFilesChunks[0]).isEqualTo(1); // a and sub/x, 2 files, 1 chunk
+    assertThat(countFilesChunks[0]).isEqualTo(3); // header, a, .gitmodules, and header, sub/x, 5 files, 3 chunks
   }
 
   private void assertValidTar(ContentProducer content) throws IOException {
@@ -129,8 +132,8 @@ public class CommitGraphCollectorTest {
     }
   }
 
-  private void assertValidJson(ContentProducer content) throws IOException {
-    new ObjectMapper().readTree(read(content));
+  private JsonNode assertValidJson(ContentProducer content) throws IOException {
+    return new ObjectMapper().readTree(read(content));
   }
 
   private InputStream read(ContentProducer content) throws IOException {
@@ -163,6 +166,37 @@ public class CommitGraphCollectorTest {
     return cgc;
   }
 
+  @Test
+  public void header() throws Exception {
+    setupRepos();
+    try (Git mainrepo = Git.open(mainrepoDir)) {
+      addCommitInSubRepo(mainrepo);
+
+      List<VirtualFile> files = new ArrayList<>();
+
+      CommitGraphCollector cgc = new CommitGraphCollector("test", mainrepo.getRepository());
+      cgc.collectFiles(true);
+      cgc.new ByRepository(mainrepo.getRepository(), "main")
+        .transfer(Collections.emptyList(), c -> {},
+          new PassThroughTreeReceiverImpl(),
+          FlushableConsumer.of(files::add));
+
+      // header for the main repo, 'gitmodules', header for the sub repo, 'a', and 'x' in the sub repo
+      assertThat(files).hasSize(5);
+      VirtualFile header = files.get(2);
+      assertThat(header.path()).isEqualTo(CommitGraphCollector.HEADER_FILE);
+      JsonNode tree = assertValidJson(header::writeTo).get("tree");
+      assertThat(tree.isArray()).isTrue();
+
+      List<String> paths = new ArrayList<>();
+      for (JsonNode i : tree) {
+        paths.add(i.get("path").asText());
+      }
+
+      assertThat(paths).containsExactly("a", "x");
+    }
+  }
+
   /**
    * Initialize a repository with a submodule.
    *
@@ -172,12 +206,13 @@ public class CommitGraphCollectorTest {
     PersonIdent ident;
     try (Git subrepo = Git.init().setDirectory(subrepoDir).call()) {
       Files.writeString(subrepoDir.toPath().resolve("a"), "");
-      RevCommit c = subrepo.commit().setAll(true).setMessage("sub").call();
+      subrepo.add().addFilepattern("a").call();
+      RevCommit c = commit(subrepo).setMessage("sub").call();
       ident = c.getCommitterIdent();
     }
     try (Git mainrepo = Git.init().setDirectory(mainrepoDir).call()) {
       mainrepo.submoduleAdd().setPath("sub").setURI(subrepoDir.toURI().toString()).call();
-      mainrepo.commit().setAll(true).setMessage("created a submodule").call();
+      commit(mainrepo).setMessage("created a submodule").call();
     }
     return ident;
   }
@@ -186,7 +221,13 @@ public class CommitGraphCollectorTest {
     try (Git submodrepo =
         Git.wrap(SubmoduleWalk.getSubmoduleRepository(mainrepo.getRepository(), "sub"))) {
       Files.writeString(mainrepoDir.toPath().resolve("sub").resolve("x"), "");
-      submodrepo.commit().setAll(true).setMessage("added x").call();
+      submodrepo.add().addFilepattern("x").call();
+      commit(submodrepo).setMessage("added x").call();
     }
   }
+
+  private CommitCommand commit(Git r) {
+    return r.commit().setAll(true).setSign(false);
+  }
+
 }

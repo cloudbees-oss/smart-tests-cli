@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.CharStreams;
-import java.util.Collections;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.http.Header;
@@ -53,6 +52,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,8 +63,8 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.zip.GZIPOutputStream;
 
-import static com.google.common.collect.ImmutableList.toImmutableList;
-import static java.util.Arrays.stream;
+import static com.google.common.collect.ImmutableList.*;
+import static java.util.Arrays.*;
 
 /**
  * Compares what commits the local repository and the remote repository have, then send delta over.
@@ -73,6 +73,10 @@ public class CommitGraphCollector {
   private static final Logger logger = LoggerFactory.getLogger(CommitGraphCollector.class);
   static final ObjectMapper objectMapper = new ObjectMapper();
   private static final int HTTP_TIMEOUT_MILLISECONDS = 15_000;
+  /**
+   * Repository header is sent using this reserved file name
+   */
+  static final String HEADER_FILE = ".launchable";
 
   private final String rootName;
 
@@ -313,6 +317,7 @@ public class CommitGraphCollector {
 
   /** Process commits per repository. */
   final class ByRepository implements AutoCloseable {
+    /** Names that uniquely identifies this Git repository among other Git repositories collected for the workspace. */
     private final String name;
     private final Repository git;
 
@@ -385,7 +390,7 @@ public class CommitGraphCollector {
         // record all the necessary BLOBs first, before attempting to record its commit.
         // this way, if the file collection fails, the server won't see this commit, so the future
         // "record commit" invocation will retry the file collection, thereby making the behavior idempotent.
-        collectFiles(treeWalk, treeReceiver, fileReceiver);
+        collectFiles(start, treeWalk, treeReceiver, fileReceiver);
         fileReceiver.flush();
 
         // walk the commits, transform them, and send them to the commitReceiver
@@ -435,7 +440,7 @@ public class CommitGraphCollector {
      * Our goal here is to find all the files that the server hasn't seen yet. We'll send them to the tree receiver,
      * which further responds with the actual files we need to send to the server.
      */
-    private void collectFiles(TreeWalk treeWalk, TreeReceiver treeReceiver, Consumer<VirtualFile> fileReceiver) throws IOException {
+    private void collectFiles(RevCommit start, TreeWalk treeWalk, TreeReceiver treeReceiver, Consumer<VirtualFile> fileReceiver) throws IOException {
       if (!collectFiles) {
           return;
       }
@@ -461,7 +466,7 @@ public class CommitGraphCollector {
           if ((treeWalk.getFileMode(0).getBits() & FileMode.TYPE_MASK) == FileMode.TYPE_FILE) {
             GitFile f = new GitFile(name, treeWalk.getPathString(), head, objectReader);
             // to avoid excessive data transfer, skip files that are too big
-            if (f.size() < 1024 * 1024 && f.isText()) {
+            if (f.size() < 1024 * 1024 && f.isText() && !f.path.equals(HEADER_FILE)) {
               treeReceiver.accept(f);
             }
           }
@@ -471,11 +476,44 @@ public class CommitGraphCollector {
       // Note(Konboi): To balance the order, since words like "test" and "spec" tend to appear
       // toward the end in alphabetical sorting.
       List<VirtualFile> files = new ArrayList<>(treeReceiver.response());
-      Collections.shuffle(files);
-      for (VirtualFile f : files) {
-        fileReceiver.accept(f);
+      if (!files.isEmpty()) {
+        fileReceiver.accept(buildHeader(start));
         filesSent++;
+
+        Collections.shuffle(files);
+        for (VirtualFile f : files) {
+          fileReceiver.accept(f);
+          filesSent++;
+        }
       }
+    }
+
+    /**
+     * Creates a per repository "header" file as a {@link VirtualFile}.
+     * Currently, this is just the list of files in the repository.
+     */
+    private VirtualFile buildHeader(RevCommit start) throws IOException {
+      ByteArrayOutputStream os = new ByteArrayOutputStream();
+      try (JsonGenerator w = new JsonFactory().createGenerator(os)) {
+        w.setCodec(objectMapper);
+        w.writeStartObject();
+        w.writeArrayFieldStart("tree");
+
+        try (TreeWalk tw = new TreeWalk(git)) {
+          tw.addTree(start.getTree());
+          tw.setRecursive(true);
+
+          while (tw.next()) {
+            w.writeStartObject();
+            w.writeStringField("path", tw.getPathString());
+            w.writeEndObject();
+          }
+        }
+
+        w.writeEndArray();
+        w.writeEndObject();
+      }
+      return VirtualFile.from(name, HEADER_FILE, ObjectId.zeroId(), os.toByteArray());
     }
 
 
