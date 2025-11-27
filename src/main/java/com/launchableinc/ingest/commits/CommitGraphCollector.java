@@ -157,150 +157,70 @@ public class CommitGraphCollector {
       // every time a new stream is needed, supply ByteArrayOutputStream, and when the data is all
       // written, turn around and ship that over
       transfer(
-          advertised,
-          (ContentProducer commits) -> {
-            try {
-              URL url = new URL(service, "collect");
-              HttpPost request = new HttpPost(url.toExternalForm());
-              request.setHeader("Content-Type", "application/json");
-              request.setHeader("Content-Encoding", "gzip");
-              request.setEntity(new EntityTemplate(os -> commits.writeTo(new GZIPOutputStream(os))));
-
-              if (outputAuditLog()) {
-                System.err.printf(
-                    "AUDIT:launchable:%ssend request method:post path:%s headers:%s"
-                        + " args:",
-                    dryRunPrefix(), url, dumpHeaderAsJson(request.getAllHeaders()));
-                commits.writeTo(System.err);
-                System.err.println();
-              }
-              if (dryRun) {
-                return;
-              }
-              handleError(url, client.execute(request)).close();
-            } catch (IOException e) {
-              throw new UncheckedIOException(e);
-            }
-          },
-        new TreeReceiver() {
-          private final List<VirtualFile> files = new ArrayList<>();
-
-          private void writeJsonTo(OutputStream os) throws IOException {
-            try (JsonGenerator w = new JsonFactory().createGenerator(os)) {
-              w.setCodec(objectMapper);
-              w.writeStartObject();
-              w.writeArrayFieldStart("tree");
-
-              for (VirtualFile commit : files) {
-                w.writeStartObject();
-                w.writeFieldName("path");
-                w.writeString(commit.path());
-                w.writeFieldName("blob");
-                w.writeString(commit.blob().name());
-                w.writeEndObject();
-              }
-
-              w.writeEndArray();
-              w.writeEndObject();
-            }
-          }
-          @Override
-          public Collection<VirtualFile> response() {
-            try {
-              URL url = new URL(service, "collect/tree");
-              HttpPost request = new HttpPost(url.toExternalForm());
-              request.setHeader("Content-Type", "application/json");
-              request.setHeader("Content-Encoding", "gzip");
-              request.setEntity(new EntityTemplate(raw -> {
-                try (OutputStream os = new GZIPOutputStream(raw)) {
-                  writeJsonTo(os);
-                }
-              }));
-
-              if (outputAuditLog()) {
-                System.err.printf(
-                    "AUDIT:launchable:%ssend request method:post path:%s headers:%s args:",
-                    dryRunPrefix(), url, dumpHeaderAsJson(request.getAllHeaders()));
-                writeJsonTo(System.err);
-                System.err.println();
-              }
-
-              // even in dry run, this method needs to execute in order to show what files we'll be collecting
-              try (CloseableHttpResponse response = handleError(url, client.execute(request));
-                   JsonParser parser = new JsonFactory().createParser(response.getEntity().getContent())) {
-                  return select(objectMapper.readValue(parser, String[].class));
-              }
-            } catch (IOException e) {
-              throw new UncheckedIOException(e);
-            } finally {
-              files.clear();
-            }
-          }
-
-          private List<VirtualFile> select(String[] response) {
-            Map<String,VirtualFile> filesByPath = new HashMap<>();
-            for (VirtualFile f : files) {
-              filesByPath.put(f.path(), f);
-            }
-
-            List<VirtualFile> selected = new ArrayList<>();
-            for (String path : response) {
-              VirtualFile f = filesByPath.get(path);
-              if (f!=null) {
-                selected.add(f);
-              }
-            }
-
-            return selected;
-          }
-
-          @Override
-          public void accept(VirtualFile f) {
-            files.add(f);
-          }
-        },
-        (ContentProducer files) -> {
-          try {
-            URL url = new URL(service, "collect/files");
-            HttpPost request = new HttpPost(url.toExternalForm());
-            request.setHeader("Content-Type", "application/octet-stream");
-            // no content encoding, since .tar.gz is considered content
-            request.setEntity(new EntityTemplate(os -> files.writeTo(new GZIPOutputStream(os))));
-
-            if (outputAuditLog()) {
-              System.err.printf(
-                  "AUDIT:launchable:%ssend request method:post path:%s headers:%s args:",
-                  dryRunPrefix(), url, dumpHeaderAsJson(request.getAllHeaders()));
-
-              // TODO: inefficient to buffer everything in memory just to read it back
-              ByteArrayOutputStream baos = new ByteArrayOutputStream();
-              files.writeTo(baos);
-              TarArchiveInputStream tar =
-                  new TarArchiveInputStream(
-                      new ByteArrayInputStream(baos.toByteArray()),
-                      "UTF-8");
-              TarArchiveEntry entry;
-              boolean first = true;
-              while ((entry = tar.getNextTarEntry()) != null) {
-                System.err.printf(entry.getName());
-                if (first) {
-                  first = false;
-                } else {
-                  System.err.print(", ");
-                }
-              }
-              System.err.println();
-            }
-            if (dryRun) {
-              return;
-            }
-            handleError(url, client.execute(request)).close();
-          } catch (IOException e) {
-            throw new UncheckedIOException(e);
-          }
-        },
-          256);
+        advertised,
+        (ContentProducer commits) -> sendCommits(service, client, commits),
+        new TreeReceiverImpl(service, client),
+        (ContentProducer files) -> sendFiles(service, client, files),
+        256);
     }
+  }
+
+  private void sendCommits(URL service, CloseableHttpClient client, ContentProducer commits) throws IOException {
+    URL url = new URL(service, "collect");
+    HttpPost request = new HttpPost(url.toExternalForm());
+    request.setHeader("Content-Type", "application/json");
+    request.setHeader("Content-Encoding", "gzip");
+    request.setEntity(new EntityTemplate(os -> commits.writeTo(new GZIPOutputStream(os))));
+
+    if (outputAuditLog()) {
+      System.err.printf(
+          "AUDIT:launchable:%ssend request method:post path:%s headers:%s"
+              + " args:",
+          dryRunPrefix(), url, dumpHeaderAsJson(request.getAllHeaders()));
+      commits.writeTo(System.err);
+      System.err.println();
+    }
+    if (dryRun) {
+      return;
+    }
+    handleError(url, client.execute(request)).close();
+  }
+
+  private void sendFiles(URL service, CloseableHttpClient client, ContentProducer files) throws IOException {
+    URL url = new URL(service, "collect/files");
+    HttpPost request = new HttpPost(url.toExternalForm());
+    request.setHeader("Content-Type", "application/octet-stream");
+    // no content encoding, since .tar.gz is considered content
+    request.setEntity(new EntityTemplate(os -> files.writeTo(new GZIPOutputStream(os))));
+
+    if (outputAuditLog()) {
+      System.err.printf(
+          "AUDIT:launchable:%ssend request method:post path:%s headers:%s args:",
+          dryRunPrefix(), url, dumpHeaderAsJson(request.getAllHeaders()));
+
+      // TODO: inefficient to buffer everything in memory just to read it back
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      files.writeTo(baos);
+      TarArchiveInputStream tar =
+          new TarArchiveInputStream(
+              new ByteArrayInputStream(baos.toByteArray()),
+              "UTF-8");
+      TarArchiveEntry entry;
+      boolean first = true;
+      while ((entry = tar.getNextTarEntry()) != null) {
+        System.err.printf(entry.getName());
+        if (first) {
+          first = false;
+        } else {
+          System.err.print(", ");
+        }
+      }
+      System.err.println();
+    }
+    if (dryRun) {
+      return;
+    }
+    handleError(url, client.execute(request)).close();
   }
 
   private void honorControlHeaders(HttpResponse response) {
@@ -626,6 +546,92 @@ public class CommitGraphCollector {
     @Override
     public void close() {
       objectReader.close();
+    }
+  }
+
+  private class TreeReceiverImpl implements TreeReceiver {
+    private final List<VirtualFile> files = new ArrayList<>();
+    private final URL service;
+    private final CloseableHttpClient client;
+
+    public TreeReceiverImpl(URL service, CloseableHttpClient client) {
+      this.service = service;
+      this.client = client;
+    }
+
+    private void writeJsonTo(OutputStream os) throws IOException {
+      try (JsonGenerator w = new JsonFactory().createGenerator(os)) {
+        w.setCodec(objectMapper);
+        w.writeStartObject();
+        w.writeArrayFieldStart("tree");
+
+        for (VirtualFile commit : files) {
+          w.writeStartObject();
+          w.writeFieldName("path");
+          w.writeString(commit.path());
+          w.writeFieldName("blob");
+          w.writeString(commit.blob().name());
+          w.writeEndObject();
+        }
+
+        w.writeEndArray();
+        w.writeEndObject();
+      }
+    }
+
+    @Override
+    public Collection<VirtualFile> response() {
+      try {
+        URL url = new URL(service, "collect/tree");
+        HttpPost request = new HttpPost(url.toExternalForm());
+        request.setHeader("Content-Type", "application/json");
+        request.setHeader("Content-Encoding", "gzip");
+        request.setEntity(new EntityTemplate(raw -> {
+          try (OutputStream os = new GZIPOutputStream(raw)) {
+            writeJsonTo(os);
+          }
+        }));
+
+        if (outputAuditLog()) {
+          System.err.printf(
+              "AUDIT:launchable:%ssend request method:post path:%s headers:%s args:",
+              dryRunPrefix(), url, dumpHeaderAsJson(request.getAllHeaders()));
+          writeJsonTo(System.err);
+          System.err.println();
+        }
+
+        // even in dry run, this method needs to execute in order to show what files we'll be collecting
+        try (CloseableHttpResponse response = handleError(url, client.execute(request));
+             JsonParser parser = new JsonFactory().createParser(response.getEntity().getContent())) {
+            return select(objectMapper.readValue(parser, String[].class));
+        }
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      } finally {
+        files.clear();
+      }
+    }
+
+    private List<VirtualFile> select(String[] response) {
+      Map<String,VirtualFile> filesByPath = new HashMap<>();
+      for (VirtualFile f : files) {
+        filesByPath.put(f.path(), f);
+      }
+
+      List<VirtualFile> selected = new ArrayList<>();
+      for (String path : response) {
+        VirtualFile f = filesByPath.get(path);
+        if (f!=null) {
+          selected.add(f);
+        }
+      }
+
+      return selected;
+    }
+
+    @Override
+    public void accept(VirtualFile f) {
+      files.add(f);
     }
   }
 }
