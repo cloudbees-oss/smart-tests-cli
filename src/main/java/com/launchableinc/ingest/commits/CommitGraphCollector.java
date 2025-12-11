@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.CharStreams;
+import com.google.common.util.concurrent.MoreExecutors;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.http.Header;
@@ -58,7 +59,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.Vector;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.zip.GZIPOutputStream;
@@ -87,7 +92,7 @@ public class CommitGraphCollector {
    */
   private final Repository root;
 
-  private int commitsSent, filesSent;
+  private AtomicInteger commitsSent = new AtomicInteger(), filesSent = new AtomicInteger();
 
   private boolean collectCommitMessage, collectFiles;
 
@@ -119,11 +124,11 @@ public class CommitGraphCollector {
 
   /** How many commits did we transfer? */
   public int getCommitsSent() {
-    return commitsSent;
+    return commitsSent.get();
   }
 
   public int getFilesSent() {
-    return filesSent;
+    return filesSent.get();
   }
 
   private String dumpHeaderAsJson(Header[] headers) throws JsonProcessingException {
@@ -274,10 +279,102 @@ public class CommitGraphCollector {
     Collection<ObjectId> advertised, IOConsumer<ContentProducer> commitSender, TreeReceiver treeReceiver, IOConsumer<ContentProducer> fileSender, int chunkSize)
       throws IOException {
     ByRepository r = new ByRepository(root, rootName);
-    try (CommitChunkStreamer cs = new CommitChunkStreamer(commitSender, chunkSize);
-         FileChunkStreamer fs = new FileChunkStreamer(fileSender, chunkSize);
-         ProgressReportingConsumer<VirtualFile> fsr = new ProgressReportingConsumer<>(fs, VirtualFile::path, Duration.ofSeconds(3))) {
-      r.transfer(advertised, cs, treeReceiver, fsr);
+    /*
+      Parallelization
+
+        TreeReceiver is blocking, so the big block in transfer should run in parallel
+        - That gets CommitChunkStreamer and FileChunkStreamer invoked concurrently.
+        - caller wants to wait for the response to FileChunkStreamer then collect commits,
+          so this should be designed nicely
+        - commit collection is very fast, so maybe we just need to do this after the whole join
+
+        - otherwise, we create a file queue and let threads wait for completion of their portions, which is complicated
+
+        we also need one CLI invocation to handle all repositories.
+
+        - header needs to be sent out per chunk. that suggests one stream per repo.
+
+        Maybe better to just focus on how to do decent progress reporting
+        [task #1: 10/35] [task #2: 5/20] ...
+
+        Or maybe we can maintain the current "whoever came at the right time to report" scheme
+        by maintaining the running sum + current workload. AtomicInteger can keep track.
+
+        Summary:
+        fork/join, so that tasks can be forked
+        the work is happening one thread, one repo. file transfer is buffered and flipped for counting
+        file sender to be invoked concurrently
+        two sets of AtomcInteger counters to maintain files to transfer + files transferred
+        thread local chunk streamers
+
+        CommitChunkStreamer - we'll create one per thread.
+          or maybe not. The point of this is to batch things up, so it benefits from seeing
+          data from multiple threads. flushing is a problem, because it's synchronous. remove flushing.
+          buffer together, then at a batch, fork
+          -> that breaks the parent commit first guarantee from this perspective, best to keep one repository, one thread,
+             just do those in parallel. This bites us back if we have tons of repo each small. To solve this,
+             every thread maintains its own pool, flushing if it gets too big, but consolidate the remaining work to
+             the global queue. But that seems too much.
+
+          -> let's just one have synchronized instance with one queue, where the act of writing
+             blocks all produceers. simplest way to guarantee ordering. IOW no concurrent write, which
+             is sufficient for now, since this is not the real bottleneck.
+        FileChunkStreamer - one per thread, in order to deal with header. create header per chunk
+        ProgressReportingConsumer - one per thread, but update common AtomicIntegers for counting,
+          then steal worker to report.
+
+        submodule walk is fast enough, we can afford to do it twice
+
+        for each 'r' in parallel {
+          collect files
+        }
+        for each 'r' in parallel {
+          collect commits
+        }
+
+        mixing serial and parallel complicates the close op, so let's just do it in parallel, and have
+        CommitChunkStreamer serialize the whole thing back down to one.
+
+        ----
+        take 2
+
+        for each 'r' in parallel:
+          recursively find submodules, use ExecutorService to submit tasks for each of them, closing repos at the end
+          but this makes `close` complicated
+
+     */
+
+//    ExecutorService es = Executors.newFixedThreadPool(4);
+    // for debugging
+    ExecutorService es = MoreExecutors.newDirectExecutorService();
+
+    ProgressReporter<VirtualFile> pr = new ProgressReporter<>(VirtualFile::path, Duration.ofSeconds(3));
+    try {
+      if (collectFiles) {
+        // record all the necessary BLOBs first, before attempting to record its commit.
+        // this way, if the file collection fails, the server won't see this commit, so the future
+        // "record commit" invocation will retry the file collection, thereby making the behavior idempotent.
+        r.forEachSubModule(es, br -> {
+          // TODO: file transfer can be parallelized more aggressively, where we send chunks in parallel
+          try (FileChunkStreamer fs = new FileChunkStreamer(fileSender, chunkSize);
+               ProgressReporter<VirtualFile>.Consumer fsr = pr.newConsumer(fs)) {
+            br.collectFiles(advertised, treeReceiver, fsr);
+          }
+        });
+      }
+      r.forEachSubModule(es, br -> {
+        // we need to send commits in the topological order, so any parallelization within a repository
+        // is probably not worth the effort.
+        // TODO: If we process a repository and that doesn't create enough commits
+        // to form a full chunk, then it makes sense to concatenate them with other commits from other repositories.
+        // Even when # of repos is large, incremental transfer typically only produces a small amount of commits
+        // per repo, so this will considerably reduce the connection setup / tear down overhead.
+        try (CommitChunkStreamer cs = new CommitChunkStreamer(commitSender, chunkSize)) {
+          br.collectCommits(advertised, cs);
+        }
+      });
+    } finally {
+      es.shutdown();
     }
   }
 
@@ -334,75 +431,29 @@ public class CommitGraphCollector {
       this.shallowCommits = objectReader.getShallowCommits();
     }
 
-    /**
-     * Writes delta between local commits to the advertised to JSON stream.
-     *
-     * @param commitReceiver Receives commits that should be sent, one by one.
-     */
-    public void transfer(Collection<ObjectId> advertised, Consumer<JSCommit> commitReceiver, TreeReceiver treeReceiver, FlushableConsumer<VirtualFile> fileReceiver)
-        throws IOException {
-      try (RevWalk walk = new RevWalk(git); TreeWalk treeWalk = new TreeWalk(git)) {
-        // walk reverse topological order, so that older commits get added to the server earlier.
-        // This way, the connectivity of the commit graph will be always maintained
-        walk.sort(RevSort.TOPO);
-        walk.sort(RevSort.REVERSE, true);
-        // also combine this with commit time based ordering, so that we can stop walking when we
-        // find old enough commits AFAICT, this is no-op in JGit and it always sorts things in
-        // commit time order, but it is in the contract, so I'm assuming we shouldn't rely on the
-        // implementation optimization that's currently enabling this all the time
-        walk.sort(RevSort.COMMIT_TIME_DESC, true);
-
-        ObjectId headId = git.resolve("HEAD");
-        RevCommit start = walk.parseCommit(headId);
-        walk.markStart(start);
-        treeWalk.addTree(start.getTree());
-
-        // don't walk commits too far back.
-        // for our purpose of computing CUT, these are unlikely to contribute meaningfully
-        // and it drastically cuts down the initial commit consumption of a new large repository.
-        // ... except we do want to capture the head commit, as that makes it easier to spot integration problems
-        // when `record build` and `record commit` are separated.
-
-        // two RevFilters are order sensitive. This is because CommitTimeRevFilter.after doesn't return false to
-        // filter things out, it throws StopWalkException to terminate the walk, never giving a chance for the other
-        // branch of OR to be evaluated. So we need to put ObjectRevFilter first.
-        walk.setRevFilter(
-            OrRevFilter.create(
-              new ObjectRevFilter(headId),
-              CommitTimeRevFilter.after(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(maxDays))));
-
-        for (ObjectId id : advertised) {
-          try {
-            RevCommit c = walk.parseCommit(id);
-            walk.markUninteresting(c);
-            if (!reportAllFiles) {
-              treeWalk.addTree(c.getTree());
-            }
-          } catch (MissingObjectException e) {
-            // it's possible that the server advertises a commit we don't have.
-            //
-            // TODO: how does git-push handles the case when the client doesn't recognize commits?
-            // Unless it tries to negotiate further what commits they have in common,
-            // git-upload-pack can end up creating a big pack with lots of redundant objects
-            //
-            // think about a case when a client is pushing a new branch against
-            // the master branch that moved on the server.
-          }
-        }
-
-        // record all the necessary BLOBs first, before attempting to record its commit.
-        // this way, if the file collection fails, the server won't see this commit, so the future
-        // "record commit" invocation will retry the file collection, thereby making the behavior idempotent.
-        collectFiles(start, treeWalk, treeReceiver, fileReceiver);
-        fileReceiver.flush();
-
-        // walk the commits, transform them, and send them to the commitReceiver
-        for (RevCommit c : walk) {
-          commitReceiver.accept(transform(c));
-          commitsSent++;
+    void forEachSubModule(ExecutorService threadPool, IOConsumer<ByRepository> consumer) throws IOException {
+      for (Future<?> f : forEachSubModuleAsync(threadPool, consumer)) {
+        try {
+          f.get();
+        } catch (Exception e) {
+          throw new IOException("Failed to process a repository", e);
         }
       }
+    }
 
+    /**
+     * Recursively iterate all the sub-modules and apply the given consumer to them asynchronously, using the given
+     * thread pool.
+     *
+     * <p>
+     * The way this function mixes (1) synchronous call to consumer with {@code this}, (2) use thread pool to recursively
+     * process submodules might be a bit hard to follow. This was motivated by the fact that {@link ByRepository} for
+     * sub-modules need to be closed, while {@code this} shouldn't be closed.
+     *
+     * @return all the async jobs that are forked off, to allow the caller to wait for their completion.
+     */
+    Collection<Future<?>> forEachSubModuleAsync(ExecutorService threadPool, IOConsumer<ByRepository> consumer) throws IOException {
+      Vector<Future<?>> jobs = new Vector<>();
       /*
          Git submodule support
          =====================
@@ -421,73 +472,114 @@ public class CommitGraphCollector {
       if (!git.isBare()) {
         try (SubmoduleWalk swalk = SubmoduleWalk.forIndex(git)) {
           while (swalk.next()) {
-            try (Repository subRepo = swalk.getRepository()) {
-              if (subRepo != null) {
-                try {
-                  try (ByRepository br = new ByRepository(subRepo, name + "/" + swalk.getModulesPath())) {
-                    br.transfer(advertised, commitReceiver, treeReceiver, fileReceiver);
+            Repository subRepo = swalk.getRepository();
+            if (subRepo != null) {
+              try {
+                ByRepository br = new ByRepository(subRepo, name + "/" + swalk.getModulesPath());
+                jobs.add(threadPool.submit(() -> {
+                  try {
+                    jobs.addAll(br.forEachSubModuleAsync(threadPool, consumer));
+                    return null;
+                  } finally {
+                    br.close();
+                    subRepo.close();
                   }
-                } catch (ConfigInvalidException e) {
-                  throw new IOException("Invalid Git submodule configuration: " + git.getDirectory(), e);
-                }
+                }));
+              } catch (ConfigInvalidException e) {
+                throw new IOException("Invalid Git submodule configuration: " + git.getDirectory(), e);
               }
             }
           }
         }
       }
+
+      consumer.accept(this);
+
+      return jobs;
+    }
+
+    private void parseEachCommit(RevWalk walk, Collection<ObjectId> advertised, IOConsumer<RevCommit> consumer) throws IOException {
+      for (ObjectId id : advertised) {
+        try {
+          RevCommit c = walk.parseCommit(id);
+          consumer.accept(c);
+        } catch (MissingObjectException e) {
+          // it's possible that the server advertises a commit we don't have.
+          //
+          // TODO: how does git-push handles the case when the client doesn't recognize commits?
+          // Unless it tries to negotiate further what commits they have in common,
+          // git-upload-pack can end up creating a big pack with lots of redundant objects
+          //
+          // think about a case when a client is pushing a new branch against
+          // the master branch that moved on the server.
+        }
+      }
     }
 
     /**
-     * treeWalk contains the HEAD (the interesting commit) at the 0th position, then all the commits
-     * the server advertised in the 1st, 2nd, ...
-     * Our goal here is to find all the files that the server hasn't seen yet. We'll send them to the tree receiver,
-     * which further responds with the actual files we need to send to the server.
+     * Records all the necessary BLOBs first
      */
-    private void collectFiles(RevCommit start, TreeWalk treeWalk, TreeReceiver treeReceiver, Consumer<VirtualFile> fileReceiver) throws IOException {
-      if (!collectFiles) {
-          return;
-      }
+    void collectFiles(Collection<ObjectId> advertised, TreeReceiver treeReceiver, FlushableConsumer<VirtualFile> fileReceiver) throws IOException {
+      try (TreeWalk treeWalk = new TreeWalk(git)) {
+        ObjectId headId = git.resolve("HEAD");
+        RevCommit start = git.parseCommit(headId);
+        treeWalk.addTree(start.getTree());
 
-
-      int c = treeWalk.getTreeCount();
-
-      OUTER:
-      while (treeWalk.next()) {
-        ObjectId head = treeWalk.getObjectId(0);
-        for (int i = 1; i < c; i++) {
-          if (head.equals(treeWalk.getObjectId(i))) {
-            // file at the head is identical to one of the uninteresting commits,
-            // meaning we have already seen this file/directory on the server.
-            // if it is a dir, there's no need to visit this whole subtree, so skip over
-            continue OUTER;
+        if (!reportAllFiles) {
+          // to optimize data transfer, skip files that the server has already seen
+          // i.e., files that are present in any of the advertised commits
+          // if the reportAllFiles flag is on, then skip this optimization on the client side.
+          // treeReceiver will still provide an opportunity for the server to be selective.
+          try (RevWalk walk = new RevWalk(git)) {
+            parseEachCommit(walk, advertised, c -> treeWalk.addTree(c.getTree()));
           }
         }
 
-        if (treeWalk.isSubtree()) {
-          treeWalk.enterSubtree();
-        } else {
-          if ((treeWalk.getFileMode(0).getBits() & FileMode.TYPE_MASK) == FileMode.TYPE_FILE) {
-            GitFile f = new GitFile(name, treeWalk.getPathString(), head, objectReader);
-            // to avoid excessive data transfer, skip files that are too big
-            if (f.size() < 1024 * 1024 && f.isText() && !f.path.equals(HEADER_FILE)) {
-              treeReceiver.accept(f);
+
+        int c = treeWalk.getTreeCount();
+
+        OUTER:
+        while (treeWalk.next()) {
+          ObjectId head = treeWalk.getObjectId(0);
+          for (int i = 1; i < c; i++) {
+            if (head.equals(treeWalk.getObjectId(i))) {
+              // file at the head is identical to one of the uninteresting commits,
+              // meaning we have already seen this file/directory on the server.
+              // if it is a dir, there's no need to visit this whole subtree, so skip over
+              continue OUTER;
+            }
+          }
+
+          if (treeWalk.isSubtree()) {
+            treeWalk.enterSubtree();
+          } else {
+            if ((treeWalk.getFileMode(0).getBits() & FileMode.TYPE_MASK) == FileMode.TYPE_FILE) {
+              GitFile f = new GitFile(name, treeWalk.getPathString(), head, objectReader);
+              // to avoid excessive data transfer, skip files that are too big
+              if (f.size() < 1024 * 1024 && f.isText() && !f.path.equals(HEADER_FILE)) {
+                treeReceiver.accept(f);
+              }
             }
           }
         }
-      }
 
-      // Note(Konboi): To balance the order, since words like "test" and "spec" tend to appear
-      // toward the end in alphabetical sorting.
-      List<VirtualFile> files = new ArrayList<>(treeReceiver.response());
-      if (!files.isEmpty()) {
-        fileReceiver.accept(buildHeader(start));
-        filesSent++;
+        // Now let the server select the files it actually wants to see
+        List<VirtualFile> files = new ArrayList<>(treeReceiver.response());
 
-        Collections.shuffle(files);
-        for (VirtualFile f : files) {
-          fileReceiver.accept(f);
-          filesSent++;
+        // Note(Konboi): To balance the order, since words like "test" and "spec" tend to appear
+        // toward the end in alphabetical sorting.
+        if (!files.isEmpty()) {
+          fileReceiver.accept(buildHeader(start));
+          filesSent.incrementAndGet();
+
+          Collections.shuffle(files);
+          for (VirtualFile f : files) {
+            fileReceiver.accept(f);
+            filesSent.incrementAndGet();
+          }
         }
+
+        fileReceiver.flush();
       }
     }
 
@@ -519,6 +611,44 @@ public class CommitGraphCollector {
       return VirtualFile.from(name, HEADER_FILE, ObjectId.zeroId(), os.toByteArray());
     }
 
+    void collectCommits(Collection<ObjectId> advertised, Consumer<JSCommit> commitReceiver) throws IOException {
+      try (RevWalk walk = new RevWalk(git)) {
+        // walk reverse topological order, so that older commits get added to the server earlier.
+        // This way, the connectivity of the commit graph will be always maintained
+        walk.sort(RevSort.TOPO);
+        walk.sort(RevSort.REVERSE, true);
+        // also combine this with commit time based ordering, so that we can stop walking when we
+        // find old enough commits AFAICT, this is no-op in JGit and it always sorts things in
+        // commit time order, but it is in the contract, so I'm assuming we shouldn't rely on the
+        // implementation optimization that's currently enabling this all the time
+        walk.sort(RevSort.COMMIT_TIME_DESC, true);
+
+        ObjectId headId = git.resolve("HEAD");
+        walk.markStart(walk.parseCommit(headId));
+
+        // don't walk commits too far back.
+        // for our purpose of computing CUT, these are unlikely to contribute meaningfully
+        // and it drastically cuts down the initial commit consumption of a new large repository.
+        // ... except we do want to capture the head commit, as that makes it easier to spot integration problems
+        // when `record build` and `record commit` are separated.
+
+        // two RevFilters are order sensitive. This is because CommitTimeRevFilter.after doesn't return false to
+        // filter things out, it throws StopWalkException to terminate the walk, never giving a chance for the other
+        // branch of OR to be evaluated. So we need to put ObjectRevFilter first.
+        walk.setRevFilter(
+            OrRevFilter.create(
+              new ObjectRevFilter(headId),
+              CommitTimeRevFilter.after(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(maxDays))));
+
+        parseEachCommit(walk, advertised, walk::markUninteresting);
+
+        // walk the commits, transform them, and send them to the commitReceiver
+        for (RevCommit c : walk) {
+          commitReceiver.accept(transform(c));
+          commitsSent.incrementAndGet();
+        }
+      }
+    }
 
     private JSCommit transform(RevCommit r) throws IOException {
       JSCommit c = new JSCommit();

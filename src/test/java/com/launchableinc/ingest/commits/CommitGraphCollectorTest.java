@@ -177,13 +177,13 @@ public class CommitGraphCollectorTest {
       CommitGraphCollector cgc = new CommitGraphCollector("test", mainrepo.getRepository());
       cgc.collectFiles(true);
       cgc.new ByRepository(mainrepo.getRepository(), "main")
-        .transfer(Collections.emptyList(), c -> {},
+        .collectFiles(Collections.emptyList(),
           new PassThroughTreeReceiverImpl(),
           FlushableConsumer.of(files::add));
 
-      // header for the main repo, 'gitmodules', header for the sub repo, 'a', and 'x' in the sub repo
-      assertThat(files).hasSize(5);
-      VirtualFile header = files.get(2);
+      // header for the main repo, 'gitmodules'
+      assertThat(files).hasSize(2);
+      VirtualFile header = files.get(0);
       assertThat(header.path()).isEqualTo(CommitGraphCollector.HEADER_FILE);
       JsonNode tree = assertValidJson(header::writeTo).get("tree");
       assertThat(tree.isArray()).isTrue();
@@ -193,7 +193,7 @@ public class CommitGraphCollectorTest {
         paths.add(i.get("path").asText());
       }
 
-      assertThat(paths).containsExactly("a", "x");
+      assertThat(paths).containsExactly(".gitmodules", "sub");
     }
   }
 
