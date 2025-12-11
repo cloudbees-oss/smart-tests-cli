@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.CharStreams;
-import com.google.common.util.concurrent.MoreExecutors;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.http.Header;
@@ -61,6 +60,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.Vector;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -279,90 +279,25 @@ public class CommitGraphCollector {
     Collection<ObjectId> advertised, IOConsumer<ContentProducer> commitSender, TreeReceiver treeReceiver, IOConsumer<ContentProducer> fileSender, int chunkSize)
       throws IOException {
     ByRepository r = new ByRepository(root, rootName);
-    /*
-      Parallelization
 
-        TreeReceiver is blocking, so the big block in transfer should run in parallel
-        - That gets CommitChunkStreamer and FileChunkStreamer invoked concurrently.
-        - caller wants to wait for the response to FileChunkStreamer then collect commits,
-          so this should be designed nicely
-        - commit collection is very fast, so maybe we just need to do this after the whole join
-
-        - otherwise, we create a file queue and let threads wait for completion of their portions, which is complicated
-
-        we also need one CLI invocation to handle all repositories.
-
-        - header needs to be sent out per chunk. that suggests one stream per repo.
-
-        Maybe better to just focus on how to do decent progress reporting
-        [task #1: 10/35] [task #2: 5/20] ...
-
-        Or maybe we can maintain the current "whoever came at the right time to report" scheme
-        by maintaining the running sum + current workload. AtomicInteger can keep track.
-
-        Summary:
-        fork/join, so that tasks can be forked
-        the work is happening one thread, one repo. file transfer is buffered and flipped for counting
-        file sender to be invoked concurrently
-        two sets of AtomcInteger counters to maintain files to transfer + files transferred
-        thread local chunk streamers
-
-        CommitChunkStreamer - we'll create one per thread.
-          or maybe not. The point of this is to batch things up, so it benefits from seeing
-          data from multiple threads. flushing is a problem, because it's synchronous. remove flushing.
-          buffer together, then at a batch, fork
-          -> that breaks the parent commit first guarantee from this perspective, best to keep one repository, one thread,
-             just do those in parallel. This bites us back if we have tons of repo each small. To solve this,
-             every thread maintains its own pool, flushing if it gets too big, but consolidate the remaining work to
-             the global queue. But that seems too much.
-
-          -> let's just one have synchronized instance with one queue, where the act of writing
-             blocks all produceers. simplest way to guarantee ordering. IOW no concurrent write, which
-             is sufficient for now, since this is not the real bottleneck.
-        FileChunkStreamer - one per thread, in order to deal with header. create header per chunk
-        ProgressReportingConsumer - one per thread, but update common AtomicIntegers for counting,
-          then steal worker to report.
-
-        submodule walk is fast enough, we can afford to do it twice
-
-        for each 'r' in parallel {
-          collect files
-        }
-        for each 'r' in parallel {
-          collect commits
-        }
-
-        mixing serial and parallel complicates the close op, so let's just do it in parallel, and have
-        CommitChunkStreamer serialize the whole thing back down to one.
-
-        ----
-        take 2
-
-        for each 'r' in parallel:
-          recursively find submodules, use ExecutorService to submit tasks for each of them, closing repos at the end
-          but this makes `close` complicated
-
-     */
-
-//    ExecutorService es = Executors.newFixedThreadPool(4);
+    ExecutorService es = Executors.newFixedThreadPool(4);
     // for debugging
-    ExecutorService es = MoreExecutors.newDirectExecutorService();
+//    ExecutorService es = MoreExecutors.newDirectExecutorService();
 
     ProgressReporter<VirtualFile> pr = new ProgressReporter<>(VirtualFile::path, Duration.ofSeconds(3));
     try {
-      if (collectFiles) {
-        // record all the necessary BLOBs first, before attempting to record its commit.
-        // this way, if the file collection fails, the server won't see this commit, so the future
-        // "record commit" invocation will retry the file collection, thereby making the behavior idempotent.
-        r.forEachSubModule(es, br -> {
+      r.forEachSubModule(es, br -> {
+        if (collectFiles) {
+          // record all the necessary BLOBs first, before attempting to record its commit.
+          // this way, if the file collection fails, the server won't see this commit, so the future
+          // "record commit" invocation will retry the file collection, thereby making the behavior idempotent.
           // TODO: file transfer can be parallelized more aggressively, where we send chunks in parallel
           try (FileChunkStreamer fs = new FileChunkStreamer(fileSender, chunkSize);
                ProgressReporter<VirtualFile>.Consumer fsr = pr.newConsumer(fs)) {
             br.collectFiles(advertised, treeReceiver, fsr);
           }
-        });
-      }
-      r.forEachSubModule(es, br -> {
+        }
+
         // we need to send commits in the topological order, so any parallelization within a repository
         // is probably not worth the effort.
         // TODO: If we process a repository and that doesn't create enough commits
