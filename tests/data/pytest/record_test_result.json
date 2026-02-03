@@ -64,11 +64,7 @@
       "stdout": "",
       "stderr": "",
       "data": {
-        "markers": [
-          { "name": "name", "value": "foo" },
-          { "name": "args", "value": "()" },
-          { "name": "kwargs", "value": "{}" }
-        ],
+        "markers": [{ "name": "foo", "value": "" }],
         "lineNumber": 3
       }
     },
@@ -84,11 +80,7 @@
       "stdout": "",
       "stderr": "@pytest.mark.bar\n                def test_func2():\n                > assert 1 == False # noqa: E712\n                E assert 1 == False\n\n                tests/test_funcs1.py:9: AssertionError",
       "data": {
-        "markers": [
-          { "name": "name", "value": "bar" },
-          { "name": "args", "value": "()" },
-          { "name": "kwargs", "value": "{}" }
-        ],
+        "markers": [{ "name": "bar", "value": "" }],
         "lineNumber": 7
       }
     },
@@ -105,12 +97,8 @@
       "stderr": "x = 0, y = 2\n\n                @pytest.mark.parametrize(\"x\", [0, 1])\n                @pytest.mark.parametrize(\"y\", [2, 3])\n                def test_foo(x, y):\n                > assert x == 1\n                E assert 0 == 1\n\n                tests/test_funcs1.py:15: AssertionError",
       "data": {
         "markers": [
-          { "name": "name", "value": "parametrize" },
-          { "name": "args", "value": "('y', [2, 3])" },
-          { "name": "kwargs", "value": "{}" },
-          { "name": "name", "value": "parametrize" },
-          { "name": "args", "value": "('x', [0, 1])" },
-          { "name": "kwargs", "value": "{}" }
+          { "name": "parametrize", "value": "('x', [0, 1])" },
+          { "name": "parametrize", "value": "('y', [2, 3])" }
         ],
         "lineNumber": 12
       }
@@ -128,12 +116,8 @@
       "stderr": "",
       "data": {
         "markers": [
-          { "name": "name", "value": "parametrize" },
-          { "name": "args", "value": "('y', [2, 3])" },
-          { "name": "kwargs", "value": "{}" },
-          { "name": "name", "value": "parametrize" },
-          { "name": "args", "value": "('x', [0, 1])" },
-          { "name": "kwargs", "value": "{}" }
+          { "name": "parametrize", "value": "('x', [0, 1])" },
+          { "name": "parametrize", "value": "('y', [2, 3])" }
         ],
         "lineNumber": 12
       }
@@ -151,12 +135,8 @@
       "stderr": "x = 0, y = 3\n\n                @pytest.mark.parametrize(\"x\", [0, 1])\n                @pytest.mark.parametrize(\"y\", [2, 3])\n                def test_foo(x, y):\n                > assert x == 1\n                E assert 0 == 1\n\n                tests/test_funcs1.py:15: AssertionError",
       "data": {
         "markers": [
-          { "name": "name", "value": "parametrize" },
-          { "name": "args", "value": "('y', [2, 3])" },
-          { "name": "kwargs", "value": "{}" },
-          { "name": "name", "value": "parametrize" },
-          { "name": "args", "value": "('x', [0, 1])" },
-          { "name": "kwargs", "value": "{}" }
+          { "name": "parametrize", "value": "('x', [0, 1])" },
+          { "name": "parametrize", "value": "('y', [2, 3])" }
         ],
         "lineNumber": 12
       }
@@ -174,12 +154,8 @@
       "stderr": "",
       "data": {
         "markers": [
-          { "name": "name", "value": "parametrize" },
-          { "name": "args", "value": "('y', [2, 3])" },
-          { "name": "kwargs", "value": "{}" },
-          { "name": "name", "value": "parametrize" },
-          { "name": "args", "value": "('x', [0, 1])" },
-          { "name": "kwargs", "value": "{}" }
+          { "name": "parametrize", "value": "('x', [0, 1])" },
+          { "name": "parametrize", "value": "('y', [2, 3])" }
         ],
         "lineNumber": 12
       }
@@ -196,11 +172,7 @@
       "stdout": "",
       "stderr": "",
       "data": {
-        "markers": [
-          { "name": "name", "value": "foo" },
-          { "name": "args", "value": "()" },
-          { "name": "kwargs", "value": "{}" }
-        ],
+        "markers": [{ "name": "foo", "value": "" }],
         "lineNumber": 3
       }
     },
@@ -216,11 +188,7 @@
       "stdout": "",
       "stderr": "",
       "data": {
-        "markers": [
-          { "name": "name", "value": "bar" },
-          { "name": "args", "value": "()" },
-          { "name": "kwargs", "value": "{}" }
-        ],
+        "markers": [{ "name": "bar", "value": "" }],
         "lineNumber": 8
       }
     }

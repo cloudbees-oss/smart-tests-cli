@@ -20,7 +20,18 @@
       "status": 1,
       "stdout": "",
       "stderr": "",
-      "data": null
+      "data": {
+        "markers": [
+          {
+            "name": "parametrize",
+            "value": "[\"x\", [0, 1]]"
+          },
+          {
+            "name": "slow",
+            "value": "[]"
+          }
+        ]
+      }
     },
     {
       "type": "case",
@@ -64,7 +75,14 @@
       "status": 1,
       "stdout": "",
       "stderr": "",
-      "data": null
+      "data": {
+        "markers": [
+          {
+            "name": "dependency",
+            "value": "{\"name\": \"test1\", \"depends\": [\"test0\"]}"
+          }
+        ]
+      }
     },
     {
       "type": "case",
@@ -108,7 +126,14 @@
       "status": 1,
       "stdout": "",
       "stderr": "",
-      "data": null
+      "data": {
+        "markers": [
+          {
+            "name": "order",
+            "value": "[2]"
+          }
+        ]
+      }
     },
     {
       "type": "case",

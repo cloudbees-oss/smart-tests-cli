@@ -3,6 +3,7 @@ import json
 import os
 import pathlib
 import subprocess
+from enum import Enum
 from typing import Generator, List
 
 import click
@@ -125,6 +126,52 @@ def _pytest_formatter(test_path):
 split_subset = launchable.CommonSplitSubsetImpls(__name__, formatter=_pytest_formatter).split_subset()
 
 
+class ReportKind(Enum):
+    JSON = 0
+    XML = 1
+
+
+def _parse_markers(props: List, kind: ReportKind) -> List[dict]:
+    """
+    Parse marker properties from either XML properties or JSON user_properties format.
+    """
+    markers = []
+    marker = {}
+
+    for prop in props:
+        if kind == ReportKind.JSON:
+            # JSON format: prop is a list like ["name", "value"]
+            if not isinstance(prop, list) or len(prop) != 2:
+                continue
+            prop_name, prop_value = prop[0], prop[1]
+        else:
+            # XML format: prop has .name and .value attributes
+            prop_name, prop_value = prop.name, prop.value
+
+        if prop_name == "name":
+            marker["name"] = prop_value
+        elif prop_name == "args":
+            if isinstance(prop_value, str):
+                if prop_value not in ("()", "{}"):
+                    marker["value"] = prop_value
+            else:
+                if prop_value not in ((), {}):
+                    marker["value"] = json.dumps(prop_value)
+        elif prop_name == "kwargs":
+            if isinstance(prop_value, str):
+                if prop_value not in ("()", "{}"):
+                    marker["value"] = prop_value
+            else:
+                if prop_value not in ((), {}):
+                    marker["value"] = json.dumps(prop_value)
+            if "value" not in marker:
+                marker["value"] = ""
+            markers.append(marker)
+            marker = {}
+
+    return markers
+
+
 @click.option('--json', 'json_report', help="use JSON report files produced by pytest-dev/pytest-reportlog",
               is_flag=True)
 @click.argument('source_roots', required=True, nargs=-1)
@@ -148,7 +195,7 @@ def record_tests(client, json_report, source_roots):
                     </properties>
                 ```
             """
-            markers = [{"name": prop.name, "value": prop.value} for prop in props]
+            markers = _parse_markers(props, kind=ReportKind.XML)
             result["markers"] = markers if markers else []
 
         metadata = MetadataTestCase.fromelem(case)
@@ -312,15 +359,7 @@ class PytestJSONReportParser:
                 """
                 props = data.get('user_properties')
                 if isinstance(props, list):
-                    markers = []
-                    for prop in props:
-                        if isinstance(prop, list) and len(prop) == 2:
-                            # prop is like ["name", "value"]
-                            # prop[0] is name, prop[1] is value
-                            if isinstance(prop[1], str):
-                                markers.append({"name": prop[0], "value": prop[1]})
-                            else:
-                                markers.append({"name": prop[0], "value": json.dumps(prop[1])})
+                    markers = _parse_markers(props, kind=ReportKind.JSON)
                     if len(props) > 0:
                         props = {'markers': markers}
                     else:
