@@ -30,7 +30,7 @@ class SessionTest(CliTestCase):
         payload = json.loads(responses.calls[1].request.body.decode())
         self.assert_json_orderless_equal({
             "flavors": {},
-            "isObservation": False,
+            "isObservation": True,
             "links": [],
             "noBuild": False,
             "lineage": None,
