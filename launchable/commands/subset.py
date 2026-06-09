@@ -223,6 +223,14 @@ LARGE_PAYLOAD_CONNECT_TIMEOUT = 60
     type=click.Choice(["one-commit", "feature-branch", "recurring"]),
     hidden=True,  # control PTS v2 test selection behavior. Non-committed, so hidden for now.
 )
+@click.option(
+    "--subset-id-file",
+    "subset_id_file",
+    help="Write the subset ID to a file",
+    metavar="FILE",
+    type=str,
+    hidden=True,
+)
 @click.pass_context
 def subset(
     context: click.core.Context,
@@ -253,6 +261,7 @@ def subset(
     is_get_tests_from_guess: bool = False,
     use_case: Optional[str] = None,
     similarity: Optional[float] = None,
+    subset_id_file: Optional[str] = None,
 ):
     app = context.obj
     tracking_client = TrackingClient(Command.SUBSET, app=app)
@@ -392,6 +401,7 @@ def subset(
             self.is_get_tests_from_guess = is_get_tests_from_guess
             self.is_output_exclusion_rules = is_output_exclusion_rules
             self.is_get_tests_from_guess = is_get_tests_from_guess
+            self.subset_id_file = subset_id_file
             super(Optimize, self).__init__(app=app)
 
         def _default_output_handler(self, output: List[TestPath], rests: List[TestPath]):
@@ -566,6 +576,17 @@ def subset(
             if not found:
                 warn_and_exit_if_fail_fast_mode("Nothing that looks like a test file in the current git repository.")
 
+        def _write_subset_id_to_file(self, subset_result: SubsetResult):
+            if not subset_result.subset_id:
+                print_error_and_die(
+                    "Subset request did not return a subset ID. Please re-run the command.",
+                    Tracking.ErrorEvent.INTERNAL_CLI_ERROR,
+                )
+
+            assert self.subset_id_file is not None  # Early type guard
+            with open(self.subset_id_file, 'w', encoding='utf-8') as f:
+                f.write(str(subset_result.subset_id) + '\n')
+
         def request_subset(self) -> SubsetResult:
             test_runner = context.invoked_subcommand
             # temporarily extend the timeout because subset API response has become slow
@@ -647,6 +668,9 @@ def subset(
                     self.exclusion_output_handler(output_subset, output_rests)
                 else:
                     self.output_handler(output_subset, output_rests)
+
+            if self.subset_id_file:
+                self._write_subset_id_to_file(subset_result)
 
             # When Launchable returns an error, the cli skips showing summary
             # report

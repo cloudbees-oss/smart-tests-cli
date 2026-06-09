@@ -687,3 +687,233 @@ class SubsetTest(CliTestCase):
         """
         payload = json.loads(gzip.decompress(responses.calls[1].request.body).decode())
         self.assertIn([{"type": "file", "name": "tests/commands/test_subset.py"}], payload.get("testPaths", []))
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token})
+    def test_subset_id_file_not_set(self):
+        pipe = "test_1.py\ntest_2.py\n"
+        mock_json_response = {
+            "testPaths": [
+                [{"type": "file", "name": "test_1.py"}],
+                [{"type": "file", "name": "test_2.py"}],
+            ],
+            "testRunner": "file",
+            "rest": [],
+            "subsettingId": self.subsetting_id,
+            "summary": {
+                "subset": {"duration": 10, "candidates": 2, "rate": 100},
+                "rest": {"duration": 0, "candidates": 0, "rate": 0},
+            },
+            "isObservation": False,
+        }
+        responses.replace(
+            responses.POST,
+            "{}/intake/organizations/{}/workspaces/{}/subset".format(
+                get_base_url(), self.organization, self.workspace),
+            json=mock_json_response,
+            status=200,
+        )
+
+        sentinel = tempfile.NamedTemporaryFile(delete=False)
+        sentinel_path = sentinel.name
+        sentinel.close()
+        os.unlink(sentinel_path)
+
+        result = self.cli(
+            "subset",
+            "--session", self.session,
+            "file",
+            mix_stderr=False,
+            input=pipe,
+        )
+        self.assert_success(result)
+        self.assertEqual(result.stdout, "test_1.py\ntest_2.py\n")
+        self.assertFalse(os.path.exists(sentinel_path))
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token})
+    def test_subset_id_file_written(self):
+        pipe = "test_1.py\ntest_2.py\n"
+        mock_json_response = {
+            "testPaths": [
+                [{"type": "file", "name": "test_1.py"}],
+                [{"type": "file", "name": "test_2.py"}],
+            ],
+            "testRunner": "file",
+            "rest": [],
+            "subsettingId": self.subsetting_id,
+            "summary": {
+                "subset": {"duration": 10, "candidates": 2, "rate": 100},
+                "rest": {"duration": 0, "candidates": 0, "rate": 0},
+            },
+            "isObservation": False,
+        }
+        responses.replace(
+            responses.POST,
+            "{}/intake/organizations/{}/workspaces/{}/subset".format(
+                get_base_url(), self.organization, self.workspace),
+            json=mock_json_response,
+            status=200,
+        )
+
+        with tempfile.NamedTemporaryFile(delete=False) as id_file:
+            id_file_path = id_file.name
+
+        try:
+            result = self.cli(
+                "subset",
+                "--session", self.session,
+                "--subset-id-file", id_file_path,
+                "file",
+                mix_stderr=False,
+                input=pipe,
+            )
+            self.assert_success(result)
+            self.assertEqual(result.stdout, "test_1.py\ntest_2.py\n")
+            with open(id_file_path) as f:
+                self.assertEqual(f.read(), "{}\n".format(self.subsetting_id))
+        finally:
+            os.unlink(id_file_path)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token})
+    def test_subset_id_file_with_target(self):
+        pipe = "test_1.py\ntest_2.py\ntest_3.py\n"
+        mock_json_response = {
+            "testPaths": [
+                [{"type": "file", "name": "test_1.py"}],
+            ],
+            "testRunner": "file",
+            "rest": [
+                [{"type": "file", "name": "test_2.py"}],
+                [{"type": "file", "name": "test_3.py"}],
+            ],
+            "subsettingId": self.subsetting_id,
+            "summary": {
+                "subset": {"duration": 5, "candidates": 1, "rate": 33},
+                "rest": {"duration": 10, "candidates": 2, "rate": 67},
+            },
+            "isObservation": False,
+        }
+        responses.replace(
+            responses.POST,
+            "{}/intake/organizations/{}/workspaces/{}/subset".format(
+                get_base_url(), self.organization, self.workspace),
+            json=mock_json_response,
+            status=200,
+        )
+
+        with tempfile.NamedTemporaryFile(delete=False) as id_file:
+            id_file_path = id_file.name
+
+        try:
+            result = self.cli(
+                "subset",
+                "--session", self.session,
+                "--target", "30%",
+                "--subset-id-file", id_file_path,
+                "file",
+                mix_stderr=False,
+                input=pipe,
+            )
+            self.assert_success(result)
+            self.assertEqual(result.stdout, "test_1.py\n")
+            with open(id_file_path) as f:
+                self.assertEqual(f.read(), "{}\n".format(self.subsetting_id))
+        finally:
+            os.unlink(id_file_path)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token})
+    def test_subset_id_file_with_rest(self):
+        pipe = "test_1.py\ntest_2.py\n"
+        mock_json_response = {
+            "testPaths": [
+                [{"type": "file", "name": "test_1.py"}],
+            ],
+            "testRunner": "file",
+            "rest": [
+                [{"type": "file", "name": "test_2.py"}],
+            ],
+            "subsettingId": self.subsetting_id,
+            "summary": {
+                "subset": {"duration": 5, "candidates": 1, "rate": 50},
+                "rest": {"duration": 5, "candidates": 1, "rate": 50},
+            },
+            "isObservation": False,
+        }
+        responses.replace(
+            responses.POST,
+            "{}/intake/organizations/{}/workspaces/{}/subset".format(
+                get_base_url(), self.organization, self.workspace),
+            json=mock_json_response,
+            status=200,
+        )
+
+        with tempfile.NamedTemporaryFile(delete=False) as id_file, \
+                tempfile.NamedTemporaryFile(delete=False) as rest_file:
+            id_file_path = id_file.name
+            rest_file_path = rest_file.name
+
+        try:
+            result = self.cli(
+                "subset",
+                "--session", self.session,
+                "--rest", rest_file_path,
+                "--subset-id-file", id_file_path,
+                "file",
+                mix_stderr=False,
+                input=pipe,
+            )
+            self.assert_success(result)
+            self.assertEqual(result.stdout, "test_1.py\n")
+            with open(id_file_path) as f:
+                self.assertEqual(f.read(), "{}\n".format(self.subsetting_id))
+            with open(rest_file_path) as f:
+                self.assertIn("test_2.py", f.read())
+        finally:
+            os.unlink(id_file_path)
+            os.unlink(rest_file_path)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token})
+    def test_subset_id_file_no_id_returned(self):
+        pipe = "test_1.py\n"
+        mock_json_response = {
+            "testPaths": [
+                [{"type": "file", "name": "test_1.py"}],
+            ],
+            "testRunner": "file",
+            "rest": [],
+            "subsettingId": "",
+            "summary": {
+                "subset": {"duration": 5, "candidates": 1, "rate": 100},
+                "rest": {"duration": 0, "candidates": 0, "rate": 0},
+            },
+            "isObservation": False,
+        }
+        responses.replace(
+            responses.POST,
+            "{}/intake/organizations/{}/workspaces/{}/subset".format(
+                get_base_url(), self.organization, self.workspace),
+            json=mock_json_response,
+            status=200,
+        )
+
+        with tempfile.NamedTemporaryFile(delete=False) as id_file:
+            id_file_path = id_file.name
+
+        try:
+            result = self.cli(
+                "subset",
+                "--session", self.session,
+                "--subset-id-file", id_file_path,
+                "file",
+                mix_stderr=False,
+                input=pipe,
+            )
+            self.assert_exit_code(result, 1)
+            self.assertIn("Subset request did not return a subset ID", result.stderr)
+        finally:
+            if os.path.exists(id_file_path):
+                os.unlink(id_file_path)
