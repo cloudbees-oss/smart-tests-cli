@@ -20,6 +20,8 @@ class SubsetResult (object):
         self._test_path = "#".join([path["type"] + "=" + path["name"]
                                    for path in result["testPath"] if path.keys() >= {"type", "name"}])
         self._is_subset = is_subset
+        self._density = result.get("density", 0.0)
+        self._is_new = result.get("numNewTests", 0) > 0
 
 
 class SubsetResults(object):
@@ -57,19 +59,22 @@ class SubsetResultTableDisplay(SubsetResultAbstractDisplay):
     def __init__(self, results: SubsetResults):
         super().__init__(results)
 
-    def display(self):
-        header = ["Order", "Test Path", "In Subset", "Estimated duration (sec)"]
+    def display(self, new_tests_only: bool = False):
+        header = ["Order", "Test Path", "In Subset", "Density", "Duration", "New"]
         rows = []
-        for idx, result in enumerate(self._results.list()):
+        results = [r for r in self._results.list() if r._is_new] if new_tests_only else self._results.list()
+        for idx, result in enumerate(results):
             rows.append(
                 [
                     idx + 1,
                     result._test_path,
                     "✔" if result._is_subset else "",
-                    result._estimated_duration_sec,
+                    result._density,
+                    "{:.3f}s".format(result._estimated_duration_sec),
+                    "Yes" if result._is_new else "No",
                 ]
             )
-        click.echo_via_pager(tabulate(rows, header, tablefmt="github", floatfmt=".2f"))
+        click.echo_via_pager(tabulate(rows, header, tablefmt="github", floatfmt=".3f"))
 
 
 class SubsetResultJSONDisplay(SubsetResultAbstractDisplay):
@@ -105,6 +110,10 @@ def subset(
     json: Annotated[bool, typer.Option(
         help="Display JSON format"
     )] = False,
+    new_tests_only: Annotated[bool, typer.Option(
+        "--new-tests-only",
+        help="Show only tests that have no duration history"
+    )] = False,
 ):
     is_json_format = json  # Map parameter name
 
@@ -135,4 +144,7 @@ def subset(
     else:
         displayer = SubsetResultTableDisplay(results)
 
-    displayer.display()
+    if isinstance(displayer, SubsetResultTableDisplay):
+        displayer.display(new_tests_only=new_tests_only)
+    else:
+        displayer.display()
