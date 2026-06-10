@@ -18,9 +18,9 @@ from ...utils.typer_types import DateTimeWithTimezone, parse_datetime_with_timez
 
 class TestStatus(str, Enum):
     """Test execution status"""
-    PASSED = "PASSED"
-    FAILED = "FAILED"
-    SKIPPED = "SKIPPED"
+    SUCCESS = "SUCCESS"
+    FAILURE = "FAILURE"
+    SKIP = "SKIP"
     FLAKE = "FLAKE"
 
     @staticmethod
@@ -30,7 +30,7 @@ class TestStatus(str, Enum):
             if member.value.lower() == value.lower():
                 return member
         raise BadCmdLineException(
-            f"Invalid status: '{value}'. Valid values: PASSED, FAILED, SKIPPED, FLAKE"
+            f"Invalid status: '{value}'. Valid values: SUCCESS, FAILURE, SKIP, FLAKE"
         )
 
 
@@ -45,7 +45,7 @@ def test_results(
     )],
     status: Annotated[TestStatus | None, typer.Option(
         "--status",
-        help="Filter by test status (PASSED, FAILED, SKIPPED, FLAKE)",
+        help="Filter by test status (SUCCESS, FAILURE, SKIP, FLAKE)",
         type=TestStatus.from_str,
         metavar="STATUS"
     )] = None,
@@ -102,9 +102,9 @@ def test_results(
     if test_suite:
         params["test-suite"] = test_suite
     if from_date:
-        params["from"] = str(from_date)
+        params["from"] = from_date.datetime().strftime("%Y-%m-%d")
     if to_date:
-        params["to"] = str(to_date)
+        params["to"] = to_date.datetime().strftime("%Y-%m-%d")
     if logs:
         params["include-logs"] = "true"
     if limit:

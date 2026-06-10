@@ -197,34 +197,38 @@ class ViewFlakyTestsTest(CliTestCase):
         )
         self.assert_success(result)
 
-        # Verify the request was made and query parameters were passed
+        # Verify the request was made and query parameters were plain YYYY-MM-DD dates
         self.assertGreater(len(responses.calls), 0)
         self.assertIn("/view/flaky-tests", responses.calls[0].request.url)
-        self.assertIn("from=", responses.calls[0].request.url)
-        self.assertIn("to=", responses.calls[0].request.url)
+        self.assertIn("from=2026-04-08", responses.calls[0].request.url)
+        self.assertIn("to=2026-04-14", responses.calls[0].request.url)
 
     @responses.activate
     @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
-    def test_flaky_tests_with_test_suite(self):
-        """Test flaky tests query with test-suite filter"""
+    def test_flaky_tests_with_test_path(self):
+        """Test flaky tests query with test-path filter"""
         mock_json_response = {
             "data": {
-                "weeks": [
+                "results": [
                     {
-                        "weekDate": "2026-W19",
-                        "calculationStatus": "CALCULATED",
-                        "calculationTime": "2026-05-11T10:30:00Z",
-                        "flakyTests": [],
-                        "flakyTestCount": 0
-                    }
-                ]
-            },
+                        "id": "0197c5cc-8468-73f0-ade2-619e21d20049",
+                        "testPath": "class=com.cloudbees.plugin.spec.CreateOrUpdateObjectsSuite#testcase=C000001 Sanity. Create service with deployment definitions from yaml file ",
+                        "status": "SUCCESS",
+                        "totalDuration": 145087,
+                        "passed": 1,
+                        "failed": 0,
+                        "skipped": 0,
+                        "session": {
+                            "id": 4595735,
+                            "buildId": 4196923,
+                            "branch": "master",
+                            "links": [],
+                            "createdAt": "2025-07-01T07:50:22.322649Z"},
+                        "createdAt": "2025-07-01T11:43:24.246347Z"}]},
             "metadata": {
-                "weeksRequested": 1,
-                "weeksReturned": 1,
-                "latestWeek": "2026-W19"
-            }
-        }
+                        "totalCount": 3,
+                        "limit": 50,
+                "offset": 0}}
 
         responses.add(
             responses.GET,
@@ -233,13 +237,20 @@ class ViewFlakyTestsTest(CliTestCase):
             status=200,
         )
 
-        result = self.cli("view", "flaky-tests", "--test-suite", "unit-tests", mix_stderr=False)
+        result = self.cli(
+            "view",
+            "flaky-tests",
+            "--test-path",
+            "class=com.cloudbees.plugin.spec.CreateOrUpdateObjectsSuite#testcase=C000001 Sanity. Create service with deployment definitions from yaml file ",
+            mix_stderr=False)
         self.assert_success(result)
 
-        # Verify the request was made and query parameter was passed
+# Verify the request was made and query parameter was passed
         self.assertGreater(len(responses.calls), 0)
         self.assertIn("/view/flaky-tests", responses.calls[0].request.url)
-        self.assertIn("test-suite=unit-tests", responses.calls[0].request.url)
+        self.assertIn(
+            "test-path=class%3Dcom.cloudbees.plugin.spec.CreateOrUpdateObjectsSuite%23testcase%3DC000001+Sanity.+Create+service+with+deployment+definitions+from+yaml+file+",
+            responses.calls[0].request.url)
 
     @responses.activate
     @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
