@@ -212,7 +212,10 @@ class ViewFlakyTestsTest(CliTestCase):
                 "results": [
                     {
                         "id": "0197c5cc-8468-73f0-ade2-619e21d20049",
-                        "testPath": "class=com.cloudbees.plugin.spec.CreateOrUpdateObjectsSuite#testcase=C000001 Sanity. Create service with deployment definitions from yaml file ",
+                        "testPath": (
+                            "class=com.cloudbees.plugin.spec.CreateOrUpdateObjectsSuite"
+                            "#testcase=C000001 Sanity. Create service with deployment definitions from yaml file "
+                        ),
                         "status": "SUCCESS",
                         "totalDuration": 145087,
                         "passed": 1,
@@ -241,7 +244,8 @@ class ViewFlakyTestsTest(CliTestCase):
             "view",
             "flaky-tests",
             "--test-path",
-            "class=com.cloudbees.plugin.spec.CreateOrUpdateObjectsSuite#testcase=C000001 Sanity. Create service with deployment definitions from yaml file ",
+            "class=com.cloudbees.plugin.spec.CreateOrUpdateObjectsSuite"
+            "#testcase=C000001 Sanity. Create service with deployment definitions from yaml file ",
             mix_stderr=False)
         self.assert_success(result)
 
@@ -249,7 +253,8 @@ class ViewFlakyTestsTest(CliTestCase):
         self.assertGreater(len(responses.calls), 0)
         self.assertIn("/view/flaky-tests", responses.calls[0].request.url)
         self.assertIn(
-            "test-path=class%3Dcom.cloudbees.plugin.spec.CreateOrUpdateObjectsSuite%23testcase%3DC000001+Sanity.+Create+service+with+deployment+definitions+from+yaml+file+",
+            "test-path=class%3Dcom.cloudbees.plugin.spec.CreateOrUpdateObjectsSuite"
+            "%23testcase%3DC000001+Sanity.+Create+service+with+deployment+definitions+from+yaml+file+",
             responses.calls[0].request.url)
 
     @responses.activate
