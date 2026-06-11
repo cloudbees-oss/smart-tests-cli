@@ -209,7 +209,7 @@ class ViewFlakyTestsTest(CliTestCase):
         """Test flaky tests query with test-path filter"""
         mock_json_response = {
             "data": {
-                "results": [
+                "weeks": [
                     {
                         "id": "0197c5cc-8468-73f0-ade2-619e21d20049",
                         "testPath": (
