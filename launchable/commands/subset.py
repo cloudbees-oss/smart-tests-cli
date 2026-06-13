@@ -20,7 +20,7 @@ from launchable.utils.tracking import Tracking, TrackingClient
 
 from ..app import Application
 from ..testpath import FilePathNormalizer, TestPath
-from ..utils.click import DURATION, KEY_VALUE, PERCENTAGE, DurationType, PercentageType, ignorable_error
+from ..utils.click import DURATION, KEY_VALUE, PERCENTAGE, DurationType, ignorable_error
 from ..utils.commands import Command
 from ..utils.env_keys import REPORT_ERROR_KEY
 from ..utils.fail_fast_mode import (FailFastModeValidateParams, fail_fast_mode_validate,
@@ -254,14 +254,14 @@ LARGE_PAYLOAD_CONNECT_TIMEOUT = 60
 @click.pass_context
 def subset(
     context: click.core.Context,
-    target: Optional[PercentageType],
+    target: Optional[float],
     session: Optional[str],
     base_path: Optional[str],
     build_name: Optional[str],
     rest: str,
     duration: Optional[DurationType],
     flavor: Sequence[Tuple[str, str]],
-    confidence: Optional[PercentageType],
+    confidence: Optional[float],
     goal_spec: Optional[str],
     split: bool,
     no_base_path_inference: bool,
@@ -518,7 +518,7 @@ def subset(
         def get_payload(
             self,
             session_id: str,
-            target: Optional[PercentageType],
+            target: Optional[float],
             duration: Optional[DurationType],
             test_runner: str,
         ):
