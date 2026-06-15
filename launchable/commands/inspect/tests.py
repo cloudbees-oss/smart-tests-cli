@@ -96,7 +96,7 @@ class TestResultJSONDisplay(TestResultAbstractDisplay):
         cbp_workspace = self._client.get_cbp_workspace()
         if cbp_workspace:
             org_cbp_id, ws_cbp_id = cbp_workspace
-            return "https://cloudbees.io/{}/{}/smart-tests/test-sessions/{}".format(
+            return "https://cloudbees.io/{}/{}/smart-tests/data/test-sessions/{}".format(
                 org_cbp_id, ws_cbp_id, self._results._test_session_id)
         else:
             org, workspace = ensure_org_workspace()
