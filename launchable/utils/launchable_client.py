@@ -25,6 +25,7 @@ class LaunchableClient:
         self.tracking_client = tracking_client
         self.organization, self.workspace = ensure_org_workspace()
         self._workspace_state_cache: Optional[Dict[str, Union[str, bool]]] = None
+        self._cbp_workspace_cache: Optional[Tuple[str, str]] = None
 
     def request(
         self,
@@ -106,6 +107,27 @@ class LaunchableClient:
         state = self._get_workspace_state()
         return state.get('pts_v2', False)
 
+    def get_cbp_workspace(self) -> Optional[Tuple[str, str]]:
+        """
+        Returns (org_cbp_id, workspace_cbp_id) if this is a CBP workspace, else None.
+        """
+        state = self._get_workspace_state()
+        if not state.get('is_cbp_workspace', False):
+            return None
+
+        if self._cbp_workspace_cache is not None:
+            return self._cbp_workspace_cache
+
+        try:
+            res = self.request("get", "cbp-workspace")
+            res.raise_for_status()
+            data = res.json()
+            self._cbp_workspace_cache = (data['organizationCbpId'], data['workspaceCbpId'])
+            return self._cbp_workspace_cache
+        except Exception as e:
+            self.print_exception_and_recover(e, "Failed to get CBP workspace info")
+            return None
+
     def _get_workspace_state(self) -> dict:
         """
         Get the current state of the workspace.
@@ -120,6 +142,7 @@ class LaunchableClient:
             self._workspace_state_cache = {
                 'fail_fast_mode': state.get('isFailFastMode', False),
                 'pts_v2': state.get('isPtsV2Enabled', False),
+                'is_cbp_workspace': state.get('isCbpWorkspace', False),
             }
             return self._workspace_state_cache
         except Exception as e:
