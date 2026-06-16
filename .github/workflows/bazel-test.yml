@@ -32,3 +32,10 @@ jobs:
       - name: Run Bazel test
         run: |
           bazel test //...
+      - name: Check exe_deploy.jar is up to date
+        run: |
+          bazel build //src/main/java/com/launchableinc/ingest/commits:exe_deploy.jar
+          if ! diff -q bazel-bin/src/main/java/com/launchableinc/ingest/commits/exe_deploy.jar launchable/jar/exe_deploy.jar > /dev/null 2>&1; then
+            echo "launchable/jar/exe_deploy.jar is out of date. Run build-java.sh to update it."
+            exit 1
+          fi
