@@ -666,7 +666,7 @@ def tests(
             cbp_workspace = client.get_cbp_workspace()
             if cbp_workspace:
                 org_cbp_id, ws_cbp_id = cbp_workspace
-                url = "https://cloudbees.io/{}/{}/smart-tests/test-sessions/{}".format(
+                url = "https://cloudbees.io/{}/{}/smart-tests/data/test-sessions/{}".format(
                     org_cbp_id, ws_cbp_id, self.test_session_id)
             else:
                 url = "https://app.launchableinc.com/organizations/{}/workspaces/{}/test-sessions/{}".format(
