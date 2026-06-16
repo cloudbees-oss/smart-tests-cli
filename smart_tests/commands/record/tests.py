@@ -493,7 +493,7 @@ class RecordTests:
         cbp_workspace = self.client.get_cbp_workspace()
         if cbp_workspace:
             org_cbp_id, ws_cbp_id = cbp_workspace
-            return f"https://cloudbees.io/{org_cbp_id}/{ws_cbp_id}/smart-tests/test-sessions/{self.test_session_id}"
+            return f"https://cloudbees.io/{org_cbp_id}/{ws_cbp_id}/smart-tests/data/test-sessions/{self.test_session_id}"
         else:
             return (f"https://app.launchableinc.com/organizations/{self.org}/workspaces/"
                     f"{self.workspace}/test-sessions/{self.test_session_id}")
