@@ -4,14 +4,16 @@ on:
     branches:
       - main
     paths:
-      - 'WORKSPACE'
-      - 'src/**'
-      - '!src/**.md'
+      - "WORKSPACE"
+      - "src/**"
+      - "!src/**.md"
+      - ".github/workflows/bazel-test.yml"
   pull_request:
     paths:
-      - 'WORKSPACE'
-      - 'src/**'
-      - '!src/**.md'
+      - "WORKSPACE"
+      - "src/**"
+      - "!src/**.md"
+      - ".github/workflows/bazel-test.yml"
 jobs:
   test:
     runs-on: ubuntu-latest
