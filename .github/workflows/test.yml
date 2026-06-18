@@ -95,3 +95,7 @@ jobs:
           # Test rest of tests
           uv run poe test-xml $(tr '\r\n' '\n' < smart-tests-remainder.txt)
         shell: bash
+
+      - name: Upload test results
+        uses: cloudbees-oss/smart-tests-results-upload-action@v1
+        if: always()

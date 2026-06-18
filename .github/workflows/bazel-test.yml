@@ -41,3 +41,7 @@ jobs:
             echo "smart_tests/jar/exe_deploy.jar is out of date. Run build-java.sh to update it."
             exit 1
           fi
+
+      - name: Upload test results
+        uses: cloudbees-oss/smart-tests-results-upload-action@v1
+        if: always()
