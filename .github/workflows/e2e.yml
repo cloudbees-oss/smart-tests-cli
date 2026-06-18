@@ -130,3 +130,7 @@ jobs:
         env:
           SMART_TESTS_TOKEN: ${{ secrets.LAUNCHABLE_TOKEN_GRADLE }}
         working-directory: examples/gradle
+
+      - name: Upload test results
+        uses: cloudbees-oss/smart-tests-results-upload-action@v1
+        if: always()
