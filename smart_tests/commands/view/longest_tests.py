@@ -1,5 +1,4 @@
 import json
-import re
 import sys
 from http import HTTPStatus
 from typing import Annotated
@@ -8,29 +7,11 @@ import click
 
 import smart_tests.args4p.typer as typer
 from smart_tests.args4p.converters import intType
-from smart_tests.args4p.exceptions import BadCmdLineException
 
 from ... import args4p
 from ...app import Application
 from ...utils.smart_tests_client import SmartTestsClient
-from ...utils.typer_types import DateTimeWithTimezone, parse_datetime_with_timezone
-
-
-def validate_iso_week(value: str) -> str:
-    """Validate ISO week format YYYY-Www and week number range (01-53)"""
-    pattern = r'^\d{4}-W\d{2}$'
-    if not re.match(pattern, value):
-        raise BadCmdLineException(
-            f"Invalid year-week format: '{value}'. Expected format: YYYY-Www (e.g., 2026-W15)"
-        )
-
-    week_num = int(value.split('-W')[1])
-    if week_num < 1 or week_num > 53:
-        raise BadCmdLineException(
-            f"Invalid week number: '{value}'. Week must be between 01 and 53"
-        )
-
-    return value
+from ...utils.typer_types import DateTimeWithTimezone, parse_datetime_with_timezone, validate_iso_week
 
 
 @args4p.command(help="View longest running test data with weekly scores")
@@ -62,7 +43,7 @@ def longest_tests(
     )] = None,
     test_path: Annotated[str | None, typer.Option(
         "--test-path",
-        help="Test path filter (e.g., 'com.example.MyTest')",
+        help="Test path filter (full path string, e.g., 'class=MyTest')",
         metavar="NAME"
     )] = None,
     limit: Annotated[int | None, typer.Option(
@@ -81,9 +62,9 @@ def longest_tests(
     if weeks:
         params["weeks"] = str(weeks)
     if from_date:
-        params["from"] = str(from_date)
+        params["from"] = from_date.datetime().strftime("%Y-%m-%d")
     if to_date:
-        params["to"] = str(to_date)
+        params["to"] = to_date.datetime().strftime("%Y-%m-%d")
     if test_path:
         params["test-path"] = test_path
     if limit:
@@ -107,6 +88,6 @@ def longest_tests(
     except Exception as e:
         client.print_exception_and_recover(
             e,
-            "Warning: failed to retrieve longes running tests from server"
+            "Warning: failed to retrieve longest running tests from server"
         )
         sys.exit(1)
