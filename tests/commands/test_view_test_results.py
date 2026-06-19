@@ -19,7 +19,7 @@ class ViewTestResultsTest(CliTestCase):
                     {
                         "id": "550e8400-e29b-41d4-a716-446655440000",
                         "testPath": "com.example.TestClass#testMethod",
-                        "status": "FAILED",
+                        "status": "FAILURE",
                         "totalDuration": 5200,
                         "passed": 0,
                         "failed": 1,
@@ -35,7 +35,7 @@ class ViewTestResultsTest(CliTestCase):
                     {
                         "id": "890a1234-e29b-41d4-a716-446655440001",
                         "testPath": "com.example.TestClass#testMethod2",
-                        "status": "PASSED",
+                        "status": "SUCCESS",
                         "totalDuration": 3400,
                         "passed": 1,
                         "failed": 0,
@@ -134,15 +134,15 @@ class ViewTestResultsTest(CliTestCase):
 
     @responses.activate
     @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
-    def test_test_results_with_status_failed(self):
-        """Test test results query with status=FAILED filter"""
+    def test_test_results_with_status_failure(self):
+        """Test test results query with status=FAILURE filter"""
         mock_json_response = {
             "data": {
                 "results": [
                     {
                         "id": "550e8400-e29b-41d4-a716-446655440000",
                         "testPath": "com.example.FailingTest#testMethod",
-                        "status": "FAILED",
+                        "status": "FAILURE",
                         "totalDuration": 5200,
                         "passed": 0,
                         "failed": 1,
@@ -174,23 +174,21 @@ class ViewTestResultsTest(CliTestCase):
         )
 
         result = self.cli(
-            "view", "test-results", "--test-path", "class=MyTest#method=test1", "--status", "FAILED", mix_stderr=False
+            "view", "test-results", "--test-path", "class=MyTest#method=test1", "--status", "FAILURE", mix_stderr=False
         )
         self.assert_success(result)
 
-        # Verify the query parameter was passed
-        # Check request was made
         self.assertGreater(len(responses.calls), 0)
-        self.assertIn("status=FAILED", responses.calls[0].request.url)
+        self.assertIn("status=FAILURE", responses.calls[0].request.url)
 
         # Verify output
         output_json = json.loads(result.stdout)
-        self.assertEqual(output_json["data"]["results"][0]["status"], "FAILED")
+        self.assertEqual(output_json["data"]["results"][0]["status"], "FAILURE")
 
     @responses.activate
     @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
-    def test_test_results_with_status_passed(self):
-        """Test test results query with status=PASSED filter"""
+    def test_test_results_with_status_success(self):
+        """Test test results query with status=SUCCESS filter"""
         mock_json_response = {
             "data": {
                 "results": []
@@ -212,14 +210,12 @@ class ViewTestResultsTest(CliTestCase):
         )
 
         result = self.cli(
-            "view", "test-results", "--test-path", "class=MyTest#method=test1", "--status", "PASSED", mix_stderr=False
+            "view", "test-results", "--test-path", "class=MyTest#method=test1", "--status", "SUCCESS", mix_stderr=False
         )
         self.assert_success(result)
 
-        # Verify the query parameter was passed
-        # Check request was made
         self.assertGreater(len(responses.calls), 0)
-        self.assertIn("status=PASSED", responses.calls[0].request.url)
+        self.assertIn("status=SUCCESS", responses.calls[0].request.url)
 
     @responses.activate
     @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
@@ -371,7 +367,7 @@ class ViewTestResultsTest(CliTestCase):
                     {
                         "id": "550e8400-e29b-41d4-a716-446655440000",
                         "testPath": "com.example.TestClass#testMethod",
-                        "status": "FAILED",
+                        "status": "FAILURE",
                         "totalDuration": 5200,
                         "passed": 0,
                         "failed": 1,
@@ -450,17 +446,15 @@ class ViewTestResultsTest(CliTestCase):
         result = self.cli(
             "view", "test-results",
             "--test-path", "class=MyTest#method=test1",
-            "--status", "FAILED",
+            "--status", "FAILURE",
             "--branch", "main",
             "--limit", "200",
             mix_stderr=False
         )
         self.assert_success(result)
 
-        # Verify all query parameters were passed
-        # Check request was made
         self.assertGreater(len(responses.calls), 0)
-        self.assertIn("status=FAILED", responses.calls[0].request.url)
+        self.assertIn("status=FAILURE", responses.calls[0].request.url)
         self.assertIn("branch=main", responses.calls[0].request.url)
         self.assertIn("limit=200", responses.calls[0].request.url)
 
@@ -500,7 +494,7 @@ class ViewTestResultsTest(CliTestCase):
         )
         self.assert_exit_code(result, 1)
         self.assertIn("Invalid status", result.stderr)
-        self.assertIn("PASSED, FAILED, SKIPPED, FLAKE", result.stderr)
+        self.assertIn("SUCCESS, FAILURE, SKIP, FLAKE", result.stderr)
 
     def test_test_results_invalid_limit(self):
         """Test test results query with out-of-range limit"""
@@ -578,8 +572,8 @@ class ViewTestResultsTest(CliTestCase):
 
     @responses.activate
     @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
-    def test_test_results_with_status_passed_case_insensitive(self):
-        """Test test results query with status PASSED (case insensitive)"""
+    def test_test_results_with_status_success_case_insensitive(self):
+        """Test test results query with status success (case insensitive)"""
         responses.add(
             responses.GET,
             f"{get_base_url()}/intake/organizations/{self.organization}/workspaces/{self.workspace}/view/test-results",
@@ -597,16 +591,16 @@ class ViewTestResultsTest(CliTestCase):
         )
 
         result = self.cli(
-            "view", "test-results", "--test-path", "class=MyTest#method=test1", "--status", "passed", mix_stderr=False
+            "view", "test-results", "--test-path", "class=MyTest#method=test1", "--status", "success", mix_stderr=False
         )
         self.assert_success(result)
         self.assertGreater(len(responses.calls), 0)
-        self.assertIn("status=PASSED", responses.calls[0].request.url)
+        self.assertIn("status=SUCCESS", responses.calls[0].request.url)
 
     @responses.activate
     @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
-    def test_test_results_with_status_skipped(self):
-        """Test test results query with status SKIPPED"""
+    def test_test_results_with_status_skip(self):
+        """Test test results query with status SKIP"""
         responses.add(
             responses.GET,
             f"{get_base_url()}/intake/organizations/{self.organization}/workspaces/{self.workspace}/view/test-results",
@@ -624,11 +618,11 @@ class ViewTestResultsTest(CliTestCase):
         )
 
         result = self.cli(
-            "view", "test-results", "--test-path", "class=MyTest#method=test1", "--status", "SKIPPED", mix_stderr=False
+            "view", "test-results", "--test-path", "class=MyTest#method=test1", "--status", "SKIP", mix_stderr=False
         )
         self.assert_success(result)
         self.assertGreater(len(responses.calls), 0)
-        self.assertIn("status=SKIPPED", responses.calls[0].request.url)
+        self.assertIn("status=SKIP", responses.calls[0].request.url)
 
     @responses.activate
     @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})

@@ -61,10 +61,10 @@ def flaky_tests(
         type=parse_datetime_with_timezone,
         metavar="DATE"
     )] = None,
-    test_suite: Annotated[str | None, typer.Option(
-        "--test-suite",
-        help="Test suite name filter (e.g., 'unit-tests')",
-        metavar="NAME"
+    test_path: Annotated[str | None, typer.Option(
+        "--test-path",
+        help="Test path filter (full path string, e.g., 'class=MyTest')",
+        metavar="PATH"
     )] = None,
     limit: Annotated[int | None, typer.Option(
         "--limit",
@@ -83,11 +83,11 @@ def flaky_tests(
     if weeks:
         params["weeks"] = str(weeks)
     if from_date:
-        params["from"] = str(from_date)
+        params["from"] = from_date.datetime().strftime("%Y-%m-%d")
     if to_date:
-        params["to"] = str(to_date)
-    if test_suite:
-        params["test-suite"] = test_suite
+        params["to"] = to_date.datetime().strftime("%Y-%m-%d")
+    if test_path:
+        params["test-path"] = test_path
     if limit:
         params["limit"] = str(limit)
 

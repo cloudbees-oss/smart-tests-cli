@@ -12,6 +12,7 @@ import org.junit.runners.Suite.SuiteClasses;
     FileChunkStreamerTest.class,
     MainTest.class,
     SSLBypassTest.class,
+    GitFileTest.class,
     ProgressReporterTest.class
 })
 public class AllTests {}

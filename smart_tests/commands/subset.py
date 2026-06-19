@@ -603,8 +603,10 @@ class Subset(TestPathWriter):
         elif self.fallback_mode == FallbackMode.RANDOM_SAMPLE:
             target_fraction = float(self.target) if self.target is not None else 1.0
             click.echo(
-                f"Warning: Smart Tests could not retrieve a subset. Falling back to local random sample at {
-                    target_fraction:.0%}.", err=True, )
+                f"Warning: Smart Tests could not retrieve a subset. "
+                f"Falling back to local random sample at {target_fraction:.0%}.",
+                err=True,
+            )
             return SubsetResult.from_random_sample(self.test_paths, target_fraction)
         else:
             return SubsetResult.from_test_paths(self.test_paths)

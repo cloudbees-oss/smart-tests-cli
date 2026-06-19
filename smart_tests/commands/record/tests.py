@@ -484,10 +484,19 @@ class RecordTests:
         if duration == 0:
             click.secho("\nTotal test duration is 0."
                         "\nPlease check whether the test duration times in report files are correct.", fg="yellow")
+        url = self._get_test_session_url()
         click.echo(
-            f"\nVisit https://app.launchableinc.com/organizations/{self.org}/workspaces/"
-            f"{self.workspace}/test-sessions/{self.test_session_id} to view uploaded test results "
+            f"\nVisit {url} to view uploaded test results "
             f"(or run `launchable inspect tests --test-session-id {self.test_session_id}`)")
+
+    def _get_test_session_url(self) -> str:
+        cbp_workspace = self.client.get_cbp_workspace()
+        if cbp_workspace:
+            org_cbp_id, ws_cbp_id = cbp_workspace
+            return f"https://cloudbees.io/{org_cbp_id}/{ws_cbp_id}/smart-tests/data/test-sessions/{self.test_session_id}"
+        else:
+            return (f"https://app.launchableinc.com/organizations/{self.org}/workspaces/"
+                    f"{self.workspace}/test-sessions/{self.test_session_id}")
 
 
 tests = Group(name="tests", callback=RecordTests, help="Record test results")

@@ -4,14 +4,16 @@ on:
     branches:
       - main
     paths:
-      - 'WORKSPACE'
-      - 'src/**'
-      - '!src/**.md'
+      - "WORKSPACE"
+      - "src/**"
+      - "!src/**.md"
+      - ".github/workflows/bazel-test.yml"
   pull_request:
     paths:
-      - 'WORKSPACE'
-      - 'src/**'
-      - '!src/**.md'
+      - "WORKSPACE"
+      - "src/**"
+      - "!src/**.md"
+      - ".github/workflows/bazel-test.yml"
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -32,3 +34,14 @@ jobs:
       - name: Run Bazel test
         run: |
           bazel test //...
+      - name: Check exe_deploy.jar is up to date
+        run: |
+          bazel build //src/main/java/com/launchableinc/ingest/commits:exe_deploy.jar
+          if ! diff -q bazel-bin/src/main/java/com/launchableinc/ingest/commits/exe_deploy.jar smart_tests/jar/exe_deploy.jar > /dev/null 2>&1; then
+            echo "smart_tests/jar/exe_deploy.jar is out of date. Run build-java.sh to update it."
+            exit 1
+          fi
+
+      - name: Upload test results
+        uses: cloudbees-oss/smart-tests-results-upload-action@v1
+        if: always()
