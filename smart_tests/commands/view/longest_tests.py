@@ -14,12 +14,12 @@ from ...utils.smart_tests_client import SmartTestsClient
 from ...utils.typer_types import DateTimeWithTimezone, parse_datetime_with_timezone, validate_iso_week
 
 
-@args4p.command(help="View flaky test data with weekly scores")
-def flaky_tests(
+@args4p.command(help="View longest running test data with weekly scores")
+def longest_tests(
     app: Application,
     year_week: Annotated[str | None, typer.Option(
         "--year-week",
-        help="Specific ISO week for flaky tests (e.g., '2026-W15')",
+        help="Specific ISO week for longest running tests (e.g., '2026-W15')",
         type=validate_iso_week,
         metavar="YYYY-Www"
     )] = None,
@@ -44,7 +44,7 @@ def flaky_tests(
     test_path: Annotated[str | None, typer.Option(
         "--test-path",
         help="Test path filter (full path string, e.g., 'class=MyTest')",
-        metavar="PATH"
+        metavar="NAME"
     )] = None,
     limit: Annotated[int | None, typer.Option(
         "--limit",
@@ -53,10 +53,9 @@ def flaky_tests(
         metavar="N"
     )] = None,
 ):
-    """View flaky tests with weekly scores and trends"""
+    """View longest running tests with weekly trends"""
     client = SmartTestsClient(app=app)
 
-    # Build query parameters
     params = {}
     if year_week:
         params["year-week"] = year_week
@@ -72,11 +71,11 @@ def flaky_tests(
         params["limit"] = str(limit)
 
     try:
-        res = client.request("get", "view/flaky-tests", params=params)
+        res = client.request("get", "view/longest-tests", params=params)
 
         if res.status_code == HTTPStatus.NOT_FOUND:
             click.secho(
-                "No flaky test data found. Check your filters and try again.",
+                "No longest running test data found. Check your filters and try again.",
                 fg='yellow', err=True
             )
             sys.exit(1)
@@ -84,12 +83,11 @@ def flaky_tests(
         res.raise_for_status()
         response_json = res.json()
 
-        # Output JSON format
         click.echo(json.dumps(response_json, indent=2))
 
     except Exception as e:
         client.print_exception_and_recover(
             e,
-            "Warning: failed to retrieve flaky tests from server"
+            "Warning: failed to retrieve longest running tests from server"
         )
         sys.exit(1)

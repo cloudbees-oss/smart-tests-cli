@@ -237,5 +237,22 @@ def _datetime_with_tz_compat(value: str):
     return dt_obj.dt
 
 
+def validate_iso_week(value: str) -> str:
+    """Validate ISO week format YYYY-Www and week number range (01-53)"""
+    pattern = r'^\d{4}-W\d{2}$'
+    if not re.match(pattern, value):
+        raise BadCmdLineException(
+            f"Invalid year-week format: '{value}'. Expected format: YYYY-Www (e.g., 2026-W15)"
+        )
+
+    week_num = int(value.split('-W')[1])
+    if week_num < 1 or week_num > 53:
+        raise BadCmdLineException(
+            f"Invalid week number: '{value}'. Week must be between 01 and 53"
+        )
+
+    return value
+
+
 KEY_VALUE = _key_value_compat
 DATETIME_WITH_TZ = _datetime_with_tz_compat
