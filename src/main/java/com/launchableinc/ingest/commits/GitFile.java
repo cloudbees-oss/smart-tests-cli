@@ -5,10 +5,11 @@ import org.eclipse.jgit.lib.ObjectLoader;
 import org.eclipse.jgit.lib.ObjectReader;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
+import java.io.Reader;
 import java.nio.charset.CharacterCodingException;
-import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.eclipse.jgit.lib.Constants.*;
@@ -66,10 +67,12 @@ final class GitFile implements VirtualFile {
    */
   public boolean isText() throws IOException {
     try {
-      UTF_8.newDecoder()
-          .onMalformedInput(CodingErrorAction.REPORT)
-          .onUnmappableCharacter(CodingErrorAction.REPORT)
-          .decode(ByteBuffer.wrap(open().getCachedBytes(Integer.MAX_VALUE)));
+      char[] c = new char[1024];
+      try (Reader r = new InputStreamReader(open().openStream(), UTF_8)) {
+        while (r.read(c)!= -1) {
+          // Read the file until EOF.
+        }
+      }
       return true;
     } catch (CharacterCodingException e) {
       return false;

@@ -362,18 +362,14 @@ def build(
         header = ["Name", "Path", "HEAD Commit"]
         rows = [[w.name, w.dir, w.commit_hash] for w in ws]
         click.echo(tabulate(rows, header, tablefmt="github"))
-        url = _get_build_url(build_id, org, workspace)
-        click.echo("\nVisit {} to view this build and its test sessions".format(url))
-
-    def _get_build_url(build_id, org, workspace) -> str:
-        cbp_workspace = client.get_cbp_workspace()
-        if cbp_workspace:
-            org_cbp_id, ws_cbp_id = cbp_workspace
-            url = "https://cloudbees.io/{}/{}/smart-tests/data/builds/{}".format(org_cbp_id, ws_cbp_id, build_id)
-        else:
-            url = "https://app.launchableinc.com/organizations/{}/workspaces/{}/data/builds/{}".format(
-                org, workspace, build_id)
-        return url
+        click.echo(
+            "\nVisit https://app.launchableinc.com/organizations/{organization}/workspaces/"
+            "{workspace}/data/builds/{build_id} to view this build and its test sessions"
+            .format(
+                organization=org,
+                workspace=workspace,
+                build_id=build_id,
+            ))
 
     # all the logics at the high level
     if len(commits) == 0:

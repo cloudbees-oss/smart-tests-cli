@@ -56,9 +56,8 @@ class TestResultAbstractDisplay(metaclass=ABCMeta):
 
 
 class TestResultJSONDisplay(TestResultAbstractDisplay):
-    def __init__(self, results: TestResults, client: LaunchableClient):
+    def __init__(self, results: TestResults):
         super().__init__(results)
-        self._client = client
 
     def display(self):
         result_json = {}
@@ -89,19 +88,11 @@ class TestResultJSONDisplay(TestResultAbstractDisplay):
                 "created_at": result._created_at
             })
 
-        result_json["test_session_app_url"] = self._get_test_session_url()
-        click.echo(json.dumps(result_json, indent=2))
+        org, workspace = ensure_org_workspace()
+        result_json["test_session_app_url"] = "https://app.launchableinc.com/organizations/{}/workspaces/{}/test-sessions/{}".format(  # noqa: E501
+            org, workspace, self._results._test_session_id)
 
-    def _get_test_session_url(self) -> str:
-        cbp_workspace = self._client.get_cbp_workspace()
-        if cbp_workspace:
-            org_cbp_id, ws_cbp_id = cbp_workspace
-            return "https://cloudbees.io/{}/{}/smart-tests/data/test-sessions/{}".format(
-                org_cbp_id, ws_cbp_id, self._results._test_session_id)
-        else:
-            org, workspace = ensure_org_workspace()
-            return "https://app.launchableinc.com/organizations/{}/workspaces/{}/test-sessions/{}".format(
-                org, workspace, self._results._test_session_id)
+        click.echo(json.dumps(result_json, indent=2))
 
 
 class TestResultTableDisplay(TestResultAbstractDisplay):
@@ -188,7 +179,7 @@ def tests(context: click.core.Context, test_session_id: int, is_json_format: boo
 
     displayer: TestResultAbstractDisplay
     if is_json_format:
-        displayer = TestResultJSONDisplay(test_results, client=client)
+        displayer = TestResultJSONDisplay(test_results)
     else:
         displayer = TestResultTableDisplay(test_results)
 
