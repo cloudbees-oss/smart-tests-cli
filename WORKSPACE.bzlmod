@@ -1,0 +1,2 @@
+# This file intentionally left empty.
+# All external dependencies are managed via MODULE.bazel (Bzlmod).

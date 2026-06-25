@@ -4,12 +4,12 @@ on:
     branches:
       - main
     paths:
-      - 'WORKSPACE'
+      - 'MODULE.bazel'
       - 'src/**'
       - '!src/**.md'
   pull_request:
     paths:
-      - 'WORKSPACE'
+      - 'MODULE.bazel'
       - 'src/**'
       - '!src/**.md'
 jobs:
