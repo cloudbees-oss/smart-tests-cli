@@ -1,6 +1,0 @@
-= CI tool integrations
-:slug: ci-tool-integrations
-
-Although *{PRODUCT} works with any CI tool* , we are working on direct integrations to make onboarding easier. See below.
-
-* xref:resources:ci-tool-integrations/github-actions.adoc[GitHub Actions]

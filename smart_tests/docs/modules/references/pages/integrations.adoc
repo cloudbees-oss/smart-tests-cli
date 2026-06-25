@@ -1,0 +1,228 @@
+include::ROOT:partial$abbr.adoc[]
+:slug: integrations
+= Integrations
+
+The {PRODUCT} CLI includes pre-built integrations that interface with popular test runners and build tools to send data to {PRODUCT} without needing to write custom scripts.
+
+The following list describes how to use the CLI with each of these integrations. If your test runner or build tool is not listed, consider the <<other-integrations>> options.
+
+[#adb]
+== Android Debug Bridge (adb)
+
+Currently, the CLI doesn't have a `record tests` command for ADB. Use the command for <<gradle>> instead.
+
+For more information on subsetting with ADB, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#android-adb-subset[Subset with the {PRODUCT} CLI for Android Debug Bridge (adb)].
+
+[#ant]
+== Ant
+
+{PRODUCT} interfaces with Ant via the {PRODUCT} CLI.
+
+For more information on recording test results with Ant, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#ant[Record test results with the {PRODUCT} CLI for Ant].
+
+For more information on subsetting with Ant, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#ant-subset[Subset with the {PRODUCT} CLI for Ant].
+
+
+[#bazel]
+== Bazel
+
+{PRODUCT} interfaces with Bazel via the {PRODUCT} CLI.
+
+For more information on recording test results with Bazel, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#bazel[Record test results with the {PRODUCT} CLI for Bazel].
+
+For more information on subsetting with Bazel, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#bazel-subset[Subset with the {PRODUCT} CLI for Bazel].
+
+
+[#behave]
+== Behave
+
+{PRODUCT} interfaces with Behave via the {PRODUCT} CLI.
+
+For more information on recording test results with Behave, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#behave[Record test results with the {PRODUCT} CLI for Behave].
+
+For more information on subsetting with Behave, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#behave-subset[Subset with the {PRODUCT} CLI for Behave].
+
+[#ctest]
+== CTest
+
+{PRODUCT} interfaces with CTest via the {PRODUCT} CLI.
+
+For more information on recording test results with CTest, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#ctest[Record test results with the {PRODUCT} CLI for CTest].
+
+For more information on subsetting with CTest, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#ctest-subset[Subset with the {PRODUCT} CLI for CTest].
+
+[#cucumber]
+== cucumber
+
+{PRODUCT} interfaces with cucumber via the {PRODUCT} CLI.
+
+For more information on recording test results with cucumber, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#cucumber[Record test results with the {PRODUCT} CLI for cucumber].
+
+For more information on subsetting with cucumber, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#cucumber-subset[Subset with the {PRODUCT} CLI for cucumber].
+
+
+[#cypress]
+== Cypress
+
+{PRODUCT} interfaces with Cypress via the {PRODUCT} CLI.
+
+For more information on recording test results with Cypress, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#cypress[Record test results with the {PRODUCT} CLI for Cypress].
+
+For more information on subsetting with Cypress, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#cypress-subset[Subset with the {PRODUCT} CLI for Cypress].
+
+[#dotnet-test]
+== dotnet test
+{PRODUCT} interfaces with dotnet test via the {PRODUCT} CLI.
+
+For more information on recording test results with dotnet test, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#dotnet[Record test results with the {PRODUCT} CLI for dotnet test].
+
+For more information on subsetting with dotnet test, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#dotnet-test-subset[Subset with the {PRODUCT} CLI for dotnet test].
+
+
+
+[#flutter]
+== flutter
+
+{PRODUCT} interfaces with flutter via the {PRODUCT} CLI.
+
+For more information on recording test results with flutter, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#flutter-test-results[Record test results with the {PRODUCT} CLI for flutter].
+
+For more information on subsetting with flutter, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#flutter-subset[Subset with the {PRODUCT} CLI for flutter].
+
+[#googletest]
+== GoogleTest
+
+{PRODUCT} interfaces with GoogleTest via the {PRODUCT} CLI.
+
+For more information on recording test results with GoogleTest, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#googletest[Record test results with the {PRODUCT} CLI for GoogleTest].
+
+For more information on subsetting with GoogleTest, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#googletest-subset[Subset with the {PRODUCT} CLI for GoogleTest].
+
+[#go-test]
+== Go Test
+
+{PRODUCT} interfaces with Go Test via the {PRODUCT} CLI.
+
+For more information on recording test results with Go Test, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#go-test[Record test results with the {PRODUCT} CLI for Go Test].
+
+For more information on subsetting with Go Test, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#go-test-subset[Subset with the {PRODUCT} CLI for Go Test].
+
+[#gradle]
+== Gradle
+
+{PRODUCT} interfaces with Gradle via the {PRODUCT} CLI.
+
+For more information on recording test results with Gradle, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#gradle[Record test results with the {PRODUCT} CLI for Gradle].
+
+For more information on subsetting with Gradle, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#gradle-subset[Subset with the {PRODUCT} CLI for Gradle].
+
+
+[#jest]
+== Jest
+
+{PRODUCT} interfaces with Jest via the {PRODUCT} CLI.
+
+For more information on recording test results with Jest, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#jest[Record test results with the {PRODUCT} CLI for Jest].
+
+For more information on subsetting with Jest, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#jest-subset[Subset with the {PRODUCT} CLI for Jest].
+
+[#karma]
+== Karma
+
+{PRODUCT} interfaces with Karma via the {PRODUCT} CLI.
+
+For more information on recording test results with Karma, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#karma[Record test results with the {PRODUCT} CLI for Karma].
+
+For more information on subsetting with Karma, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#karma-subset[Subset with the {PRODUCT} CLI for Karma].
+
+[#maven]
+== Maven
+
+{PRODUCT} interfaces with Maven via the {PRODUCT} CLI.
+
+For more information on recording test results with Maven, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#maven[Record test results with the {PRODUCT} CLI for Maven].
+
+For more information on subsetting with Maven, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#maven-subset[Subset with the {PRODUCT} CLI for Maven].
+
+[#minitest]
+== minitest
+
+{PRODUCT} interfaces with minitest via the {PRODUCT} CLI.
+
+For more information on recording test results with minitest, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#minitest[Record test results with the {PRODUCT} CLI for minitest].
+
+For more information on subsetting with minitest, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#minitest-subset[Subset with the {PRODUCT} CLI for minitest].
+
+[#playwright]
+== Playwright
+
+{PRODUCT} interfaces with Playwright via the {PRODUCT} CLI.
+
+For more information on recording test results with Playwright, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#playwright[Record test results with the {PRODUCT} CLI for Playwright].
+
+For more information on subsetting with Playwright, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#playwright-subset[Subset with the {PRODUCT} CLI for Playwright].
+
+[#prove-for-perl]
+== prove for Perl
+
+{PRODUCT} interfaces with prove for Perl via the {PRODUCT} CLI.
+
+For more information on recording test results with prove for Perl, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#perl[Record test results with the {PRODUCT} CLI for prove for Perl].
+
+For more information on subsetting with prove for Perl, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#perl-prove-subset[Subset with the {PRODUCT} CLI for prove for Perl].
+
+[#pytest]
+== pytest
+
+{PRODUCT} interfaces with pytest via the {PRODUCT} CLI.
+
+For more information on recording test results with pytest, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#pytest[Record test results with the {PRODUCT} CLI for pytest].
+
+For more information on subsetting with pytest, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#pytest-subset[Subset with the {PRODUCT} CLI for pytest].
+
+[#robot]
+== Robot
+
+{PRODUCT} interfaces with Robot via the {PRODUCT} CLI.
+
+For more information on recording test results with Robot, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#robot[Record test results with the {PRODUCT} CLI for Robot].
+
+For more information on subsetting with Robot, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#robot-subset[Subset with the {PRODUCT} CLI for Robot].
+
+[#rspec]
+== RSpec
+
+{PRODUCT} interfaces with RSpec via the {PRODUCT} CLI.
+
+For more information on recording test results with RSpec, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#rspec[Record test results with the {PRODUCT} CLI for RSpec].
+
+For more information on subsetting with RSpec, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#rspec-subset[Subset with the {PRODUCT} CLI for RSpec].
+
+[#vitest]
+== vitest
+
+{PRODUCT} interfaces with vitest via the {PRODUCT} CLI.
+
+For more information on recording test results with vitest, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#vitest-record-tests[Record test results with the {PRODUCT} CLI for vitest].
+
+For more information on subsetting with vitest, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#vitest-subset[Subset with the {PRODUCT} CLI for vitest].
+
+[#xctest]
+== xctest
+
+{PRODUCT} interfaces with xctest via the {PRODUCT} CLI.
+
+For more information on recording test results with xctest, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#xctest-recording-tests[Record test results with the {PRODUCT} CLI for xctest].
+
+For more information on subsetting with xctest, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#xctest-subsetting[Subset with the {PRODUCT} CLI for xctest].
+
+[#other-integrations]
+== Other integrations
+
+If not using one of the test runners above, {PRODUCT} also uses the following options:
+
+* xref:references:integrations/use-the-generic-file-based-runner-integration.adoc[`file` profile for unsupported test runners]
+
+* xref:references:integrations/raw.adoc[`raw` profile for custom test runners]
+
+* Request a plugin from mailto:support@cloudbees.com[Support] or your CloudBees representative.

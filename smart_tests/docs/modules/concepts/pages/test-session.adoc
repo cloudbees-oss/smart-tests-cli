@@ -3,14 +3,14 @@
 
 == Overview
 
-After running your test suite against a xref:concepts:build.adoc[Build] in your CI system, you record your test results in {PRODUCT} using the CLI. Those results are recorded against a *test session* .
+After running your test suite against a xref:concepts:build.adoc[Build] in your CI system, you record your test results in {PRODUCT} using the CLI. Those results are recorded against a *test session*.
 
 Therefore, a test session is a record of:
 
 . A certain list of tests that ran
 . How long each test took to run
 . Each test's pass/fail/skipped status
-. Aggregate statistics about the above (e.g., total duration, total count, and total passed/failed/skipped counts)
+. Aggregate statistics about the above (for example, total duration, total count, and total passed/failed/skipped counts)
 
 image::ROOT:object-model-june.png[]
 
@@ -24,7 +24,7 @@ xref:features:test-results-and-reports.adoc[Test results and reports] are organi
 
 === Insights
 
-xref:concepts:insight.adoc[Insights], particularly xref:features:trends.adoc[Trends], are aggregated by test session. For example, the _Test session duration_ and _Test session frequency_ insights show data aggregated across test sessions in a workspace.
+xref:concepts:insight.adoc[Insights], particularly xref:features:test-trends-and-insights.adoc[Trends], are aggregated by test session. For example, the _Test session duration_ and _Test session frequency_ insights show data aggregated across test sessions in a workspace.
 
 === Predictive Test Selection
 

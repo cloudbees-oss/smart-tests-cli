@@ -1,7 +1,7 @@
 = Workspace
 :slug: workspace
 
-A *workspace* contains all your *test sessions* and *builds* for a specific test suite. Each workspace belongs to an *organization* .
+A *workspace* contains all your *test sessions* and *builds* for a specific test suite. Each workspace belongs to an *organization*.
 
 {PRODUCT} takes the data you send to your workspace and uses it to provide added value, such as Insights and Predictive Test Selection.
 
@@ -22,7 +22,7 @@ However, "test suite" is an ambiguous term that means different things to differ
 Many teams already divide their tests into logical groups based on:
 
 . the *type* of test (e.g., unit tests vs. UI tests, etc.),
-. the *tech stack* used to run those tests (e.g., Maven for unit tests vs. Cypress for UI tests, etc.), or
+. the *tech stack* used to run those tests (for example, Maven for unit tests vs. Cypress for UI tests, etc.), or
 . both (in most cases)
 
 If your team thinks about test suites this way, the decision should be straightforward: for example, you should send all your Maven unit tests into one workspace and all your Cypress UI tests into another.
@@ -68,6 +68,6 @@ image::ROOT:sending-data/create-api-key.png[Settings tab on dashboard,role=scree
 [#workspace-api-key]
 === Workspace API key
 
-Each workspace gets it own API key for CLI authentication. API keys are created from the dashboard Settings tab. For more information, refer to xref:send-data-to-smart-tests:getting-started/getting-started.adoc#create-and-set-your-api-key[Getting started].
+Each workspace gets it own API key for CLI authentication. API keys are created from the dashboard Settings tab. For more information, refer to xref:send-data-to-smart-tests:set-up-smart-tests/getting-started.adoc#create-and-set-your-api-key[Getting started].
 
 For security reasons, API keys can't be recovered once they've been created. If you lose your workspace API key, you must create a new one and update your CI scripts.

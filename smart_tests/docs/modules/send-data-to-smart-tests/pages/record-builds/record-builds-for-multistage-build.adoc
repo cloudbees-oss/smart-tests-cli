@@ -1,0 +1,41 @@
+= Record builds for multistage build
+:slug: record-builds-for-multistage-build
+
+For predictive test selection to work effectively, it needs to see all the important changes
+to the software under test. To this end, the `record build` command can accept multiple `--source` options to
+track changes across multiple repositories.
+
+However, at the time you are recording a build, not all the source code for the software under test might be available
+at the same time.
+
+== Use case: Libraries
+
+Suppose you have a library "xyz" that is versioned and published at its own pace from its own repository.
+Your "wombat" application then uses a versioned xyz release as a binary dependency.
+
+If you want test selection to be sensitive to the exact changes inside the library
+(as opposed to just the fact that the library has updated), then you record builds for the library:
+
+[source]
+----
+# while releasing the library
+smart-tests record build --build xyz-2.0.3 --source .
+----
+
+Then, when you are building wombat, you can include the library used:
+[source,shell]
+----
+smart-tests record build --build wombat-$BUILD_TAG \
+  --source . --component xyz=xyz-2.0.3
+----
+
+The `--source .` option is an example to capture the source code of the wombat application itself.
+The `--component` option is where you associate a specific build of the xyz library (`xyz-2.0.3` in this example) as
+a named "component" of this wombat build. In practice, this value would come from your dependency declaration,
+such as `package-lock.json` or `Pipfile.lock`.
+
+Just like the repository name in the `--source` option, the component name in the `--component` option
+must stay consistent across builds. That's how {PRODUCT} knows that the library was updated to a different
+version.
+
+The choice of `wombat-$BUILD_TAG` as the build name is just illustrative. See xref:send-data-to-smart-tests:record-builds/choose-a-value-for-build-name.adoc[Choose a value for build name] for more ideas on how to choose build names.

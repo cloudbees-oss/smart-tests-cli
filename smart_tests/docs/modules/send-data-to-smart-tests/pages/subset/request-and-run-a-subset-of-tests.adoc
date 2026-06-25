@@ -1,0 +1,21 @@
+include::ROOT:partial$abbr.adoc[]
+
+= Request and run a subset of tests
+:slug: request-and-run-a-subset-of-tests
+
+Once you've started, you can connect your test runner with {PRODUCT} to request and run a subset of tests selected using Predictive Test Selection.
+
+The diagram below illustrates the interactions between your tools, the {PRODUCT} CLI, and the {PRODUCT} platform:
+
+.Subsetting diagram
+image::ROOT:subsetting-diagram-2x.png[Subsetting diagram,role="screenshot"]
+
+First, see xref:subset/choose-a-subset-optimization-target.adoc[Choose a subset optimization target] .
+
+Then, follow the instructions to start subsetting in your pipeline:
+
+* xref:references:supported-test-frameworks.adoc[Subset with test runner integrations].
+** Supports *nose*.
+
+* xref:subset/subset-with-the-smart-tests-cli.adoc[Subset with the {PRODUCT} CLI]
+** Supports *Android Debug Bridge*, *Ant*, *Bazel*, *Behave*, *CTest*, *cucumber*, *Cypress*, *GoogleTest*, *Go Test*, *Gradle*, *Jest*, *Karma*, *Maven*, *minitest*, *pytest*, *Robot*, *Rspec*, and other/custom test runners.

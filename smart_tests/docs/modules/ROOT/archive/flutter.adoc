@@ -1,0 +1,5 @@
+= Flutter
+
+{PRODUCT} interfaces with Vitest via the {PRODUCT} CLI.
+
+For more information, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#flutter-test-results[Record test results with the {PRODUCT} CLI] and xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#flutter-subset[Subset with the {PRODUCT} CLI].

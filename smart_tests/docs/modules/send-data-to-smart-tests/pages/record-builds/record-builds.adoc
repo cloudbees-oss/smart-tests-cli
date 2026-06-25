@@ -15,7 +15,7 @@ To record a build, run `smart-tests record build` before creating a build in eit
 ----
 smart-tests record build --build <BUILD NAME> --source src=<PATH TO SOURCE>
 ----
-For more information on the `record build` command, refer to xref:resources:cli-reference.adoc[CLI reference - Command:record build].
+For more information on the `record build` command, refer to xref:references:cli-reference.adoc[CLI reference - Command:record build].
 
 * With the `--build` option, assign a unique identifier to this build. This value will be used later when test results are recorded. For tips on choosing this value, refer to xref:send-data-to-smart-tests:record-builds/choose-a-value-for-build-name.adoc[Choose a value for build name].
 * The `--source` option points to the local copy of the Git repository (or repositories) used to produce this build, such as `.` or `src`.

@@ -1,0 +1,1353 @@
+include::ROOT:partial$abbr.adoc[]
+
+= Subset with the {PRODUCT} CLI
+:slug: subset-with-the-smart-tests-cli
+
+
+Use `smart-tests subset` to request a subset of tests from {PRODUCT}. Run this command before your standard test runner command to generate a list of tests that you can pass into your test runner to run.
+
+To test out subset behavior before running in production, refer to xref:subset/observe-subset-behavior.adoc[]. For an alternative subsetting interface that is useful in some scenarios, refer to xref:subset/zero-input-subsetting.adoc[].
+
+[[options]]
+== Options
+
+The `smart-tests subset` command takes various options:
+
+* high-level options
+* test runner
+* test runner options
+
+`smart-tests subset <HIGH LEVEL OPTIONS> <TEST RUNNER> <TEST RUNNER OPTIONS>`
+
+`<TEST RUNNER>` is always a string representing the test runner in use (for example, `maven` and `ant`).
+
+The examples below do not include all high-level options, so read this section and the Subset section of the xref:references:cli-reference.adoc[CLI reference] before continuing. Test runner options are listed in each section.
+
+=== Required options
+
+==== Optimization target
+
+At a minimum, an optimization target option *must* be specified, by either:
+
+* `--confidence`
+* `--time`
+* `--target`
+
+For more information, refer to xref:subset/choose-a-subset-optimization-target.adoc[].
+
+==== Build or session identifier
+
+The examples below include the high-level `--build <BUILD NAME>` option, used for specifying the build for which to request test recommendations. This is the same build that you already created to record tests. The subset command goes in between these.
+
+*Before subsetting (simplified)*
+
+[source]
+----
+# build process
+smart-tests record build --build $BUILD_NAME <OPTIONS>
+<build process>
+
+# test process
+smart-tests record session --build $BUILD_NAME --session $SESSION_NAME <OPTIONS>
+<test process>
+smart-tests record tests --session $SESSION_NAME <OPTIONS>
+----
+
+*After subsetting (simplified)*
+
+[source]
+----
+# build process
+smart-tests record build --build $BUILD_NAME <OPTIONS>
+<build process>
+
+# test process
+smart-tests record session --build $BUILD_NAME --session $SESSION_NAME <OPTIONS>
+smart-tests subset --session $SESSION_NAME <OPTIONS> # and related commands
+<test process>
+smart-tests record tests --session $SESSION_NAME <OPTIONS>
+----
+
+To generate a test session manually use `--session` instead of `--build`. For more information, refer to xref:record-test-results/manage-complex-test-session-layouts.adoc[].
+
+== Instructions for test runners/build tools
+
+[NOTE]
+--
+If none of the following runners or tools are being used, refer to the xref:references:integrations/use-the-generic-file-based-runner-integration.adoc[`file` profile for unsupported test runners], the xref:references:integrations/raw.adoc[`raw` profile for custom test runners], or link:https://support.cloudbees.com[request a plugin].
+--
+
+[#andriod-cts-subset]
+=== Android Compatibility Test Suite (CTS)
+
+[NOTE]
+--
+This profile only supports xref:subset/zero-input-subsetting.adoc[].
+--
+
+[#android-adb-subset]
+=== Android Debug Bridge (ADB)
+
+First, request a subset of tests from your entire test suite. Then, pass this list to `adb` to run.
+
+==== Request a subset of tests
+
+Find the `adb` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Duplicate the `adb` command you normally use to run tests and add the `-e log true` option.
+. Then, output the result to a text file. For example:
++
+`adb shell am instrument <OPTIONS> -e log true com.yourdomain.test/androidx.test.runner.AndroidJUnitRunner > test_list.txt`
++
+This command outputs the full list of tests that would normally run (without actually running them) to a file called `test_list.txt`.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset adb --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt`
++
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of test classes formatted for passing into your normal `adb` command, shown next.
+
+==== Run a subset of tests
+
+Now the subset of tests can only be run by adding the `-e class $(cat smart-tests-subset.txt)` option to your standard `adb` command, like this:
+
+`adb shell am instrument <OPTIONS> -e class $(cat smart-tests-subset.txt) com.yourdomain.test/androidx.test.runner.AndroidJUnitRunner`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+adb shell am instrument <OPTIONS> com.yourdomain.test/androidx.test.runner.AndroidJUnitRunner
+----
+
+And the flow after:
+
+[source]
+----
+# generate the complete list of tests in your suite
+adb shell am instrument <OPTIONS> -e log true com.yourdomain.test/androidx.test.runner.AndroidJUnitRunner > test_list.txt
+# request a subset from the full list
+cat test_list.txt | smart-tests subset adb --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+adb shell am instrument <OPTIONS> -e class $(cat smart-tests-subset.txt) com.yourdomain.test/androidx.test.runner.AndroidJUnitRunner
+----
+
+[#ant-subset]
+=== Ant
+
+First, request a subset of tests from your complete suite. Then, pass this list into your `build.xml` file to limit what Ant runs.
+
+==== Request a subset of tests
+
+. Find the `ant` command used to run tests in your CI script.
+
+. Before that command, add the `smart-tests subset` command to request a subset of tests from your full test suite:
++
+`smart-tests subset ant --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> <PATH TO SOURCE> > smart-tests-subset.txt`
++
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* Set `<PATH TO SOURCE>` to the path(s) containing your test files. The CLI will look in those path(s) and generate the full list of tests that would normally run. The subset service divides this whole list into a subset and a remainder.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of test classes formatted for passing into your `build.xml` file, shown next.
+
+==== Run a subset of tests
+
+Separately, update your `build.xml` file to use `smart-tests-subset.txt`:
+
+[source]
+----
+<project>
+  …
+  <target name="check-launchable">
+    <available file="smart-tests-subset.txt" property="smart-tests"/>
+  </target>
+
+  <target name="junit" depends="jar,check-launchable">
+    <mkdir dir="${report.dir}"/>
+    <junit printsummary="yes">
+      <classpath>
+          <path refid="classpath"/>
+          <path refid="application"/>
+      </classpath>
+
+      <formatter type="xml"/>
+
+      <batchtest fork="yes" todir="${report.dir}">
+        <fileset dir="${src.dir}" >
+          <includesfile name="smart-tests-subset.txt" if="${smart-tests}" />
+          <include name="**/*Test.java" unless="${smart-tests}" />
+        </fileset>
+      </batchtest>
+    </junit>
+  </target>
+  …
+</project>
+----
+
+Finally, you run tests command as normal, such as:
+
+`ant junit <OPTIONS>`
+
+[#bazel-subset]
+=== Bazel
+
+First, request a subset of tests from your entire test suite. Then, pass this list to Bazel to run.
+
+==== Request a subset of tests
+
+Find the `bazel` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Run `bazel query` and output the result to a text file. For example:
++
+`bazel query 'tests(//...)' > test_list.txt`
++
+This command outputs the complete list of test targets that typically run (without running them) to a file called `test_list.txt`. The subset service will divide this list into a subset and a remainder.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset bazel --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt`
++
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into Bazel.
+
+==== Run a subset of tests
+
+Append the list of tests to run to your existing command, such as:
+
+`bazel test $(cat smart-tests-subset.txt)`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# your standard command to run tests looks something like this
+bazel test
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list
+bazel query 'tests(//...)' > test_list.txt
+# request a subset
+cat test_list.txt | smart-tests subset bazel --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+bazel test $(cat smart-tests-subset.txt)
+----
+
+[#behave-subset]
+=== Behave
+
+First, request a subset of tests from your entire test suite. Then, pass this list to Behave to run.
+
+==== Request a subset of tests
+
+Find the `behave` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Run `find ./features/` (or a similar command for your environment) and output the result to a text file. For example:
++
+`find ./features/ > test_list.txt`
++
+This command writes the list of test files that typically run (without actually running them) to `test_list.txt`. The subset service will divide this list into a subset and a remainder.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset behave --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt`
++
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into Behave.
+
+==== Run a subset of tests
+
+To run a subset, run `behave` with the `-i` option and pass in the subset list. For example:
+
+`behave <OPTIONS> -i "$(cat smart-tests-subset.txt)"`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+behave <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list
+find ./features/ > test_list.txt
+# request a subset
+cat test_list.txt | smart-tests subset behave --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+behave <OPTIONS> -i "$(cat smart-tests-subset.txt)"
+----
+
+[#ctest-subset]
+=== CTest
+
+First, request a subset of tests from your entire test suite. Then, pass this list into CTest to run.
+
+==== Request a subset of tests
+
+Find the `ctest` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Run `ctest` with the `--show-only` option and output the result to a JSON file. For example:
++
+`ctest <OPTIONS> --show-only=json-v1 > test_list.json`
++
+This command creates the complete list of test files that typically run (without actually running them) to a file called `test_list.json`. The subset service will divide this list into a subset and a remainder list.
+
+. Pass the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`smart-tests subset ctest --session <SESSION_NAME> --confidence <TARGET> --output-regex-files --output-regex-files-dir=subsets test_list.json`
++
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* The `--output-regex-files` instructs CLI to write the regular expression for the subset tests into the directory specified in `--output-regex-files-dir`.
++
+This creates files under the `subsets` directory. `subset_N` are the files that contain regular expressions of the chosen subset of tests. If you use the `--rest` option, `rest_N` will contain the non-chosen tests.
+
+==== Run a subset of tests
+
+Run `ctest` for each subset output file:
+
+[source]
+----
+for file in subset/subset_*; do
+  ctest <OPTIONS> -T test --no-compress-output -R "$(cat "$file")"
+done
+----
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+ctest <OPTIONS> -T test --no-compress-output
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list that would normally run
+ctest --show-only=json-v1 > test_list.json
+# request a subset
+smart-tests subset ctest --session <SESSION_NAME> --confidence <TARGET> --output-regex-files --output-regex-files-dir=subsets test_list.json
+# run the results of the subset request
+for file in subset/subset_*; do
+  ctest <OPTIONS> -T test --no-compress-output -R "$(cat "$file")"
+done
+----
+
+[#cucumber-subset]
+=== cucumber
+
+First, request a subset of tests from your entire test suite. Then, pass this list to cucumber to run.
+
+==== Request a subset of tests
+
+. Find the `bundle exec cucumber` command used to run tests in your CI script.
+
+. Before that command, add the `smart-tests subset` command to request a subset of tests from your full test suite:
++
+`smart-tests subset cucumber --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --base $(pwd) <PATH TO .feature FILES> > smart-tests-subset.txt`
++
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* Don't forget the `--base $(pwd)` option (or equivalent) before `cucumber`.
+
+* Set `<PATH TO .feature FILES>` to the glob expression representing your `.feature` files, for example, `features/**/*.feature`. The CLI will look in those path(s) and generate the complete list of tests that would typically run. The subset service divides this list into a subset and a remainder list.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of test files formatted for passing into cucumber, shown next.
+
+==== Run a subset of tests
+
+Append the subset list to your `bundle exec cucumber` command to run a subset. For example:
+
+`bundle exec cucumber -f junit -o reports <OPTIONS> $(cat smart-tests-subset.txt)`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+bundle exec cucumber -f junit -o reports <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# request a subset from all features that would typically run
+smart-tests subset cucumber --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> <PATH TO .feature FILES> > smart-tests-subset.txt
+# run the results of the subset request
+bundle exec cucumber -f junit -o reports <OPTIONS> $(cat smart-tests-subset.txt)
+----
+
+[#cypress-subset]
+=== Cypress
+
+Find the `cypress run` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Run `find ./cypress/integration -type f` (or a similar command for your platform) and output the result to a text file. For example:
++
+`find ./cypress/integration -type f > test_list.txt`
++
+This command writes the complete list of test files that typically run (without actually running them) to `test_list.txt`. The subset service will divide this list into a subset and a remainder list.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset cypress --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt`
++
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into Cypress.
+
+==== Run a subset of tests
+
+To run a subset, use the `--spec` option with the subset list text file. For example:
+
+`cypress run --reporter junit <OPTIONS> --spec "$(cat smart-tests-subset.txt)"`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+cypress run --reporter junit <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# generate the complete list that would typically run
+find ./cypress/integration -type f > test_list.txt
+# request a subset from all features that would typically run
+cat test_list.txt | smart-tests subset cypress --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+cypress run --reporter junit <OPTIONS> --spec "$(cat smart-tests-subset.txt)"
+----
+
+[#dotnet-test-subset]
+=== dotnet test
+
+[NOTE]
+--
+This profile only supports xref:subset/zero-input-subsetting.adoc[].
+--
+
+[[flutter-subset]]
+=== Flutter
+
+First, request a subset of tests from your full test suite. Then, pass this list into Flutter to run.
+
+==== Request a subset of tests
+
+First, find the `flutter test` command used to run tests in your CI script.
+
+[source,bash]
+----
+smart-tests subset --session <SESSION NAME> <OPTIMIZATION TARGET OPTION> flutter <PATH TO SOURCE>
+----
+
+==== Run a subset of tests
+
+[source,bash]
+----
+flutter test $(cat smart-tests-subset.txt) --machine > report.json
+----
+
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source,bash]
+----
+flutter test --machine > report.json
+----
+
+And the flow after:
+
+[source,bash]
+----
+# request a subset
+smart-tests subset --session <SESSION NAME> <OPTIMIZATION TARGET OPTION> flutter test/**/*.dart
+
+# run the results of the subset request
+flutter test $(cat smart-tests-subset.txt) --machine > report.json
+----
+
+[#googletest-subset]
+=== GoogleTest
+
+Find the GoogleTest command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Invoke GoogleTest with the `--gtest_list_tests` option and output the result to a text file. For example:
++
+`./my-test <OPTIONS> --gtest_list_tests > test_list.txt`
++
+This command outputs the complete list of tests that normally run (without running them) to a file called `test_list.txt`. The subset service will divide this list into a subset and a remainder list.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset googletest --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt`
++
+* Refer to <<options>> for setting `<SESSION>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into GoogleTest.
+
+==== Run a subset of tests
+
+Add the `--gtest_filter` option to your existing command, such as:
+
+`./my-test <OPTIONS> --gtest_filter="$(cat smart-tests-subset.txt)"`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+./my-test <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list
+./my-test <OPTIONS> --gtest_list_tests > test_list.txt
+# request a subset
+cat test_list.txt | smart-tests subset googletest --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+./my-test <OPTIONS> --gtest_filter="$(cat smart-tests-subset.txt)"
+----
+
+[#go-test-subset]
+=== Go Test
+
+Find the `go test` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Duplicate the `go test` command you normally use to run tests and add the `-list` option. Then, output the result to a text file. For example:
++
+`go test <OPTIONS> -list="Test|Example" ./... > test_list.txt`
++
+This command outputs the complete list of tests that normally run (without running them) to a file called `test_list.txt`. The subset service will divide this full list into a subset and a remainder.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset go-test --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt`
++
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into `go test`.
+
+==== Run a subset of tests
+
+Add the `-run` option to your existing command, such as:
+
+`go test <OPTIONS> -run $(cat smart-tests-subset.txt) ./... | go-junit-report > report.xml`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+go test <OPTIONS> ./...
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list
+go test <OPTIONS> -list="Test|Example" ./... > test_list.txt
+# request a subset
+cat test_list.txt | smart-tests subset go-test --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+go test <OPTIONS> -run $(cat smart-tests-subset.txt) ./... | go-junit-report > report.xml
+----
+
+[#gradle-subset]
+=== Gradle
+
+First, request a subset of tests from your full test suite. Then, pass this list to Gradle.
+
+==== Request a subset of tests
+
+. Find the `gradle` command used to run tests in your CI script.
+
+. Before that command, add the `smart-tests subset` command to request a subset of tests from your full test suite:
++
+`smart-tests subset gradle --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> <PATH TO SOURCE> > smart-tests-subset.txt`
++
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* Set `<PATH TO SOURCE>` to the path(s) containing your test files, for example, `project1/src/test/java project2/src/test/java`. The CLI will look in those path(s) and generate the full list of tests that would normally run. The subset service divides this full list into a subset and a remainder.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of test classes formatted for passing into Gradle, like this:
++
+`--tests MyTestClass1 --tests MyTestClass2 ...`
+
+==== Run a subset of tests
+
+Pass this file into your existing command, as shown below:
+
+[.multilanguage-custom-table, options="header", cols="2"]
+|===
+| Gradle
+| Gradle plugin for Android
+
+a| [source]
+----
+gradle test <OPTIONS> $(cat smart-tests-subset.txt)
+# equivalent to gradle test <OPTIONS> --tests MyTestClass1 --tests MyTestClass2 ...
+----
+
+a| The *Gradle plugin for Android* requires a different command, because the built-in `test` task does not support the `--tests` option. Use `testDebugUnitTest` or `testReleaseUnitTest` instead:
+
+[source]
+----
+./gradlew testDebugUnitTest <OPTIONS> $(cat smart-tests-subset.txt)
+# or
+./gradlew testReleaseUnitTest <OPTIONS> $(cat smart-tests-subset.txt)
+----
+
+|===
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+gradle test <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# request a subset from all tests
+smart-tests subset gradle --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> <PATH TO SOURCE> > smart-tests-subset.txt
+# run the results of the subset request
+gradle test <OPTIONS> $(cat smart-tests-subset.txt)
+----
+
+[#gradle-testng-subset]
+=== Gradle + TestNG
+
+First, request a subset of tests from your full test suite. Then, pass this list to Gradle.
+
+==== Request a subset of tests
+
+. Find the `gradle` command used to run tests in your CI script.
+
+. Before that command, add the `smart-tests subset` command to request a subset of tests from your full test suite:
++
+`smart-tests subset gradle --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --bare <PATH TO SOURCE> > smart-tests-subset.txt`
++
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* Set `<PATH TO SOURCE>` to the path(s) containing your test files, for example, `project1/src/test/java project2/src/test/java`. The CLI will look in those path(s) and generate the full list of tests that would normally run. The subset service divides this full list into a subset and a remainder.
+
+* Don't forget the `--bare` option after `gradle`.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of test classes formatted for passing into Gradle, like this:
++
+[source]
+----
+com.example.FooTest
+com.example.BarTest
+...
+----
+
+==== Run a subset of tests
+
+. Add a dependency declaration to `build.gradle` so that the right subset of tests is executed when TestNG runs:
++
+[source]
+----
+dependencies {
+    ...
+    testRuntime 'com.launchableinc:launchable-testng:1.2.1'
+}
+----
++
+. Export the subset file path as an environment variable before you run `gradle test`, like shown below.
++
+[.multilanguage-custom-table, options="header", cols="2"]
+|===
+| Gradle
+| Gradle plugin for Android
+
+a| [source]
+----
+export SMART_TESTS_SUBSET_FILE_PATH=$PWD/smart-tests-subset.txt
+gradle test <OPTIONS>
+----
+
+a| The *Gradle plugin for Android* requires a different command, because the built-in `test` task does not support the `--tests` option. Use `testDebugUnitTest` or `testReleaseUnitTest` instead:
+
+[source]
+----
+export SMART_TESTS_SUBSET_FILE_PATH=$PWD/smart-tests-subset.txt
+./gradlew testDebugUnitTest <OPTIONS> $(cat smart-tests-subset.txt)
+# or
+export SMART_TESTS_SUBSET_FILE_PATH=$PWD/smart-tests-subset.txt
+./gradlew testReleaseUnitTest <OPTIONS> $(cat smart-tests-subset.txt)
+----
+
+|===
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+gradle test <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# request a subset from all tests
+smart-tests subset gradle --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --bare <PATH TO SOURCE> > smart-tests-subset.txt
+# run the results of the subset request using the `launchable-testng` plugin
+export SMART_TESTS_SUBSET_FILE_PATH=$PWD/smart-tests-subset.txt
+gradle test <OPTIONS>
+----
+
+[#jest-subset]
+=== Jest
+
+Find the `jest` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Duplicate the `jest` command you normally use to run tests and add the `--listTests` option. Then, output the result to a text file. For example:
++
+`jest <OPTIONS> --listTests > test_list.txt`
++
+This command creates the full list of test files that would normally run (without actually running them) to a file called `test_list.txt`. The subset service will divide this full list into a subset and a remainder.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset jest --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --base $(pwd) > smart-tests-subset.txt`
++
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* Don't forget the `--base $(pwd)` option before `jest`.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into Jest.
+
+==== Run a subset of tests
+
+To run the subset, include the subset list after `jest`. For example:
+
+`jest <OPTIONS> $(cat smart-tests-subset.txt)`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+jest <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list that would normally run
+jest <OPTIONS> --listTests > test_list.txt
+# request a subset from all features that would normally run
+cat test_list.txt | smart-tests subset jest --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --base $(pwd) > smart-tests-subset.txt
+# run the results of the subset request
+jest <OPTIONS> $(cat smart-tests-subset.txt)
+----
+
+[#karma-subset]
+=== Karma
+
+Before invoking your tests with Karma, run the `subset karma` command, which expects a list of test files as input, for example:
+
+[source,bash]
+----
+find src -name "*.spec.ts" -o -name "*.spec.js" | \
+smart-tests subset --session <SESSIONID> <OPTIMIZATION TARGET OPTION> karma > subset.txt
+----
+
+* Refer to <<options>> for setting `<SESSIONID>` and `<OPTIMIZATION TARGET OPTION>`.
++
+`subset.txt` will contain a list of test files that are selected as a subset, which you then pass to the test runner invocation. If you run Karma via `ng test`, you can use the `--with` ng option so that the output will be in the form of `--include path/to/some.spec.ts`, which is expected by `ng test`.
+
+[source,bash]
+----
+find ... | smart-tests ... karma --with ng > subset.txt
+ng test $(cat subset.txt)
+----
+
+[#maven-subset]
+=== Maven
+
+Find the `mvn test` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Duplicate the `mvn test` command you normally use to run tests, but change `test` to `test-compile`. For example:
++
+`mvn test-compile <OPTIONS>`
++
+This command creates `.lst` files that list the test classes that would normally run (without running them). The subset service will combine these and divide this full list into a subset and a remainder.
+
+. Run `smart-tests subset` to request a subset from the full list.
++
+`smart-tests subset maven --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --test-compile-created-file <(find . -path '*/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/createdFiles.lst' -exec cat {} \;) > smart-tests-subset.txt`
++
+* Refer to <<options>> for how to set `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* The `<(find...` section combines the `.lst` files across your projects into a single file for processing. You might need to change this for your platform.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into Maven.
+
+==== Run a subset of tests
+
+To run the subset, use the `-Dsurefire.includesFile` option. For example:
+
+`mvn test <OPTIONS> -Dsurefire.includesFile=$PWD/smart-tests-subset.txt`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# your normal command to run tests looks something like this
+mvn test <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list(s) that would normally run
+mvn test-compile <OPTIONS>
+# request a subset from all features that would normally run
+smart-tests subset maven --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --test-compile-created-file <(find . -path '*/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/createdFiles.lst' -exec cat {} \;) > smart-tests-subset.txt
+# run the results of the subset request
+mvn test <OPTIONS> -Dsurefire.includesFile=$PWD/smart-tests-subset.txt
+----
+
+[#maven-testng-subset]
+=== Maven + TestNG
+
+Find the `mvn test` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Duplicate the `mvn test` command you normally use to run tests, but change `test` to `test-compile`. For example:
++
+`mvn test-compile <OPTIONS>`
++
+This command creates `.lst` files that list the test classes that would normally run (without running them). The subset service will combine these and divide this full list into a subset and a remainder.
+
+. Run `smart-tests subset` to request a subset from the full list.
++
+`smart-tests subset maven --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --test-compile-created-file <(find . -path '*/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/createdFiles.lst' -exec cat {} \;) > smart-tests-subset.txt`
++
+* Refer to <<options>> for how to set `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* The `<(find...` section combines the `.lst` files across your projects into a single file for processing.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into Maven.
+
+==== Run a subset of tests
+
+. Modify your `pom.xml` so that it includes {PRODUCT} TestNG integration as a test scope dependency:
++
+[source]
+----
+<dependency>
+  <groupId>com.launchableinc</groupId>
+  <artifactId>launchable-testng</artifactId>
+  <version>1.2.1</version>
+  <scope>test</scope>
+</dependency>
+----
++
+. Export the subset file path as an environment variable before you run `mvn test`, like shown below.
++
+[source]
+----
+export SMART_TESTS_SUBSET_FILE_PATH=$PWD/smart-tests-subset.txt
+mvn test <OPTIONS>
+----
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# your normal command to run tests looks something like this
+mvn test <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list of tests
+mvn test-compile <OPTIONS>
+# request a subset from all tests
+smart-tests subset maven --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --test-compile-created-file <(find . -path '*/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/createdFiles.lst' -exec cat {} \;) > smart-tests-subset.txt
+# run the results of the subset request using the `launchable-testng` plugin
+export SMART_TESTS_SUBSET_FILE_PATH=$PWD/smart-tests-subset.txt
+mvn test <OPTIONS>
+----
+
+[#minitest-subset]
+=== minitest
+
+First, request a subset of tests from your full test suite. Then, pass this list into minitest to run.
+
+==== Request a subset of tests
+
+. Find the `bundle exec rails test` command used to run tests in your CI script.
+
+. Before that command, add the `smart-tests subset` command to request a subset of tests from your full test suite:
++
+`smart-tests subset minitest --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> <PATH TO .rb FILES> > smart-tests-subset.txt`
++
+* Refer to <<options>> for how to set `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* Set `<PATH TO .rb FILES>` to the glob expression representing your `.rb` test files (for example, `test/**/*.rb`). The CLI will look in those path(s) and generate the full list of tests that would normally run. The subset service divides this full list into a subset and a remainder.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of tests formatted for passing into minitest.
+
+==== Run a subset of tests
+
+To run a subset, pass the subset list into `bundle exec rails test` . For example:
+
+`bundle exec rails test <OPTIONS> $(cat smart-tests-subset.txt)`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# your normal command to run tests looks something like this
+bundle exec rails test <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# request a subset of your existing test suite
+smart-tests subset minitest --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> <PATH TO .rb FILES> > smart-tests-subset.txt
+# run the results of the subset request
+bundle exec rails test <OPTIONS> $(cat smart-tests-subset.txt)
+----
+
+[#nunit-subset]
+=== NUnit Console Runner
+
+First, request a subset of tests from your full test suite. Then, pass this list into `nunit3-console` to run.
+
+==== Request a subset of tests
+
+Find the `nunit3-console` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Duplicate the `nunit3-console` command you normally use to run tests, and add the `--explore` option. For example:
++
+`nunit3-console <OPTIONS> --explore=test_list.xml path/to/myassembly.dll`
++
+This command writes the full list of tests that normally run (without running them) to `test_list.xml`.
+
+. Pass the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`smart-tests subset nunit --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> test_list.xml > smart-tests-subset.txt`
+
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of test classes formatted for passing into your normal `adb` command, shown next.
+
+If you want to subset tests across multiple DLLs (for example, if multiple DLLs are combined into a logical 'suite'), run `nunit3-console --explore...` once for each DLL, then pass all the files into `smart-tests subset`, such as:
+
+[source]
+----
+nunit3-console <OPTIONS> --explore=myassembly1.xml path/to/myassembly1.dll
+nunit3-console <OPTIONS> --explore=myassembly2.xml path/to/myassembly2.dll
+nunit3-console <OPTIONS> --explore=myassembly3.xml path/to/myassembly3.dll
+
+smart-tests subset nunit --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> myassembly1.xml myassembly2.xml myassembly3.xml > smart-tests-subset.txt
+----
+
+==== Run a subset of tests
+
+Now you can run the subset of tests by adding the `--testlist` option to your normal `nunit3-console` command, like this:
+
+`nunit3-console <OPTIONS> --testlist=smart-tests-subset.txt path/to/myassembly.dll [path/to/myassembly2.dll] [path/to/myassembly3.dll]`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+nunit3-console <OPTIONS> path/to/myassembly.dll
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list of tests in your suite
+nunit3-console <OPTIONS> --explore=test_list.xml path/to/myassembly.dll
+# request a subset from the full list
+smart-tests subset nunit --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> test_list.xml > smart-tests-subset.txt
+# run the results of the subset request
+nunit3-console <OPTIONS> --testlist=smart-tests-subset.txt path/to/myassembly.dll [path/to/myassembly2.dll] [path/to/myassembly3.dll]
+----
+
+[#perl-prove-subset]
+=== prove for Perl
+
+Find the `prove` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Pipe the test files you have into `smart-tests subset` to request a subset from the full list.
++
+[source]
+----
+# Assuming your test directory is `./t`.
+find ./t -name '*.t' | smart-tests subset prove --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+----
++
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of tests formatted for passing into your normal `prove` command, shown next.
+
+==== Run a subset of tests
+
+Now you can run the subset of tests by passing the `smart-tests-subset.txt` file into `prove`, like this:
+
+[source]
+----
+# You must pass the environment variable JUNIT_NAME_MANGLE=none to generate the JUnit XML report in {PRODUCT}'s supported format.
+export JUNIT_NAME_MANGLE=none
+prove <OPTIONS> -Ilib --harness TAP::Harness::JUnit -r $(cat smart-tests-subset.txt)
+----
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+prove <OPTIONS> -Ilib --harness TAP::Harness::JUnit -r t
+----
+
+And the flow after:
+
+[source]
+----
+# request a subset from the full list
+find ./t -name '*.t' | smart-tests subset prove --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+export JUNIT_NAME_MANGLE=none
+prove <OPTIONS> -Ilib --harness TAP::Harness::JUnit -r $(cat smart-tests-subset.txt)
+----
+
+[#playwright-subset]
+=== Playwright
+
+First, request a subset of tests from your entire test suite. Then, pass this list to Playwright to run.
+
+==== Request a subset of tests
+
+Find the `playwright test` command used to run tests in your CI script.
+
+. List the result in a text file. For example:
++
+`find tests/*.spec.ts > test_list.txt`
++
+This command outputs the complete list of test targets that typically run (without running them) to a file called `test_list.txt`. The subset service will divide this list into a subset and a remainder.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset playwright --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt`
++
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+==== Run a subset of tests
+
+Append the list of tests to run on your existing command, such as:
+
+`playwright test $(cat smart-tests-subset.txt)`
+
+==== Summary
+
+In summary, here's the flow before:
+
+`playwright test ./tests`
+
+And the flow after:
+
+[source]
+----
+# generate the test list
+find ./tests/*.spec.ts > test_list.txt
+# request a subset
+cat test_list.txt | smart-tests subset playwright --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+playwright test $(cat smart-tests-subset.txt)
+----
+
+[#pytest-subset]
+=== pytest
+
+Find the `pytest` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Duplicate the `pytest` command you normally use to run tests and add the `--collect-only` and `-q` options. Then output that to a file. For example:
++
+`pytest <OPTIONS> --collect-only -q > test_list.txt`
++
+This command writes the full list of tests that normally run (without running them) to `test_list.txt`.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset pytest --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt`
++
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of tests formatted for passing into your normal `pytest` command, shown next.
+
+==== Run a subset of tests
+
+Now you can run the subset of tests by passing the `smart-tests-subset.txt` file into `pytest`, like this:
+
+`pytest <OPTIONS> --junit-xml=test-results/subset.xml $(cat smart-tests-subset.txt)`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+pytest <OPTIONS> --junit-xml=test-results/subset.xml
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list of tests in your suite
+pytest <OPTIONS> --collect-only -q > test_list.txt
+# request a subset from the full list
+cat test_list.txt | smart-tests subset pytest --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+pytest <OPTIONS> --junit-xml=test-results/subset.xml $(cat smart-tests-subset.txt)
+----
+
+[#robot-subset]
+=== Robot
+
+Find the `robot` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Duplicate the `robot` command you normally use to run tests, and add the `--dryrun` and `-o` options. For example:
++
+`robot <OPTIONS> --dryrun -o test_list.xml`
++
+This command writes the full list of tests that normally run (without running them) to `test_list.xml`.
+
+. Pass the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`smart-tests subset robot --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> test_list.xml > smart-tests-subset.txt`
++
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of tests formatted for passing into your normal `robot` command, shown next.
+
+==== Run a subset of tests
+
+Now you can run just the subset of tests by passing the `smart-tests-subset.txt` file into `robot`, like this:
+
+`robot <OPTIONS> $(cat smart-tests-subset.txt) .`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+robot <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list of tests in your suite
+robot <OPTIONS> --dryrun -o test_list.xml
+# request a subset from the full list
+smart-tests subset robot --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> test_list.xml > smart-tests-subset.txt
+# run the results of the subset request
+robot <OPTIONS> $(cat smart-tests-subset.txt) .
+----
+
+[#rspec-subset]
+=== RSpec
+
+First, request a subset of tests from your full test suite. Then, pass this list to RSpec to run.
+
+==== Request a subset of tests
+
+. Find the `bundle exec rspec` command used to run tests in your CI script.
+
+. Before that command, add the `smart-tests subset` command to request a subset of tests from your full test suite:
++
+`smart-tests subset rspec --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> <PATH(S) TO .rb FILES> > smart-tests-subset.txt`
++
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* Set `<PATH TO .rb FILES>` to the glob expression representing your `.rb` test files, e.g., `spec/**/*_spec.rb`. The CLI will look in those path(s) and generate the full list of tests that would normally run. The subset service divides this full list into a subset and a remainder.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of tests formatted for passing into RSpec.
+
+==== Run a subset of tests
+
+To run a subset, pass the subset list into `bundle exec rspec`. For example:
+
+`bundle exec rspec $(cat smart-tests-subset.txt) --format d --format RspecJunitFormatter --out rspec.xml <OPTIONS>`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+bundle exec rspec --format RspecJunitFormatter --out report/rspec.xml <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# request a subset of your existing test suite
+smart-tests subset rspec --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> <PATH TO .rb FILES> > smart-tests-subset.txt
+# run the results of the subset request
+bundle exec rspec $(cat smart-tests-subset.txt) --format d --format RspecJunitFormatter --out rspec.xml <OPTIONS>
+----
+
+[[vitest-subset]]
+=== Vitest
+
+First, request a subset of tests from your entire test suite. Then, pass this list to Vitest to run.
+
+==== Request a subset of tests
+
+Find the `vitest run test` command used to run tests in your CI script.
+
+. Duplicate the `vitest` command you normally use to run `list` command and add the `--filesOnly` option. Then, output the result to a text file. For example:
++
+[source,bash]
+----
+vitest list --filesOnly > test_list.txt
+----
++
+This command outputs the complete list of test targets that would normally run (without actually running them) to a file called `test_list.txt`. The subset service will divide this full list into a subset and a remainder.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list:
++
+[source,bash]
+----
+cat test_list.txt | smart-tests subset vitest --session <SESSION NAME> <OPTIMIZATION TARGET OPTION>
+----
+* Refer to <<options>> for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into Vitest.
+
+==== Run a subset of tests
+
+To run the subset, include the subset list after `vitest`. For example:
+
+[source,bash]
+----
+vitest run <OPTIONS> $(cat smart-tests-subset.txt)
+----
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source,bash]
+----
+# Your normal command to run tests looks something like this
+vitest run test <OPTIONS>
+----
+
+And the flow after:
+
+[source,bash]
+----
+# generate the full list that would normally run
+vitest list --filesOnly > test_list.txt
+
+# request a subset from all features that would normally run
+cat test_list.txt | smart-tests subset vitest --session <SESSION NAME> <OPTIMIZATION TARGET OPTION>
+
+# run the results of the subset request
+vitest run <OPTIONS> $(cat smart-tests-subset.txt)
+----
+
+[[xctest-subsetting]]
+=== XCTest
+
+This profile only supports xref:subset/zero-input-subsetting.adoc[].
+
+
+== Other instructions
+
+If none of the above runners or tools are being used, refer to xref:references:integrations/raw.adoc[`raw` profile for custom test runners] or xref:references:integrations/use-the-generic-file-based-runner-integration.adoc[`file` profile for unsupported test runners].
+
+== Check for integration issues
+
+[NOTE]
+--
+Coming soon!
+--

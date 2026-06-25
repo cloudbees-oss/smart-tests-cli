@@ -1,0 +1,90 @@
+include::ROOT:partial$abbr.adoc[]
+
+= Supported test frameworks
+:slug: supported-test-frameworks
+
+The {PRODUCT} CLI includes built-in integrations for test runners and build tools that execute tests built using various frameworks. This means that {PRODUCT} can be used with any test framework, as long as a supported test runner or build tool is used to kick off tests.
+The primary integration point for {PRODUCT} is your team's build tool or test runner (for example, the CLI invoked to actually kick off your tests), not the test framework itself. However, some frameworks have their own test runners. For more information about test runners or to view the full list, refer to xref:references:integrations.adoc[Integrations].
+
+The following list identifies the supported test frameworks and their corresponding test runners or build tools that integrate with {PRODUCT}.
+
+[#appium-tf]
+== Appium
+
+If using the Appium framework, check which tool is used to kick off your tests. For instructions to add {PRODUCT} to your CI pipeline, refer to the following integrations:
+
+* xref:references:integrations.adoc#adb[Android Debug Bridge (adb)]
+* xref:references:integrations.adoc#gradle[Gradle]
+* xref:references:integrations.adoc#maven[Maven]
+* xref:references:integrations.adoc#pytest[pytest]
+
+[#cucumber-tf]
+== Cucumber
+
+The Cucumber framework has its own test runner. For more information, refer to xref:integrations.adoc#cucumber[Cucumber integration].
+
+[#googletest-tf]
+== GoogleTest
+
+The GoogleTest framework has its own test runner. For more information, refer to xref:integrations.adoc#googletest[GoogleTest integration].
+
+[#jest-tf]
+== Jest
+
+The Jest framework has its own test runner. For more information, refer to xref:integrations.adoc#jest[Jest integration].
+
+[#junit-tf]
+== JUnit
+
+If using the JUnit framework, check which tool is used to kick off tests. For instructions to add {PRODUCT} to your CI pipeline, refer to the following integrations:
+
+* xref:references:integrations.adoc#gradle[Gradle]
+* xref:references:integrations.adoc#maven[Maven]
+
+[#minitest-tf]
+== minitest
+
+The minitest framework has its own test runner. For more information, refer to xref:integrations.adoc#minitest[minitest integration].
+
+[#nose-tf]
+== nose
+
+The nose framework has its own test runner. For more information, refer to xref:integrations.adoc#pytest[pytest integration].
+
+[#nunit-tf]
+== NUnit
+
+The nunit framework has its own test runner. For more information, refer to xref:integrations.adoc#dotnet-test[.NET test integration].
+
+[#prove-tf]
+== prove
+
+The prove framework has its own test runner. For more information, refer to xref:integrations.adoc#prove-for-perl[prove for Perl integration].
+
+[#robot-tf]
+== Robot
+
+The Robot framework has its own test runner. For more information, refer to xref:integrations.adoc#robot[Robot integration].
+
+[#rspec-tf]
+== RSpec
+
+The RSpec framework has its own test runner. For more information, refer to xref:integrations.adoc#rspec[RSpec integration].
+
+[#selenium-tf]
+== Selenium
+
+If using the Selenium framework, check which tool is used to kick off your tests. For instructions to add {PRODUCT} to your CI pipeline, refer to the following integrations:
+
+* xref:references:integrations.adoc#ant[Ant]
+* xref:references:integrations.adoc#gradle[Gradle]
+* xref:references:integrations.adoc#maven[Maven]
+* xref:references:integrations.adoc#pytest[pytest]
+
+[#testng-tf]
+== TestNG
+
+If using the TestNG framework, check which tool is used to kick off your tests. For instructions to add {PRODUCT} to your CI pipeline, refer to the following integrations:
+
+* xref:references:integrations.adoc#gradle[Gradle]
+* xref:references:integrations.adoc#maven[Maven]

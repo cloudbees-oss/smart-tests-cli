@@ -1,0 +1,4 @@
+= Jest
+:slug: jest
+
+The Jest framework has its own test runner. Check out the xref:references:integrations/jest.adoc[Jest] page for more info.

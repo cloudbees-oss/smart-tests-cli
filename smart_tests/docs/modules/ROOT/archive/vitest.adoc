@@ -1,0 +1,6 @@
+= Vitest
+:slug: vitest
+
+{PRODUCT} interfaces with Vitest via the {PRODUCT} CLI.
+
+For more information, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#vitest-record-tests[Record test results] and xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#vitest-subset[Subset with the CLI].

@@ -1,0 +1,153 @@
+include::ROOT:partial$abbr.adoc[]
+:slug: migration-to-github-oidc-auth
+= Update tokenless authentication to use GitHub OIDC
+
+Authentication between the {PRODUCT} CLI and {PRODUCT} API typically requires an API key. As an alternative, {PRODUCT} supports _tokenless authentication_ using GitHub's OpenID Connect (OIDC) tokens. Instead of a static API key, GitHub Actions issues a short-lived signed token for each workflow run, which {PRODUCT} verifies directly — no key rotation or secrets management required.
+
+This method works for any GitHub repository (public or private) that uses GitHub Actions for CI.
+
+[NOTE]
+--
+Tokenless authentication does not work for workflows triggered by pull requests from *forked* repositories. GitHub does not issue OIDC tokens in that context.
+--
+
+[#setup-tokenless-authentication]
+== Set up tokenless authentication
+
+=== Prerequisites
+
+* Your repository is hosted on GitHub (public or private).
+* Your CI pipeline uses GitHub Actions.
+
+=== Preparation
+
+. Navigate to link:https://cloudbees.io[https://cloudbees.io] and xref:cloudbees-unify:teams-users:users.adoc#signup[sign up].
+. Create an xref:concepts:organization.adoc[Organization] and a xref:concepts:workspace.adoc[Workspace] for your test suite.
+. Contact link:https://support.cloudbees.com[CloudBees Support] to enable tokenless authentication for your project. We need to know your {PRODUCT} organization, {PRODUCT} workspace, and GitHub repository (`owner/repo`).
+. Update your GitHub Actions YAML.
+. Start using {PRODUCT} in your project.
+
+[WARNING]
+--
+Tokenless authentication only works after we have associated your GitHub repository with your {PRODUCT} workspace in our internal database. Contact link:https://support.cloudbees.com[CloudBees Support] and share your Git repository (`owner/repo`) if using GitHub OIDC, so that we can enable tokenless authentication for it.
+--
+
+[#find-organization-and-workspace]
+==== Find your organization and workspace IDs in {UNIFY}
+
+[IMPORTANT]
+--
+Organization and workspace display names are not unique and should not be used. For now, you must set the *IDs* (UUIDs) in the `SMART_TESTS_ORGANIZATION` and `SMART_TESTS_WORKSPACE` environment variables. Using display names can resolve to the wrong workspace and cause authentication to fail.
+--
+
+{PRODUCT} is integrated with the {UNIFY}, where organizations can be nested. {PRODUCT} flattens this hierarchy: the *top-level (root) organization* maps to your {PRODUCT} *organization*, and every sub-organization (at any nesting depth) maps to a {PRODUCT} *workspace* under that same organization.
+
+This means:
+
+* `SMART_TESTS_ORGANIZATION` is the *top-level (root parent) organization ID* in {UNIFY}
+* `SMART_TESTS_WORKSPACE` is the ID of the *sub-organization* whose data you want to send to {PRODUCT}.
+
+For example, given the following {UNIFY} org hierarchy:
+
+[source]
+----
+Stark Industries (11111111-1111-1111-1111-111111111111)   <-- top-level (root) org
+└── Avengers (22222222-2222-2222-2222-222222222222)
+    └── Engineering (33333333-3333-3333-3333-333333333333)
+        └── Payments Team (44444444-4444-4444-4444-444444444444)  <-- sub-org you want to use
+----
+
+To send data for the `Payments Team` sub-organization, set:
+
+[source]
+----
+SMART_TESTS_ORGANIZATION: "11111111-1111-1111-1111-111111111111"
+SMART_TESTS_WORKSPACE: "44444444-4444-4444-4444-444444444444"
+----
+
+==== Where to find the IDs
+
+Find the *top-level organization ID* on the *Organization profile* page, in the *Organization ID* field.
+
+.Organization profile page showing the Organization ID
+image::ROOT:sending-data/organization-profile-id.png[Organization profile page,role="screenshot"]
+
+Find the *sub-organization ID* by selecting that sub-organization in the CloudBees platform and opening its *Organization profile* page.
+
+If you need help finding the correct IDs, contact link:https://support.cloudbees.com[CloudBees Support].
+
+==== GitHub Actions YAML configuration
+
+Once tokenless authentication is enabled for your project, do the following:
+
+. Configure environment variables in your CI pipeline:
+
+.. `SMART_TESTS_ORGANIZATION`: top-level (root) organization ID (UUID)
+.. `SMART_TESTS_WORKSPACE`: sub-organization ID (UUID) whose data you want to send
+.. `EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH`: Set this to 1
+
+. Add the `permissions` section of your GitHub Actions YAML file.
+
+Tokenless authentication relies on OpenID Connect (OIDC) tokens. To use an OIDC token in GitHub Actions, you need to configure permissions to retrieve it. As described in the link:https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#adding-permissions-settings[GitHub Help Article], `id-token: write` permission needs to be added.
+
+This permission can be added for one job or to the entire workflow:
+
+[source,role="default=expand"]
+----
+name: Verify Smart Tests tokenless authentication
+
+on:
+  pull_request:
+    paths:
+      - gradle/**
+
+env:
+  # Use your organization and workspace IDs (UUIDs), not their display names.
+  SMART_TESTS_ORGANIZATION: "00000000-0000-0000-0000-000000000000"
+  SMART_TESTS_WORKSPACE: "11111111-1111-1111-1111-111111111111"
+  EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH: 1
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v2
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
+      - name: {PRODUCT}
+        run: |
+          pip3 install --user smart-tests~=1.0
+          export PATH=~/.local/bin:$PATH
+          smart-tests verify
+        working-directory: ./gradle
+----
+
+== Frequently Asked Questions
+
+=== What is included in the OIDC token?
+
+GitHub provides a detailed explanation and example of the OIDC token. For more information, refer to link:https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#understanding-the-oidc-token[Understanding the OIDC token].
+
+=== How does {PRODUCT} verify the OIDC token?
+
+When you apply for tokenless authentication, we associate your GitHub repository with your {PRODUCT} workspace in our internal database.
+
+When you run the CLI, the {PRODUCT} API server verifies the OIDC token and checks that the `repository` claim in it matches the stored association.
+
+=== Can I see how the CLI handles the OIDC token?
+
+Yes. Review these commits in the public CLI repository:
+
+* https://github.com/launchableinc/cli/commit/945597f3fffeb49cd5968ba29054de78505aab61[https://github.com/launchableinc/cli/commit/945597f3fffeb49cd5968ba29054de78505aab61]
+* https://github.com/launchableinc/cli/commit/68b06c01607b43bed33b2f774f424f7a8c220af6[https://github.com/launchableinc/cli/commit/68b06c01607b43bed33b2f774f424f7a8c220af6]

@@ -1,4 +1,0 @@
-= nose
-:slug: nose
-
-The nose framework has its own test runner. Check out the xref:resources:integrations/nose.adoc[nose (Integration)] page for more info.

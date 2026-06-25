@@ -1,0 +1,85 @@
+include::ROOT:partial$abbr.adoc[]
+:slug: test-trends-and-insights
+
+= Test trends and insights
+
+The *Test trends* and *Test insights* features provide data about test runs, including trends over time and insights about unhealthy tests. This information helps identify areas of improvement in a test suite and assists in making informed decisions on prioritizing test maintenance.
+
+== Test trends
+
+The *Trends* page shows aggregate information about your test runs, such as average test session duration, test session frequency, and session failures.
+
+Viewing this data over time provides a clear picture of how a test suite evolves. For example, test execution time is twice as long as they did six months ago, and they need to optimize it. Similarly, team's running tests are a lot more often than expected that increases the resource cost. Or, there are some broken tests contributing to an overall failure rate.
+
+== Unhealthy test insights
+
+Tests are hard to maintain. Once created, they stick around, even when it’s no longer clear what value they provide or when begin to cause more harm than benefit.
+
+SMEs working on maintaining those tests often struggle to make convincing arguments as to what work needs to be done to improve the effectiveness of tests and get frustrated.
+
+The overall quality of tests suffers, and in the worst case, the annoyance of the tests goes too high, and developers lose trust in the tests.
+
+This is where the *Unhealthy Tests* page in {PRODUCT} comes in! This page surfaces tests that exhibit specific issues to investigate and make necessary changes.
+
+[NOTE]
+--
+Unhealthy Test stats are aggregated at the 'altitude' that a test runner uses to run tests. For more information, refer to xref:concepts:subset.adoc#subset-altitude-and-test-items[Subset altitude and test items].
+--
+
+== Flaky tests
+
+Flaky tests are automated tests that fail randomly during a run for reasons not related to the code changes being tested. They are often caused by timing issues, concurrency problems, or the presence of other workloads in the system.
+
+Flaky tests are a common problem for many development teams, especially as test suites grow. They are more common at higher levels of the Test Pyramid, especially in UI and system tests.
+
+Like the fictional boy who cried “wolf,” tests that send a false signal too often are sometimes ignored. Or worse, people spend real time and effort trying to diagnose a failure, only to discover that it has nothing to do with their code changes. When flakiness occurs with many tests, it can make people weary of all tests and all failures—not just flaky tests—causing a loss of trust in tests.
+
+Tests that produce flaky results should be repaired or removed from the test suite.
+
+=== Flaky test insights
+
+To address this issue, {PRODUCT} can analyze test runs to identify flaky tests in the suite.
+
+Start by xref:send-data-to-smart-tests:send-data-to-smart-tests.adoc[sending data to {PRODUCT}]. The *Flaky tests* page will be populated within a few days.
+
+* However, for flakiness scores to populate, the same test  must be executed multiple times against the same xref:concepts:build.adoc[Build]. In other words, a retry mechanism must be in place to re-run tests when failed. (This is usually already the case for test suites with flaky tests.)
+
+{PRODUCT} re-analyzes the test sessions to extract flakiness data every day.
+
+Flaky tests are automated tests that fail randomly during a run for reasons not related to the code changes being tested. They are often caused by timing issues, concurrency problems, or the presence of other workloads in the system.
+
+=== Flakiness score
+
+A test is considered flaky when it runs multiple times against the same build, and sometimes it passes and fails.
+
+The *flakiness score* for a test represents the probability that a test _fails_ but eventually _passes_ if run repeatedly.
+
+For example, let's say there is a test called `myTest1` with a flakiness score of 0.1. This means that if this test failed against ten different commits, in one of those ten commits, that failure was not a true failure. If that test is run repeatedly, and it eventually _passes_, this test is slightly flaky.
+
+Similarly, another test called `myTest2` has a flakiness score of 0.9. If this test failed against ten different commits, in 9 out of those ten commits, you saw a false failure that retry will yield a _passing_ result. That test is very flaky and should be fixed.
+
+=== Total duration
+
+The dashboard also includes the *total duration* of a flaky test. Since flaky tests are often retried multiple times, this adds lots of extra time to each test run.
+
+The total duration is useful for prioritizing which flaky tests to fix _first_.
+
+For example, you might have a very flaky test (i.e., it has a high flakiness score) but either doesn't take very long to run each time, it doesn't run very often, or both. In comparison, you might have a less flaky test that takes a very long time to run -- so you'll probably want to fix that first.
+
+[NOTE]
+--
+The table is sorted by flakiness score in descending order, not total duration.
+--
+
+== Never failing tests
+
+Tests that never fail are like cats who never catch any mice. They take up execution time and require maintenance, yet they may not add value. For each test, ask yourself if it provides enough value to justify its execution time. Consider moving the test to the right so that it runs less frequently.
+
+[NOTE]
+--
+A test must run at least *five* (5) times in order to be considered.
+--
+
+== Longest tests
+
+Slow tests are like gunk that builds up in your engine. Over time they slow down your CI cycle.

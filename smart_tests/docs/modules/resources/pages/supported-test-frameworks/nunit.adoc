@@ -1,4 +1,0 @@
-= NUnit
-:slug: nunit
-
-The nunit framework has its own test runner. Check out the xref:resources:integrations/dotnet-test.adoc[dotnet test] page for more info.

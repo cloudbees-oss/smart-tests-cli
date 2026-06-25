@@ -109,4 +109,4 @@ smart-tests record session --build <BUILD NAME> --session <SESSION_NAME> [OPTION
 ## finish multiple test runs
 ----
 
-For more information, refer to `smart-tests record session` in the xref:resources:cli-reference.adoc[CLI reference].
+For more information, refer to `smart-tests record session` in the xref:references:cli-reference.adoc[CLI reference].

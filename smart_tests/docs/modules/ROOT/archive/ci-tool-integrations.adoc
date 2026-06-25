@@ -1,0 +1,325 @@
+include::ROOT:partial$abbr.adoc[]
+
+= CI tool integrations
+:slug: ci-tool-integrations
+
+Although {PRODUCT} works with any CI tool, we are working on direct integrations to make onboarding easier. Follow the instructions on xref:send-data-to-smart-tests:set-up-smart-tests/getting-started.adoc[Getting started] to do the following:
+
+* Sign up for a Smart test account on {PRODUCT}.
+* Create an organization and a workspace for your test suite.
+* Create an API key for your workspace. This authentication token lets the CLI talk to your {PRODUCT} workspace.
+
+== GitHub Actions
+
+The {PRODUCT} record build and test results action integrates {PRODUCT} into your CI with minimal configuration.  This action installs the link:https://pypi.org/project/smart-tests-cli/[CLI] and runs `smart-tests record build` and `smart-tests record tests` to send data to {PRODUCT}, which analyzes the test results to improve developer productivity.
+
+For more information, refer to
+link:https://github.com/marketplace/actions/record-build-and-test-results-action[{PRODUCT} record build and test results action].
+
+=== Example usage
+
+[source,yaml]
+----
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+  SMART_TESTS_DEBUG: 1
+  SMART_TESTS_REPORT_ERROR: 1
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Test
+        run: <YOUR TEST COMMAND HERE>
+      - name: Record
+        uses: launchableinc/record-build-and-test-results-action@v1.0.0
+        with:
+          build_name: $GITHUB_RUN_ID
+          test_runner: <YOUR TEST RUNNER HERE>
+          report_path: <PATH TO TEST REPORT XML FILES>
+        if: always()
+----
+
+.Test runner values
+[cols="1,1,1", options="header"]
+|===
+|Test runner |`test_runner` value |Additional steps?
+
+|<<ant-ga>>
+|`ant`
+|
+
+|<<bazel-ga>>
+|`bazel`
+|
+
+|<<behave-ga>>
+|`behave`
+|Yes
+
+|<<ctest-ga>>
+|`ctest`
+|Yes
+
+|<<cucumber-ga>>
+|`cucumber`
+|Yes
+
+|<<cypress-ga>>
+|`cypress`
+|
+
+|<<googletest-ga>>
+|`googletest`
+|Yes
+
+|<<go-test-ga>>
+|`go-test`
+|Yes
+
+|<<gradle-ga>>
+|`gradle`
+|
+
+|<<jest-ga>>
+|`jest`
+|Yes
+
+|<<maven-ga>>
+|`maven`
+|
+
+|<<mtest-ga>>
+|`minitest`
+|Yes
+
+|<<nunit-ga>>
+|`nunit`
+|Yes
+
+|<<pytest-ga>>
+|`pytest`
+|Yes
+
+|<<robot-ga>>
+|`robot`
+|
+
+|<<rspec-ga>>
+|`rspec`
+|Yes
+|===
+
+[#instructions_for_test_runnersbuild_tools]
+== Instructions for test runners/build tools
+
+The following section provides instructions for configuring test runners or build tools to generate test reports that {PRODUCT} can consume.If your test runner or build tool isn't listed, use the CLI to send data to {PRODUCT} using one of the following profiles:
+
+* xref:references:integrations/use-the-generic-file-based-runner-integration.adoc[`file` profile for unsupported test runners]
+
+* xref:references:integrations/raw.adoc[`raw` profile for custom test runners]
+
+[#adb-ga]
+=== Android Debug Bridge (adb)
+
+Currently, the CLI doesn't have a `record tests` command for ADB. Use the command for <<gradle-ga>> instead.
+
+[#ant-ga]
+=== Ant
+
+No special steps.
+
+[#bazel-ga]
+=== Bazel
+
+No special steps.
+
+[#behave-ga]
+=== Behave
+
+In order to generate reports that {PRODUCT} can consume, add the `--junit` option to your existing `behave` command:
+
+[source,bash]
+----
+# run the tests however you normally do
+behave --junit
+----
+
+[#ctest-ga]
+=== CTest
+
+Run your tests with `ctest -T test --no-compress-output`. These options ensure test results are written to the `Testing` directory.
+
+[#cucumber-ga]
+=== cucumber
+
+Run cucumber with the `-f junit` option, like this:
+
+`bundle exec cucumber -f junit -o reports`
+
+(If using JSON, use the {PRODUCT} CLI instead.)
+
+[#cypress-ga]
+=== Cypress
+
+No special steps.
+
+[#googletest-ga]
+=== GoogleTest
+
+Configure GoogleTest to produce JUnit compatible report files. For more information on how to do this, refer to link:https://github.com/google/googletest/blob/main/docs/advanced.md#generating-an-xml-report[their documentation].
+
+==== Command example
+
+[source,bash]
+----
+# run the tests however you normally do
+./my-test --gtest_output=xml:./report/my-test.xml
+----
+
+[#go-test-ga]
+=== Go Test
+
+In order to generate reports that {PRODUCT} can consume, use link:https://github.com/jstemmer/go-junit-report[go-junit-report] to generate a JUnit XML file after running tests:
+
+[source,bash]
+----
+# install JUnit report formatter
+go get -u github.com/jstemmer/go-junit-report
+
+# run the tests however you normally do, then produce a JUnit XML file
+go test -v ./... | go-junit-report -set-exit-code > report.xml
+----
+
+[#gradle-ga]
+=== Gradle
+No special steps. Gradle writes test reports to `**/build/**/TEST-*.xml` by default, which the {PRODUCT} CLI consumes.
+`**/build/**/TEST-*.xml` .
+
+[#jest-ga]
+=== Jest
+
+In order to generate reports that {PRODUCT} can consume, use link:https://www.npmjs.com/package/jest-junit[jest-junit] to generate a JUnit XML file after running tests.
+
+[source,bash]
+----
+# install jest-junit reporter
+npm install jest-junit --save-dev
+# or
+yarn add --dev jest-junit
+----
+
+Configure jest-junit to include file paths in reports. Do this using the following environment variables:
+
+[.multilanguage-custom-table, options="header", cols="2"]
+|===
+| Using environment variables
+| Using package.json
+
+a| Recommended config:
+
+[source,bash]
+----
+export JEST_JUNIT_CLASSNAME="{classname}"
+export JEST_JUNIT_TITLE="{title}"
+export JEST_JUNIT_SUITE_NAME="{filepath}"
+----
+
+Minimum config:
+
+`export JEST_JUNIT_SUITE_NAME="{filepath}"`
+
+a| Add the following lines to `package.json`. The detail is the link:https://www.npmjs.com/package/jest-junit[jest-junit] section.
+
+Recommended config:
+
+[source,json]
+----
+// package.json
+"jest-junit": {
+  "suiteNameTemplate": "{filepath}",
+  "classNameTemplate": "{classname}",
+  "titleTemplate": "{title}"
+}
+----
+
+Minimum config:
+
+[source,json]
+----
+// package.json
+"jest-junit": {
+  "suiteNameTemplate": "{filepath}"
+}
+----
+
+|===
+
+Run `jest` using jest-junit:
+
+[source,bash]
+----
+# run tests with jest-junit
+jest --ci --reporters=default --reporters=jest-junit
+----
+
+[#maven-ga]
+=== Maven
+
+{PRODUCT} supports test reports generated using link:https://maven.apache.org/surefire/maven-surefire-plugin/[Surefire], the default report plugin for https://maven.apache.org/[Maven].
+
+Example:
+
+`'./**/target/surefire-reports'`
+
+NOTE: The invocation above relies on the CLI to expand globs like `**`.
+
+[#mtest-ga]
+=== minitest
+
+Use link:https://github.com/circleci/minitest-ci[minitest-ci] to output test results to a file. If storing test results on your CI server, it may already be installed.
+
+[#nunit-ga]
+=== NUnit Console Runner
+
+{PRODUCT} CLI accepts link:https://docs.nunit.org/articles/nunit/technical-notes/usage/XML-Formats.html[NUnit3 style test report XML files] produced by NUnit.
+
+
+[#pytest-ga]
+=== pytest
+
+Run tests with the `--junit-xml` option:
+
+`pytest --junit-xml=test-results/results.xml`
+
+[WARNING]
+--
+pytest changed its default test report format from `xunit1` to `xunit2` in version 6. Unfortunately, the new `xunit2` format does not include file paths, which {PRODUCT} needs.
+
+If using pytest 6 or newer, you must also specify `junit_family=legacy` as the report format. For more information, refer to link:https://docs.pytest.org/en/latest/deprecations.html#junit-family-default-value-change-to-xunit2[Deprecations and Removals — pytest documentation] for instructions.
+--
+
+[#robot-ga]
+=== Robot
+
+Example output:
+
+`output.xml`
+
+[#rspec-ga]
+=== RSpec
+
+Use link:https://github.com/sj26/rspec_junit_formatter[rspec_junit_formatter] to output test results to a file in RSpec. If storing test results on your CI server, it may already be installed.
+
+Example output:
+
+`bundle exec rspec --format RspecJunitFormatter --out report/rspec.xml`

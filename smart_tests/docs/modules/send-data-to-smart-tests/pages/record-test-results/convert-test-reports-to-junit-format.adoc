@@ -21,7 +21,7 @@ The best-annotated examples of the JUnit report format are;
 
 * `<testsuites>` , `<testsuite>` , `<testcase>` are the structural elements that matter * Their `name` and `classname` attributes are used to identify test names
 * For a failed/errored/skipped test case, `<testcase>` element must have a nested `<failure>` , `<error>` , or `<skipped>` child element, respectively
-* While not documented in the pages linked above, `file` or `filepath` attributes on structural elements that point to the test source file path *are required* for file-based test runner support, most notably the xref:resources:integrations/use-the-generic-file-based-runner-integration.adoc[`file` profile for unsupported test runners] one you will most likely use if you are on this page!
+* While not documented in the pages linked above, `file` or `filepath` attributes on structural elements that point to the test source file path *are required* for file-based test runner support, most notably the xref:references:integrations/use-the-generic-file-based-runner-integration.adoc[`file` profile for unsupported test runners] one you will most likely use if you are on this page!
 * `time` attribute on structural elements that indicates how long a test took to run (in seconds)
 
 === Nice to have

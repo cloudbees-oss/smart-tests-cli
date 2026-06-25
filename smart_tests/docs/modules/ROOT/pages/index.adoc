@@ -1,6 +1,8 @@
+include::ROOT:partial$abbr.adoc[]
+
 = Overview
 
-https://www.launchableinc.com/[{PRODUCT}] is a *software development intelligence platform* focused on continuous integration (CI). Using data from your CI runs, {PRODUCT} provides various features to speed up your testing workflow so you can ship high-quality software faster.
+{PRODUCT} is a *software development intelligence platform* focused on continuous integration (CI). Using data from your CI runs, {PRODUCT} provides various features to speed up your testing workflow so you can ship high-quality software faster.
 
 [#predictive-test-selection]
 == Predictive test selection
@@ -19,7 +21,7 @@ For more information, refer to xref:features:predictive-test-selection.adoc[Pred
 [#test-suite-trends]
 == Test suite trends
 
-To see aggregate info about your test sessions, including average test session duration, test session frequency, and how often sessions fail refer to xref:features:trends.adoc[test suite trends].
+To see aggregate info about your test sessions, including average test session duration, test session frequency, and how often sessions fail refer to xref:features:test-trends-and-insights.adoc[test suite trends].
 
 Seeing this data over time gives you a picture of how your test suite evolves; for example, perhaps tests are taking twice as long as they did six months ago, and you need to cut it down! Similarly, perhaps your team's running tests a lot more often than expected, driving up resource costs. Or maybe there are some broken tests that are driving up the overall failure rate.
 
@@ -52,4 +54,4 @@ The following apps are available for receiving notifications:
 
 The apps will send notifications _directly_ to developers eliminating the need to manually check their email or navigate to their pull request to see if their tests passed.
 
-To sign up for a {PRODUCT} account, refer to https://app.launchableinc.com/signup[https://app.launchableinc.com/signup]. Once done, you can start xref:send-data-to-smart-tests:send-data-to-smart-tests.adoc[send data to {PRODUCT}].
+To sign up for a {PRODUCT} account, refer to link:https://cloudbees.io[https://cloudbees.io] and xref:cloudbees-unify:teams-users:users.adoc#signup[sign up]. Once done, you can start xref:send-data-to-smart-tests:send-data-to-smart-tests.adoc[sending data to {PRODUCT}].

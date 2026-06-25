@@ -1,0 +1,4 @@
+= RSpec
+:slug: rspec
+
+The RSpec framework has its own test runner. Check out the xref:references:integrations/rspec.adoc[RSpec] page for more info.

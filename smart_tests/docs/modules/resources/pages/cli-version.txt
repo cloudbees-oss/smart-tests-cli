@@ -1,3 +1,0 @@
-# version of CLI to put in the reference doc
-# update this file and create a PR to auto-trigger the cli-reference.adoc rebuild
-v2.1.0

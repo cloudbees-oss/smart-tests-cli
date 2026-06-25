@@ -1,6 +1,109 @@
-= Test Suite Parallelization
+include::ROOT:partial$abbr.adoc[]
 :slug: test-suite-parallelization
+= Test Suite Parallelization
 
-Using duration information from past test runs, {PRODUCT} can automatically create evenly-sized bins of tests for you to run your test suite in several parallel workers. This can reduce the effective length of your test suite drastically.
+Using duration information from past test runs, {PRODUCT} can automatically create evenly-sized bins of tests to run a test suite in several parallel workers. This can reduce the effective length of a test suite drastically.
 
-For instructions on how to do this, see xref:features:test-suite-parallelization/parallelize-your-test-suite-with-the-smart-tests-cli.adoc[Parallelizing your test suite with the {PRODUCT} CLI] .
+To parallelize a test suite, do the following:
+
+. Record your test results via xref:send-data-to-smart-tests:send-data-to-smart-tests.adoc[Sending data to {PRODUCT}].
+. Kick off the process by running `smart-tests subset` with the `--split` option and `--target 100%`.
++
+The command will output an ID string you should save and pass into each runner. For more information about this command, refer to xref:send-data-to-smart-tests:subset/request-and-run-a-subset-of-tests.adoc[].
+. Start your parallel test worker(s).
+. Request the bin of tests that the worker should run. To do this, run `smart-tests split-subset` with:
+.. the `--subset-id` option set to the ID you saved earlier, and
+.. the `--bin` value set to `bin-number/bin-count`.
++
+For example, to split your test suite across 3 workers, use `1/3`, `2/3`, and so on.
+
+. If you're using xref:send-data-to-smart-tests:subset/zero-input-subsetting.adoc[], add the `--output-exclusion-rules` option.
+
+. Run the tests on each worker as outlined in xref:send-data-to-smart-tests:subset/request-and-run-a-subset-of-tests.adoc[].
+
+. After  each worker completes its run, record test results using `smart-tests record tests` with the `--subset-id` option set to the ID you saved earlier.
+
+== How parallelization works
+When you request a subset, {PRODUCT} determines which tests to run, the execution order, then generates an input snapshot ID for that subset.  Next, start workers with the same input snapshot ID for each worker. {PRODUCT} divides the bins by the number of workers. For example, with four workers, create four bins: 1/4, 2/4, 3/4, and 4/4.
+
+=== Steps to parallelize a test suite
+
+The following steps outline how to parallelize a test suite using the {PRODUCT} CLI:
+
+. Request a subset and generate input snapshot ID:
+* Record tests with the input snapshot ID to ensure all workers use the same subset of tests.
+
+. Split the subset across workers:
+* {PRODUCT} returns only the tests that belong to that bin, which the worker can then run in parallel with other workers.
+
+. (Optional) Apply additional subset controls:
+* When you request a bin, apply additional controls to filter tests in that bin.
+** Confidence targets: Include only tests predicted to fail or tests with previous failures.
+** Duration targets: Include only tests with specific runtime predictions.
+** Goals: Ignore flaky tests or tests already run in the current session.
+
+* These controls enable more targeted test parallelization.
+
+
+== What parallelization looks like in practice
+
+The following example parallelizes a test suite across four workers to reduce overall runtime:
+
+[source,bash]
+----
+$ smart-tests record build --build $BUILD_ID --source src/.
+
+$ smart-tests record session --build $BUILD_ID --test-suite unit-test > session.txt
+
+# Recommended: How to issue an input snapshot ID and run a parallel test
+$ find ./tests/**/*.py | smart-tests subset file --session @session.txt --print-input-snapshot-id
+4567
+
+# worker 1
+$ smart-tests subset file --session @session.txt --confidence 90% --input-snapshot-id 4567 --bin 1/4 > subset.txt
+<< Execute the tests listed in subset.txt >>
+$ smart-tests record tests file --session @session.txt <REPORT_FILES>
+
+# worker 2
+$ smart-tests subset file --session @session.txt --confidence 90% --input-snapshot-id 4567 --bin 2/4 > subset.txt
+<< Execute the tests listed in subset.txt >>
+$ smart-tests record tests file --session @session.txt <REPORT_FILES>
+
+# worker 3
+$ smart-tests subset file --session @session.txt --confidence 90% --input-snapshot-id 4567 --bin 3/4 > subset.txt
+<< Execute the tests listed in subset.txt >>
+$ smart-tests record tests file --session @session.txt <REPORT_FILES>
+
+# worker 4
+$ smart-tests subset file --session @session.txt --confidence 90% --input-snapshot-id 4567 --bin 4/4 > subset.txt
+<< Execute the tests listed in subset.txt >>
+$ smart-tests record tests file --session @session.txt <REPORT_FILES>
+
+
+# Optional: When tests cannot be listed in advance
+# Depending on the timing, there is a risk of duplicate or missing test cases.
+
+# worker 1
+$ find ./tests/**/*.py | smart-tests subset file --session @session.txt --confidence 90% --bin 1/4 > subset.txt
+<< Execute the tests listed in subset.txt >>
+$ smart-tests record tests file --session @session.txt <REPORT_FILES>
+
+# worker 2
+$ find ./tests/**/*.py | smart-tests subset file --session @session.txt --confidence 90% --bin 2/4 > subset.txt
+<< Execute the tests listed in subset.txt >>
+$ smart-tests record tests file --session @session.txt <REPORT_FILES>
+
+# worker 3
+$ find ./tests/**/*.py | smart-tests subset file --session @session.txt --confidence 90% --bin 3/4 > subset.txt
+<< Execute the tests listed in subset.txt >>
+$ smart-tests record tests file --session @session.txt <REPORT_FILES>
+
+# worker 4
+$ find ./tests/**/*.py | smart-tests subset file --session @session.txt --confidence 90% --bin 4/4 > subset.txt
+<< Execute the tests listed in subset.txt >>
+$ smart-tests record tests file --session @session.txt <REPORT_FILES>
+----
+
+== Benefits of parallelization with {PRODUCT}
+
+The {PRODUCT} CLI splits tests equally based on time and reduces test runtime. Reduced runtime provides faster feedback on code changes. The {PRODUCT} CLI integrates into existing CI/CD pipelines as part of the development workflow.

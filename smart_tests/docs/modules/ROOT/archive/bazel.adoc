@@ -1,0 +1,6 @@
+= Bazel
+:slug: bazel
+
+{PRODUCT} interfaces with Bazel via the {PRODUCT} CLI.
+
+For more information, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc[Record test results with the {PRODUCT} CLI] and xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc[Subset with the {PRODUCT} CLI].

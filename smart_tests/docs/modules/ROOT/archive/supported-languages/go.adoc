@@ -1,0 +1,9 @@
+= Go
+:slug: go
+
+The {PRODUCT} CLI includes built-in integrations for test runners and build tools that are popular in the Golang ecosystem:
+
+* xref:references:integrations/bazel.adoc[Bazel]
+* xref:references:integrations/go-test.adoc[Go Test]
+
+See each integration's page for instructions to add {PRODUCT} to your CI pipeline.
