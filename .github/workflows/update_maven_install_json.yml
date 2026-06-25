@@ -6,13 +6,12 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.event.pull_request.head.ref }}
-          # Bot token is needed to ensure that git-push triggers relevant workflows
-          # See https://github.com/orgs/community/discussions/27146
-          token: ${{ secrets.LAUNCHABLEINC_CI_GITHUB_TOKEN }}
       - name: Set up JDK 17
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
@@ -29,12 +28,9 @@ jobs:
         run: |
           REPIN=1 bazel run @unpinned_maven//:pin
       - name: Commit updated files
-        run: |
-          if ! git diff --exit-code --quiet
-          then
-            git add src/maven_install.json
-            git config --local user.email "nobody@launchableinc.com"
-            git config --local user.name "File Update GitHub Workflow"
-            git commit -m "Update maven_install.json"
-            git push
-          fi
+        if: ${{ !cancelled() }}
+        uses: IAreKyleW00t/verified-bot-commit@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: src/maven_install.json
+          message: "Update maven_install.json"

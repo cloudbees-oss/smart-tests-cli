@@ -657,15 +657,21 @@ def tests(
                 click.echo(click.style("\nTotal test duration is 0."
                                        "\nPlease check whether the test duration times in report files are correct.", "yellow"))
 
+            url = self._get_test_session_url()
             click.echo(
-                "\nVisit https://app.launchableinc.com/organizations/{organization}/workspaces/"
-                "{workspace}/test-sessions/{test_session_id} to view uploaded test results "
-                "(or run `launchable inspect tests --test-session-id {test_session_id}`)"
-                .format(
-                    organization=org,
-                    workspace=workspace,
-                    test_session_id=self.test_session_id,
-                ))
+                "\nVisit {} to view uploaded test results "
+                "(or run `launchable inspect tests --test-session-id {}`)".format(url, self.test_session_id))
+
+        def _get_test_session_url(self) -> str:
+            cbp_workspace = client.get_cbp_workspace()
+            if cbp_workspace:
+                org_cbp_id, ws_cbp_id = cbp_workspace
+                url = "https://cloudbees.io/{}/{}/smart-tests/data/test-sessions/{}".format(
+                    org_cbp_id, ws_cbp_id, self.test_session_id)
+            else:
+                url = "https://app.launchableinc.com/organizations/{}/workspaces/{}/test-sessions/{}".format(
+                    org, workspace, self.test_session_id)
+            return url
 
     context.obj = RecordTests(dry_run=context.obj.dry_run)
 
