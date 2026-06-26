@@ -1,0 +1,66 @@
+= Data privacy and protection
+:slug: data-privacy-and-protection
+
+[NOTE]
+--
+Your data is our highest priority
+--
+
+== Specifics on the data sent to Smart Tests
+
+CloudBees Smart Tests is designed to make your test runs faster and more reliable. To do that, the Smart Tests CLI sends a focused set of data from your CI environment to CloudBees: commit metadata, test results, and source code content. The source content is processed only to produce a vector embedding – a mathematical representation of the file – and is then permanently deleted. *The original source code is not stored on CloudBees infrastructure, is not used for training, and is not shared with any party other than OpenAI, the service CloudBees uses to generate embeddings.*
+
+== What we collect, and why
+
+[cols="1,2",options="header"]
+|===
+| Data collected | What exactly, and why is it needed?
+
+| *Contents of source code & test files*
+| To generate a vector embedding (see in more detail below), so Smart Tests can understand the semantic relationships between how the source code relates to your tests. 
+
+This data is temporarily processed by Smart Tests to generate vector embeddings – and not persisted.
+
+| *Metadata about the code change under test*
+| Git commit SHAs, branch names, timestamps, Git author details and the list of files changed in each build. 
+
+These are used to associate a code change with the tests that should run for it.
+
+| *Metadata about the test cases that were run*
+| Test paths & names, pass/fail/skip outcomes, durations, and associations with test suites. 
+
+These are used to train the prediction model that ranks tests by relevance for each code change, and to power flaky-test detection and other test health & insights features.
+|===
+
+== Understanding vector embeddings
+
+A vector embedding is a list of numbers that describes the "shape" of a piece of code in an abstract mathematical space. Two pieces of code that do similar things end up close together in that space, while two pieces of code that do unrelated things end up far apart.
+
+Think of it this way, the embedding does not contain the original code any more than a fingerprint contains the person it was taken from.
+
+Smart Tests uses embeddings to answer one question: when files change in a commit, which tests are most likely to exercise the behaviour that changed? Comparing embeddings makes that comparison tractable, accurate, and even language-agnostic – Smart Tests can reason about code relationships across languages and frameworks without parsing them.
+
+== What embeddings don't let us do
+
+* *They do not let us read your code*. The transformation from source to embedding is mathematically lossy; the original content cannot be recovered from a stored vector in any practical sense.
+* *They do not let us execute your code*, extract secrets from it or inspect its behaviour in any way.
+* *They do not enable cross-tenant access*. Every Smart Tests tenant's data – including embeddings – is isolated using row-level security in our database.
+* *They are not used to train public AI models*. Source content sent for embedding is processed to produce the vector and nothing else. It does not flow into the training data for any CloudBees or third-party foundation model.
+
+== Data security and handling practices
+
+* *We use OpenAI to generate vector embeddings*. Source code is transmitted to OpenAI solely for this purpose and not stored with Smart Tests thereafter.
+* *In transit* – All data is transmitted over HTTPS using TLS 1.3 or higher, end-to-end between your CI environment and CloudBees infrastructure, and onward to OpenAI for embedding generation.
+* *During processing* – Source code is held only for the duration of embedding generation:
+** First-time ingestion (full repository scan): ~3–4 minutes for large enterprise repositories.
+** Subsequent commits (incremental updates): typically a few seconds.
++
+After embedding generation completes, source code is permanently and irreversibly deleted. Only the embedding vectors are retained.
+* *Security reviews & Penetration testing* – CloudBees' production infrastructure is reviewed on a recurring basis as part of our standard security program. Smart Tests has already completed a security review, with future reviews scheduled accordingly.
+
+== Data storage and retention
+
+* *Encryption* – Personal information is encrypted both in transit and at rest.
+* *Tenant isolation* – CloudBees Smart Tests is a multi-tenant SaaS product, with each customer's data kept separate from one another.
+* *Hosting location* – CloudBees Smart Tests is hosted on AWS' US-West region.
+* *Retention and deletion* – Customers have the option to have their data deleted. CloudBees will delete data based on a customer request to do so.

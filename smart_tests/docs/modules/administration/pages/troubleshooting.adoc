@@ -1,0 +1,80 @@
+include::ROOT:partial$abbr.adoc[]
+:slug: troubleshooting
+
+= Troubleshoot
+
+The following sections describe common issues that you might encounter when using {PRODUCT} and how to resolve them.
+
+== "smart-tests verify" failure
+There are a number of reasons why `smart-tests verify` might fail. The most common ones are connectivity issues, which can be caused by firewalls, proxies, or SSL certificate problems. The following provide guidance on how to troubleshoot these issues.
+
+=== Firewalls and static IP addresses
+
+If you receive an error like this one, then you will need to configure your firewall to allow traffic to `+api-static.mercury.launchableinc.com+`:
+
+[source]
+----
+$ smart-tests verify
+unable to post to https://api.mercury.launchableinc.com/...
+
+$ smart-tests record build
+...
+Exception in thread "main" java.net.UnknownHostException: api.mercury.launchableinc.com: No address associated with hostname
+----
+
+If you need to interact with the API via static IPs, first set the `SMART_TESTS_BASE_URL` environment variable to `+https://api-static.mercury.launchableinc.com+` .
+
+The IP for this hostname will be either `13.248.185.38` or `76.223.54.162` which you can add to your firewall settings.
+
+=== Proxies
+
+If your CI server sits behind a proxy, you can tell the CLI to use it by setting the `HTTP_PROXY` and/or `HTTPS_PROXY` environment variables. For example:
+
+[source]
+----
+export HTTP_PROXY="http://10.10.1.10:3128"
+export HTTPS_PROXY="http://10.10.1.10:1080"
+----
+
+=== SSL certificate verification error
+
+If you get an error like this:
+
+`SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate `
+
+It is an indication that your system is lacking the root CA certificates. See  the https://requests.readthedocs.io/en/master/user/advanced/#proxies[documentation for Requests], which the CLI uses under the hood, for how it looks up certificates. Also check out Stack Overflow posts like https://stackoverflow.com/questions/50422136/python-requests-with-wincertstore/57053415[this] where people discusses various remedies.
+
+If all else fails, use the `--skip-cert-verification` option of the {PRODUCT} CLI to altogether bypass the SSL certificate check process. This means you are susceptible to MITM attacks, so use it with caution.
+
+== Missing Git object during commit collection
+
+During `record build` or `record commit` , you might encounter errors like this:
+
+`Warning: 5730667 is missing. Skipping diff calculation for f2244ec -> 20630e5.`
+
+This warning indicates that a Git object (typically a "blob", which stores a file) is missing from the local clone, preventing the calculation of a diff between the two specified commits. This is typically caused by a link:https://git-scm.com/docs/shallow[Git shallow clone] or link:https://git-scm.com/docs/partial-clone[Git partial clone].
+
+{PRODUCT} will continue to function without this information, hence this is a warning; Predictive test selection will run with limited set of information, which will hurt the performance by unknown amount. If you are only seeing this sporadically, we suggest you simply ignore this warning.
+
+Getting rid of this warning involves tweaking the `git-clone` or `git-fetch` operations to ensure enough of the relevant Git objects are made available locally. For example,
+
+* CI systems often use `--depth 1` to just fetch the very latest commit and that alone. Increase this number should help, say `--depth 32`.
+* `GitHub Action actions/checkout uses --filter=blob:none` when you choose to do a sparse checkout. Use `filter: none` to override this.
+
+== Recording branch of build
+
+During `record build`, {PRODUCT} tries to automatically determine the Git branch being built. However, this can fail, depending on how you check out the code. When this happens, our webapp will ask you to configure this explicitly.
+
+If your build involves just one repository, you can do this by using the `--branch NAME` option:
+
+`smart-tests record build --build $BUILD_NAME --source . --branch $GIT_BRANCH`
+
+If you have multiple repositories, you have to use the `--branch REPONAME=BRANCHNAME` format:
+
+[source]
+----
+smart-tests record build --build $BUILD_NAME \
+  --source product=. --source test=../test --branch product=$GIT_BRANCH
+----
+
+You can specify branches for every repository in this manner. However, the first repository is the most important because it is used as the branch for this build as a whole. {PRODUCT} strongly recommends choosing the primary repository as the first repository for this reason.

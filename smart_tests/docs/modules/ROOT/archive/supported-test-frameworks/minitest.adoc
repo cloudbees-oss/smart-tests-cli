@@ -1,0 +1,4 @@
+= minitest
+:slug: minitest
+
+The minitest framework has its own test runner. Check out the xref:references:integrations/minitest.adoc[minitest] page for more info.

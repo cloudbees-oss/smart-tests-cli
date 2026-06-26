@@ -1,0 +1,4 @@
+= GoogleTest
+:slug: googletest
+
+The GoogleTest framework has its own test runner. Check out the xref:references:integrations/googletest.adoc[GoogleTest] page for more info.

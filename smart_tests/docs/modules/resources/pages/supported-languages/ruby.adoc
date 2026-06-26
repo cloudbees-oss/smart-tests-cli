@@ -1,9 +1,0 @@
-= Ruby
-:slug: ruby
-
-The {PRODUCT} CLI includes built-in integrations for test runners and build tools that are popular in the Ruby ecosystem:
-
-* xref:resources:integrations/minitest.adoc[minitest]
-* xref:resources:integrations/rspec.adoc[RSpec]
-
-See each integration's page for instructions to add {PRODUCT} to your CI pipeline.

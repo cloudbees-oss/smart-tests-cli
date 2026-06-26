@@ -1,0 +1,66 @@
+= Record builds for microservices
+:slug: record-builds-for-microservices
+
+If you are testing a set of microservices together (e.g., E2E tests, acceptance tests, etc.), and those microservices are deployed at their own independent pace, it might be difficult to perform a single `record build` that captures the versions of all the microservices being tested.
+
+For these types of situations, you can record a build _and_ a deployment at the individual microservice level, allowing {PRODUCT} to keep track of exactly which build of which service is running in which environment.
+
+Then, at the beginning of a new test session, you create a "combined" build that captures the versions of all the microservices currently deployed to the test environment, plus all the test code. This way, when you record test results against this "combined" build, {PRODUCT} can analyze the results in the context of the exact versions of all microservices being tested.
+
+== Recording a microservice build and its deployment
+
+At the point when a microservice is built, use the `record build` command. For example:
+
+[source,shell]
+----
+make build   # ... or whatever command you use to build
+smart-tests record build --build $BUILD_TAG --source .
+----
+
+[NOTE]
+--
+`$BUILD_TAG` is an example. See xref:send-data-to-smart-tests:record-builds/choose-a-value-for-build-name.adoc[Choose a value for build name] for more ideas on how to choose build names.
+--
+
+See xref:send-data-to-smart-tests:record-builds.adoc for more about the `record build` command.
+
+Later, when you deploy this microservice to an environment:
+
+[source,shell]
+----
+make deploy
+smart-tests record deployment --build $BUILD_TAG --environment staging --service payment
+----
+
+The value of `--environment` can be any string that is meaningful to your team.
+The same is true for `--service` — it can be any string that identifies the microservice being deployed.
+
+== Recording a "combined" build
+
+At the beginning of the test run, use another `record build` command:
+
+[source,shell]
+----
+smart-tests record build --build $BUILD_TAG \
+  --include-environment staging --source test=path/to/test/code ...
+----
+
+This might feel a little odd since we are not building anything per se. Think of this "build" as a virtual
+assembly process, where all the microservices currently running in the staging environment
+are stamped together with the test code to create a combined system that collectively represents the software under test.
+
+When you later xref:send-data-to-smart-tests:record-sessions/record-sessions.adoc[record test sessions],
+use this build name.
+
+== Under the hood
+
+Under the hood, `record deployment` is nothing more than syntactic sugar for `update alias`, where
+the alias is `deployment:ENVIRONMENT:SERVICE` pointing to the specified build name.
+
+Similarly, `--include-environment` is nothing more than syntactic sugar that expands to
+a set of `--component SERVICE=deployment:ENVIRONMENT:SERVICE` options.
+
+Thus, this can be combined with the rest of the multistage build capability to model more complex build processes.
+
+See xref:send-data-to-smart-tests:record-builds/record-builds-for-multistage-build.adoc[record builds for multistage build]
+for more details about these options and commands.

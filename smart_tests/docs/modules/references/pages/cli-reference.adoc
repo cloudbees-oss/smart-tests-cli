@@ -1,0 +1,831 @@
+= CLI reference
+:slug: cli-reference
+
+== Getting started
+
+=== Requirements
+
+* Python 3.13 or newer (not required when using uv)
+* Java 8 or newer
+
+=== Install
+
+The {PRODUCT} CLI is a Python3 package that you can install from link:https://pypi.org/project/smart-tests-cli/[PyPI].
+
+==== Recommended: Using uv (fastest)
+
+We recommend using https://docs.astral.sh/uv/[uv], a fast Python package installer, for the best installation experience.
+
+First, install uv:
+
+[source,bash]
+----
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+----
+
+For other installation methods (including Windows, Github Actions, etc.), see the https://docs.astral.sh/uv/getting-started/installation/[uv installation guide].
+
+Then install {PRODUCT} CLI:
+
+[source,bash]
+----
+uv tool install smart-tests
+----
+
+==== Alternative: Using pip
+
+You can also install the CLI using pip:
+
+`pip3 install --user --upgrade smart-tests`
+
+This creates a `~/.local/bin/smart-tests` executable that should be in your `PATH` . (See https://www.python.org/dev/peps/pep-0370/[PEP-370] for further details.)
+
+=== Authenticate
+
+Set your API key:
+
+`export SMART_TESTS_TOKEN=your_API_key`
+
+=== Verify
+
+Then run `smart-tests verify` in your CI environment to see if you've successfully configured the CLI. If it succeeds, you'll see a message like the one below. If you see an error message and need more information, refer to xref:administration:troubleshooting.adoc[Troubleshooting].
+
+[source]
+----
+$ smart-tests verify
+
+Organization: <organization>
+Workspace: <workspace>
+Proxy: None
+Platform: 'macOS-12.0.1-x86_64-i386-64bit'
+Python version: '3.9.9'
+Java command: 'java'
+smart-tests version: '1.34.0'
+Your CLI configuration is successfully verified 🎉
+----
+
+== Required Workflow
+
+[IMPORTANT]
+====
+With the smart-tests command update, you must now follow this mandatory sequence:
+
+1. `smart-tests record build` - Record the build information
+2. `smart-tests record session` - Create and register a test session (REQUIRED)
+3. `smart-tests subset` or `smart-tests record tests` - Use the session name registered in step 2 with the `--session` option
+
+The session name specified in `smart-tests record session` must be used in subsequent commands (`smart-tests subset` and `smart-tests record tests`) via the `--session` parameter.
+====
+
+== Command: inspect subset
+
+Display the details of a *subset* request. See /docs/features/predictive-test-selection/#inspecting-subset-details[Subsetting your test runs] for more info.
+
+// [generate:inspect subset]
+`Usage: smart-tests inspect subset [OPTIONS]`
+
+[cols="2,4,1"]
+|===
+|Option |Description |Required
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--json`
+|Display JSON format
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--subset-id` INT
+|Subset id
+|Yes
+
+|===
+// [/generate]
+
+You can use `smart-tests inspect subset` to inspect the details of a specific subset, including rank and expected duration. This is useful for verifying that you passed the correct tests or test directory path(s) into `smart-tests subset` .
+
+The output from `smart-tests subset` includes a tip to run `smart-tests inspect subset` :
+
+[source]
+----
+$ smart-tests subset minitest --build 123 --session session-123 --confidence 90% test/*.rb > subset.txt
+
+< summary table >
+
+Run `smart-tests inspect subset --subset-id 26876` to view full subset details
+----
+
+Running that command will output a table containing a row for each test, including:
+
+* Rank/order
+* Test identifier
+* Whether the test was included in the subset
+* {PRODUCT}'s estimated duration for the test * Tests with a duration of `.001` seconds were not recognized by {PRODUCT}
+
+[NOTE]
+--
+Note that the hierarchy level of the items in the list depends on the test runner in use.
+
+For example, since Maven can accept a list of test _classes_ as input, `smart-tests inspect subset` will output a prioritized list of test _classes_ . Similarly, since Cypress can accept a list of test _files_ as input, `smart-tests inspect subset` will output a list of prioritized test _files_ . (And so on.)
+--
+
+== Command: record attachment
+
+Attach log files to test session. For more information, refer to xref:send-data-to-smart-tests:record-test-results/attach-log-files.adoc[Attach log files].
+
+// [generate:record attachment]
+`Usage: smart-tests record attachment [OPTIONS] <ATTACHMENTS>...`
+
+[cols="2,4,1"]
+|===
+|Argument |Description |Required
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`<ATTACHMENTS>...`
+|Attachment files to upload
+|Yes
+
+|===
+[cols="2,4,1"]
+|===
+|Option |Description |Required
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--include` STR
+|Include only files matching pattern (e.g., "*.log"). Can be specified multiple times. (can be specified multiple times)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--session` SESSION
+|Session ID obtained by calling 'smart-tests record session'. It also accepts '@path/to/file' if the session ID is stored in a file 
+|Yes
+
+|===
+// [/generate]
+
+== Command: record commit
+
+Sends *commit* details to {PRODUCT}. Records multiple commits from repo(s).
+
+// [generate:record commit]
+`Usage: smart-tests record commit [OPTIONS]`
+
+[cols="2,4,1"]
+|===
+|Option |Description |Required
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--import-git-log-output` FILE
+|Import from the git-log output
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--max-days` DAYS
+|The maximum number of days to collect commits retroactively
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--name` NAME
+|Repository name
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--source` DIR
+|Repository path
+|No
+
+|===
+// [/generate]
+
+Commit collection happens automatically as a part of `record build` , so normally this command need not be invoked separately. It's only used for /docs/sending-data-to-smart-tests/using-the-smart-tests-cli/recording-builds-with-the-smart-tests-cli/recording-builds-from-multiple-repositories/#multiple-repositories-builtdeployed-separately-then-tested-together-eg-microservices[Multiple repositories built/deployed separately and then tested together (e.g., microservices)] .
+
+=== `--import-git-log-output` option
+
+Related to xref:send-data-to-smart-tests:record-builds/run-under-restricted-networks.adoc[Run under restricted networks] .
+
+If the `--import-git-log-output` option is used, it reads the specified file for the commit data instead of reading the commits from the repository specified by `--source` . The input file should contain the output of this Git command:
+
+`git log --pretty='format:{"commit": "%H", "parents": "%P", "authorEmail": "%ae", "authorTime": "%aI", "committerEmail": "%ce", "committerTime": "%cI"}' --numstat`
+
+== Command: record build
+
+Creates a record of a xref:concepts:build.adoc[Build] in {PRODUCT}.
+
+// [generate:record build]
+`Usage: smart-tests record build [OPTIONS]`
+
+[cols="2,4,1"]
+|===
+|Option |Description |Required
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--branch` NAME
+|Set branch name. A branch is a set of test sessions grouped and this option value will be used for a branch name.
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--build` NAME
+|Build name
+|Yes
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--commit` REPO_NAME=COMMIT_HASH
+|Set repository name and commit hash when you use --no-commit-collection option (can be specified multiple times)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--component` NAME=BUILDNAME
+|Include another build as a named component. Format: NAME=BUILD_OR_ALIAS (can be specified multiple times)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--include-environment` NAME
+|Include all services deployed to this environment as components. See 'record deployment' command.
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--link` PARSE_KEY_VALUE
+|Set external link of a title and url (can be specified multiple times)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--max-days` DAYS
+|The maximum number of days to collect commits retroactively
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--no-commit-collection`
+|Do not collect commit data. This is useful if the repository is a shallow clone and the RevWalk is not possible. The commit data must be collected with a separate fully-cloned repository.
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--no-submodules`
+|Stop collecting information from Git Submodules
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--repo-branch-map` REPO_NAME=BRANCH_NAME
+|Set repository name and branch name when you use --no-commit-collection option. Please use the same repository name with a commit option (can be specified multiple times)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--source` DIR
+|Path to local Git workspace, optionally prefixed by a label. like --source path/to/ws or --source main=path/to/ws (can be specified multiple times)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--timestamp` TIMESTAMP
+|Used to overwrite the build time when importing historical data. Note: Format must be `YYYY-MM-DDThh:mm:ssTZD` or `YYYY-MM-DDThh:mm:ss` (local timezone applied)
+|No
+
+|===
+// [/generate]
+
+The act of recording a build teaches {PRODUCT} that the specified set of commits has turned into a build and that the given name henceforth identifies this build. This forms the basis of how {PRODUCT} calculates the changes.
+
+Conceptually, a build is a collection of Git repositories, each at a specific commit. `REPO_NAME` identifies each repository contributing to a build, and it needs to be stable across different builds of the same project. Good examples include:
+
+* Relative directory paths to the repository from the "workspace root," such as `src/moduleX` if they are stable.
+* `GitHubOrg/GitHubRepo` slug if your repositories are on GitHub since they are also stable.
+
+== Command: record session
+
+[IMPORTANT]
+====
+This command is now **mandatory** and must be executed after `smart-tests record build` and before `smart-tests subset` or `smart-tests record tests`.
+====
+
+Creates a record of a *test session* in {PRODUCT}.
+
+// [generate:record session]
+`Usage: smart-tests record session [OPTIONS]`
+
+[cols="2,4,1"]
+|===
+|Option |Description |Required
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--build` NAME
+|Build name
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--flavor` KEY=VALUE
+|Flavors (can be specified multiple times)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--no-build`
+|If you want to only send test reports, please use this option
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--observation`
+|Enable observation mode
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--link` TITLE=URL
+|Set external link of title and url (can be specified multiple times)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--test-suite` NAME
+|Set test suite name. A test suite is a collection of test sessions. Setting a test suite allows you to manage data over test sessions and lineages.
+|Yes
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--timestamp` TIMESTAMP
+|Used to overwrite the session time when importing historical data. Note: Format must be `YYYY-MM-DDThh:mm:ssTZD` or `YYYY-MM-DDThh:mm:ss` (local timezone applied)
+|No
+
+|===
+// [/generate]
+
+This command tells {PRODUCT} that you are about to begin testing a build that was been recorded earlier with the `record build` command. **This command is now mandatory** and must be executed after every `smart-tests record build` command.
+
+The command outputs a string you can save for use in other commands (like smart-tests subset and smart-tests record tests) instead of `--build` . We suggest saving the value either to an environment variable or to a text file:
+
+[source]
+----
+# environment variable
+
+smart-tests record build --build BUILD_NAME [OPTIONS]
+export SMART_TESTS_SESSION=$(smart-tests record session --build BUILD_NAME --session SESSION_NAME [OPTIONS])
+<run tests>
+smart-tests record tests TESTRUNNER --session SESSION_NAME [OPTIONS]
+----
+
+[source]
+----
+# text file
+
+smart-tests record build --build BUILD_NAME [OPTIONS]
+smart-tests record session --build BUILD_NAME --session SESSION_NAME [OPTIONS]
+<run tests>
+smart-tests record tests TESTRUNNER --session SESSION_NAME [OPTIONS]
+----
+
+(Otherwise, the command will write a session ID to `~/.config/smart-tests/sessions/{hash}.txt` . This location may change in the future, so don't rely on it.)
+
+== Command: record tests
+
+Send *test results* for the *test session* to {PRODUCT}.
+
+[IMPORTANT]
+====
+The `--session` parameter is required and must use the session name that was registered with `smart-tests record session`.
+====
+
+// [generate:record tests]
+`Usage: smart-tests record tests [OPTIONS] <TEST_RUNNER> ...`
+
+[cols="2,4,1"]
+|===
+|Argument |Description |Required
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`<TEST_RUNNER>`
+|
+|Yes
+
+|===
+[cols="2,4,1"]
+|===
+|Option |Description |Required
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--base` CONVERT
+|(Advanced) base directory to make test names portable
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--group` NAME
+|Grouping name for test results
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--no-base-path-inference`
+|Do not guess the base path to relativize the test file paths. By default, if the test file paths are absolute file paths, it automatically guesses the repository root directory and relativize the paths. With this option, the command doesn't do this guess work. If --base-path is specified, the absolute file paths are relativized to the specified path irrelevant to this option. Use it if the guessed base path is incorrect.
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--post-chunk` INT
+|Post chunk
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--session` SESSION
+|Session ID obtained by calling 'smart-tests record session'. It also accepts '@path/to/file' if the session ID is stored in a file 
+|Yes
+
+|===
+// [/generate]
+
+This command reads JUnit (or similar) XML report files produced by test runners and sends them to {PRODUCT}.
+
+Exactly how this command generates the subset and what's required to do this depends on test runners. For available supported `TESTRUNNER` , see xref:references:integrations.adoc[Integrations]
+
+== Command: stats test-sessions
+
+Retrieves statistics about test sessions
+
+// [generate:stats test-sessions]
+`Usage: smart-tests stats test-sessions [OPTIONS]`
+
+[cols="2,4,1"]
+|===
+|Option |Description |Required
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--days` INT
+|How many days of test sessions in the past to be stat
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--flavor` KEY=VALUE
+|flavors (can be specified multiple times)
+|No
+
+|===
+// [/generate]
+
+Output example:
+
+`{"averageDurationSeconds":653.168192926045,"count":311,"days":7}`
+
+
+== Command: subset
+
+Produces a subset of *tests* to pass to your test runner.
+
+[IMPORTANT]
+====
+The `--session` parameter is required and must use the session name that was registered with `smart-tests record session`.
+====
+
+// [generate:subset]
+`Usage: smart-tests subset [OPTIONS] <TEST_RUNNER> ...`
+
+[cols="2,4,1"]
+|===
+|Argument |Description |Required
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`<TEST_RUNNER>`
+|
+|Yes
+
+|===
+[cols="2,4,1"]
+|===
+|Option |Description |Required
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--base` DIR
+|(Advanced) base directory to make test names portable
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--bin` INDEX/COUNT
+|Split subset into bins, e.g. --bin 1/4
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--confidence` PERCENTAGE
+|Subsetting by confidence from 0% to 100%
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--goal-spec` GOAL_SPEC
+|Subsetting by programmatic goal definition
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--ignore-flaky-tests-above` N
+|Ignore flaky tests above the value set by this option. You can confirm flaky scores in WebApp
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--ignore-new-tests`
+|Ignore tests that were added recently. NOTICE: this option will ignore tests that you added just now as well
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--input-snapshot-id` ID|@FILE
+|Reuse reorder results from an existing input snapshot ID or specify @path/to/file to load it
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--get-tests-from-guess`
+|Get subset list from guessed tests
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--get-tests-from-previous-sessions`
+|Get subset list from previous full tests
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--output-exclusion-rules`
+|Outputs the exclude test list. Switch the subset and rest.
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--no-base-path-inference`
+|Do not guess the base path to relativize the test file paths. By default, if the test file paths are absolute file paths, it automatically guesses the repository root directory and relativize the paths. With this option, the command doesn't do this guess work. If --base is specified, the absolute file paths are relativized to the specified path irrelevant to this option. Use it if the guessed base path is incorrect.
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--print-input-snapshot-id`
+|Print the input snapshot ID returned from the server instead of the subset results
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--prioritize-tests-failed-within-hours` N
+|Prioritize tests that failed within the specified hours; maximum 720 hours (= 24 hours * 30 days)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--prioritized-tests-mapping` FILE
+|Prioritize tests based on test mapping file
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--rest` FILE
+|Output the subset remainder to a file, e.g. --rest=remainder.txt
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--same-bin` FILE
+|Keep all tests listed in the file together when splitting; one test per line (can be specified multiple times)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--session` SESSION
+|Session ID obtained by calling 'smart-tests record session'. It also accepts '@path/to/file' if the session ID is stored in a file 
+|Yes
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--similarity` CONVERT
+|subsetting by similarity from 0 to 1.0. Tests scoring above this value are included in the subset.
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--target` PERCENTAGE
+|Subsetting target from 0% to 100%
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--time` TIME
+|Subsetting by absolute time, in seconds e.g) 300, 5m
+|No
+
+|===
+// [/generate]
+
+Exactly how this command generates the subset and what's required to do this depends on test runners. For available supported `TESTRUNNER` s, see xref:references:integrations.adoc[Integrations] .
+
+When none of `--target` , `--time` , and `--confidence` is specified, {PRODUCT} chooses the subset target. This is convenient on the initial setup when you are unsure what the subset size should be. Later, you can choose the right target after you see the statistics of your test suite and potential time-savings based on the {PRODUCT} accumulated data.
+
+== Command: verify
+
+Verify that the CLI can communicate with the {PRODUCT} service and that you're authenticated properly.
+
+// [generate:verify]
+`Usage: smart-tests verify`
+
+// [/generate]
+
+To avoid disrupting your CI/test process, the {PRODUCT} CLI is designed to tolerate and recover from service disruptions and other recoverable error conditions by falling back to no-op. This is an intentional design, but the downside is that such transparent failures can make troubleshooting difficult.
+
+Therefore, we recommend you keep `smart-tests verify || true` in a recognizable spot in your CI process. This way, when you suspect a problem in {PRODUCT}, you can check the output of this command as a starting point.
+
+== Command: view flaky-tests
+
+// [generate:view flaky-tests]
+`Usage: smart-tests view flaky-tests [OPTIONS]`
+
+[cols="2,4,1"]
+|===
+|Option |Description |Required
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--from` DATE
+|Start date/time (ISO 8601 format, e.g., '2026-04-08' or '2026-04-08T00:00:00Z')
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--limit` N
+|Max results to return per week (default: 50, max: 500)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--test-path` PATH
+|Test path filter (full path string, e.g., 'class=MyTest')
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--to` DATE
+|End date/time (ISO 8601 format, e.g., '2026-04-14' or '2026-04-14T23:59:59Z')
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--weeks` N
+|Number of weeks to retrieve (default: 1, max: 12)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--year-week` YYYY-Www
+|Specific ISO week for flaky tests (e.g., '2026-W15')
+|No
+
+|===
+// [/generate]
+
+== Command: view longest-tests
+
+// [generate:view longest-tests]
+`Usage: smart-tests view longest-tests [OPTIONS]`
+
+[cols="2,4,1"]
+|===
+|Option |Description |Required
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--from` DATE
+|Start date/time (ISO 8601 format, e.g., '2026-04-08' or '2026-04-08T00:00:00Z')
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--limit` N
+|Max results to return per week (default: 50, max: 500)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--test-path` NAME
+|Test path filter (full path string, e.g., 'class=MyTest')
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--to` DATE
+|End date/time (ISO 8601 format, e.g., '2026-04-14' or '2026-04-14T23:59:59Z')
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--weeks` N
+|Number of weeks to retrieve (default: 1, max: 12)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--year-week` YYYY-Www
+|Specific ISO week for longest running tests (e.g., '2026-W15')
+|No
+
+|===
+// [/generate]
+
+== Command: view never-failing-tests
+
+// [generate:view never-failing-tests]
+`Usage: smart-tests view never-failing-tests [OPTIONS]`
+
+[cols="2,4,1"]
+|===
+|Option |Description |Required
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--from` DATE
+|Start date/time (ISO 8601 format, e.g., '2026-04-08' or '2026-04-08T00:00:00Z')
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--limit` N
+|Max results to return per week (default: 50, max: 500)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--test-path` NAME
+|Test path filter (full path string, e.g., 'class=MyTest')
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--to` DATE
+|End date/time (ISO 8601 format, e.g., '2026-04-14' or '2026-04-14T23:59:59Z')
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--weeks` N
+|Number of weeks to retrieve (default: 1, max: 12)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--year-week` YYYY-Www
+|Specific ISO week for never failing tests (e.g., '2026-W15')
+|No
+
+|===
+// [/generate]
+
+== Command: view test-results
+
+// [generate:view test-results]
+`Usage: smart-tests view test-results [OPTIONS]`
+
+[cols="2,4,1"]
+|===
+|Option |Description |Required
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--branch` BRANCH
+|Filter by branch/lineage (exact match)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--from` DATE
+|Start date/time (ISO 8601 format, e.g., '2026-04-08' or '2026-04-08T00:00:00Z')
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--limit` N
+|Max results to return (default: 50, max: 500)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--logs`
+|Include full stdout/stderr from failed test case executions
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--offset` N
+|Pagination offset (default: 0)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--status` STATUS
+|Filter by test status (SUCCESS, FAILURE, SKIP, FLAKE)
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--test-path` PATH
+|Test path to query results for (required)
+|Yes
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--test-suite` NAME
+|Filter by test suite name (e.g., 'unit-tests')
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--to` DATE
+|End date/time (ISO 8601 format, e.g., '2026-04-14' or '2026-04-14T23:59:59Z')
+|No
+
+|===
+// [/generate]
+
+== Global options
+
+[NOTE]
+--
+These global options can be placed after the subcommand, for example `smart-tests verify --log-level audit`
+--
+
+=== --dry-run
+
+The dry-run mode does not actually send a payload to the server, and it is helpful to check the behavior. You can also see which APIs will be requested and their payload contents in the output.
+
+The payload contents will be output as an audit log, so if the log level is higher than the audit level, it will be forced to be set to the audit level.
+
+Strictly speaking, it does not mean no requests will be sent, but GET requests with no payload data or side effects may be sent. This is because sometimes the response data from the GET request is needed to assemble subsequent requests.
+
+=== --log-level
+
+You can use the `--log-level` option to output extra information from each command.
+
+`--log-level audit` is particularly useful if you want to see exactly what data gets passed to {PRODUCT} when you run CLI commands. For example:
+
+[source]
+----
+% smart-tests record build --log-level audit --build 1234 --source src=.
+Processed 1 commits
+AUDIT:smart-tests:send request method:post path:/intake/organizations/example/workspaces/awilkes/builds headers:{'Content-Type': 'application/json'} args:{'data': b'{"buildNumber": "1234", "commitHashes": [{"repositoryName": "src", "commitHash": "45b2e6d9df8e0013334354f30df1978c8b4196f8"}]}', 'timeout': (5, 60)}
+----
+
+=== --plugins
+
+You can use the `--plugins` option to tell the CLI where to look for custom profiles/plugins.
+
+For example, if you have developed (or been provided) a custom profile file named `myProfile.py` , place that file in the directory of your choosing (e.g., `~/smart-tests-plugins` ) and use it like this:
+
+`smart-tests --plugins ~/smart-tests-plugins record tests myProfile --build $BUILD --session $SESSION /path/to/reports`
+
+Since `--plugins` is a global option, make sure to place it right after `smart-tests` but before `subset` or `record` in your command.
+
+=== --skip-cert-verification
+
+This option instructs the CLI to bypass the SSL certificate verification. This is inteded to be an escape hatch in case the system's Python setup is broken/incomplete.
+
+Alternatively, you can set the `SMART_TESTS_SKIP_CERT_VERIFICATION` environment variable to any value to have the same effect. This is more convenient if you want this behaviour across the board, instead of just one invocation.
+
+This flag will make your communication with {PRODUCT} less secure (for example, you can be vulnerable to a DNS spoofing attack). Use it with a caution.

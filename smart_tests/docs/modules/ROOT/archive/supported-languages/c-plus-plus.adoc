@@ -1,0 +1,11 @@
+= C++
+:slug: c-plus-plus
+
+The {PRODUCT} CLI includes built-in integrations for test runners and build tools that are popular in the C++ ecosystem:
+
+* xref:references:integrations/bazel.adoc[Bazel]
+* xref:references:integrations/ctest.adoc[CTest]
+* xref:references:integrations/googletest.adoc[GoogleTest]
+* xref:references:integrations/gradle.adoc[Gradle]
+
+See each integration's page for instructions to add {PRODUCT} to your CI pipeline.

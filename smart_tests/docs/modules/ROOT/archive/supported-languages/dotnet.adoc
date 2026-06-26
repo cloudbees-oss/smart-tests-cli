@@ -1,0 +1,8 @@
+= .NET
+:slug: dotnet
+
+The {PRODUCT} CLI includes built-in integrations for test runners and build tools that are popular in the .NET ecosystem:
+
+* xref:references:integrations/dotnet-test.adoc[dotnet test]
+
+See each integration's page for instructions to add {PRODUCT} to your CI pipeline.

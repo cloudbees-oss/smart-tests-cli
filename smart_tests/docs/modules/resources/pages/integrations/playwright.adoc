@@ -1,6 +1,0 @@
-= Playwright
-:slug: playwright
-
-{PRODUCT} interfaces with Playwright via the {PRODUCT} CLI.
-
-For more information, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc[Record test results with the {PRODUCT} CLI] with-the-smart-tests-cli.adoc[Recording test results with the {PRODUCT} CLI] and xref:features:predictive-test-selection/request-and-run-a-subset-of-tests/subset-with-the-smart-tests-cli/subset-with-the-smart-tests-cli.adoc[Subsetting with the {PRODUCT} CLI].

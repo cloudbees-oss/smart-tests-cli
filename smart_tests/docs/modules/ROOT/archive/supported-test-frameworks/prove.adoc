@@ -1,0 +1,4 @@
+= prove for Perl
+:slug: prove
+
+The prove has its own test runner. Check out the xref:references:integrations/prove.adoc[prove for Perl] page for more info.

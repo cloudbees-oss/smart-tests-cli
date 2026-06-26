@@ -1,0 +1,5 @@
+include::ROOT:partial$abbr.adoc[]
+:slug: use-the-cli-with-docker-image
+= Using the CLI with Docker image
+
+The following link:https://hub.docker.com/r/cloudbees/launchable[CloudBees/launchable] is the official Docker image published by CloudBees for integrating the {PRODUCT} CLI into your CI/CD pipeline.

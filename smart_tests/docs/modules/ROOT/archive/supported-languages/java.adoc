@@ -1,0 +1,11 @@
+= Java
+:slug: java
+
+The {PRODUCT} CLI includes built-in integrations for test runners and build tools that are popular in the Java/JVM ecosystem:
+
+* xref:references:integrations/ant.adoc[Ant]
+* xref:references:integrations/bazel.adoc[Bazel]
+* xref:references:integrations/gradle.adoc[Gradle]
+* xref:references:integrations/maven.adoc[Maven]
+
+See each integration's page for instructions to add {PRODUCT} to your CI pipeline.

@@ -1,0 +1,86 @@
+include::ROOT:partial$abbr.adoc[]
+
+= AI Assistance
+
+If you have questions about {PRODUCT}, ask your AI agent to answer them by using
+link:https://agentskills.io/home[Agent skills] combined with locally searchable product documentation.
+
+== Installation
+Claude Code users can run the following slash command:
+
+[source]
+----
+/plugin marketplace add cloudbees-oss/agent-skills
+/plugin install smart-tests@cloudbees
+----
+
+For other agents, use the skills CLI from your terminal:
+
+[source]
+----
+npx skills add cloudbees-oss/agent-skills
+----
+
+== Usage
+Once you install the skill, ask questions about {PRODUCT} and get answers based on the documentation. For example:
+
+> What are the use-cases for Predictive Test Selection?
+
+== Use cases with the `view` command
+
+The `smart-tests view` command outputs JSON directly to stdout, making it easy to feed into an AI coding agent. This enables automated workflows for investigating and fixing test issues.
+
+=== Identify and fix flaky tests
+
+Flaky tests that intermittently fail waste CI time and erode developer trust. With `smart-tests view flaky-tests`, your AI coding agent receives the list of current flaky tests, then locates the test code and suggests or applies fixes.
+
+[source,bash]
+----
+smart-tests view flaky-tests --weeks 4 > flaky-tests.json
+----
+
+Pass the output to your AI coding agent with a prompt like:
+
+____
+Here is a JSON list of flaky tests from the last 4 weeks. For each test, find the source file, analyze why it might be flaky (timing issues, shared state, external dependencies), and suggest a fix.
+____
+
+You can also scope the query to a specific test suite and use `--limit` to focus on the worst offenders:
+
+[source,bash]
+----
+smart-tests view flaky-tests --test-suite integration-tests --limit 10 > flaky-tests.json
+----
+
+____
+Here are the top flaky integration tests. Identify common patterns (e.g., missing test isolation, hardcoded timeouts) and propose concrete fixes.
+____
+
+=== Investigate a specific test's failure history
+
+When a test is failing on a branch, `smart-tests view test-results` lets you pull the recent execution history for that test so an AI agent can look for patterns—such as failures only on certain branches or time windows.
+
+[source,bash]
+----
+smart-tests view test-results \
+  --test-path "class=PaymentServiceTest#testcase=testProcessPayment" \
+  --status FAILED \
+  --logs > test-results.json
+----
+
+____
+Here are the recent failures for this test including execution logs. What is the root cause and how can we fix it?
+____
+
+=== Triage flaky tests by trend
+
+A rising `weeklyScoreDelta` signals a test that is becoming more flaky over time. Use the multi-week output to ask an agent to prioritize which tests need immediate attention.
+
+[source,bash]
+----
+smart-tests view flaky-tests --weeks 8 > flaky-trends.json
+----
+
+____
+Here is flakiness score data over the past 8 weeks. Which tests are getting worse (rising weeklyScoreDelta)? Prioritize them and explain what each test does based on its name.
+____

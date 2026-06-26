@@ -1,3 +1,6 @@
+include::ROOT:partial$abbr.adoc[]
+:slug: organization
+
 = Organization
 :slug: organization
 
@@ -23,7 +26,7 @@ image::ROOT:smart-tests_settings_20220613.png[]
 
 This feature allows users on the same email domain to automatically join a specified {PRODUCT} organization upon signing up.
 
-To enable this feature for your organization, mailto:support@launchableinc.com[contact us] . It is not shown in the UI.
+To enable this feature for your organization, link:https://support.cloudbees.com[CloudBees Support]. It is not shown in the UI.
 
 === Organization invitation link
 
@@ -38,7 +41,7 @@ Invitation links expire after 90 days. After that, simply create a new one.
 
 === SAML 2.0
 
-{PRODUCT} supports SAML 2.0 for SSO authentication. Most Identity Providers (e.g. Okta, OneLogin, etc.) support SAML 2.0 for SSO.
+{PRODUCT} supports SAML 2.0 for SSO authentication. Most Identity Providers (for example, Okta, OneLogin, etc.) support SAML 2.0 for SSO.
 
 Contact your customer success manager to enable this feature for your organization. You'll need to provide {PRODUCT} an X.509 signing certificate from your Identity Provider in PEM or CER format.
 

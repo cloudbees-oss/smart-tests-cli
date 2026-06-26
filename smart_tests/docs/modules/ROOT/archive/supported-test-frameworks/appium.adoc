@@ -1,0 +1,11 @@
+= Appium
+:slug: appium
+
+The primary integration point for {PRODUCT} is your team's build tool or test runner (i.e. whatever CLI you invoke to actually kick off your tests), not the test framework itself. Therefore, if you use the Appium framework, check which tool you use to kick off your tests, such as:
+
+* xref:references:integrations/adb.adoc[Android Debug Bridge (adb)]
+* xref:references:integrations/gradle.adoc[Gradle]
+* xref:references:integrations/maven.adoc[Maven]
+* xref:references:integrations/pytest.adoc[pytest]
+
+See each integration's page for instructions to add {PRODUCT} to your CI pipeline.

@@ -1,8 +1,0 @@
-= Perl
-:slug: perl
-
-The {PRODUCT} CLI includes built-in integrations for test runners and build tools that are popular in the Perl ecosystem:
-
-* xref:resources:integrations/prove.adoc[prove for Perl]
-
-See each integration's page for instructions to add {PRODUCT} to your CI pipeline.

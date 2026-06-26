@@ -1,0 +1,74 @@
+include::ROOT:partial$abbr.adoc[]
+
+= Supported languages
+:slug: supported-languages
+
+*{PRODUCT} is not a language-specific tool! It can work with any language.*
+
+The {PRODUCT} CLI includes built-in integrations for test runners and build tools that are popular in various language ecosystems, including the list below.
+
+[#cpp]
+== C++
+
+The {PRODUCT} CLI includes built-in integrations for test runners and build tools that are popular in the C++ ecosystem. For instructions to add {PRODUCT} to your CI pipeline, refer to the following integrations:
+
+* xref:references:integrations.adoc#bazel[Bazel]
+* xref:references:integrations.adoc#ctest[CTest]
+* xref:references:integrations.adoc#googletest[GoogleTest]
+* xref:references:integrations.adoc#gradle[Gradle]
+
+[#dotnet]
+== .NET
+
+The {PRODUCT} CLI includes built-in integrations for test runners and build tools that are popular in the .NET ecosystem. For instructions to add {PRODUCT} to your CI pipeline, refer to the following integration:
+
+* xref:references:integrations.adoc#dotnet-test[dotnet test]
+
+[#go]
+== Go
+
+The {PRODUCT} CLI includes built-in integrations for test runners and build tools that are popular in the Golang ecosystem. For instructions to add {PRODUCT} to your CI pipeline, refer to the following integrations:
+
+* xref:references:integrations.adoc#bazel[Bazel]
+* xref:references:integrations.adoc#go-test[Go Test]
+
+[#java]
+== Java
+
+The {PRODUCT} CLI includes built-in integrations for test runners and build tools that are popular in the Java/JVM ecosystem. For instructions to add {PRODUCT} to your CI pipeline, refer to the following integrations:
+
+* xref:references:integrations.adoc#ant[Ant]
+* xref:references:integrations.adoc#bazel[Bazel]
+* xref:references:integrations.adoc#gradle[Gradle]
+* xref:references:integrations.adoc#maven[Maven]
+
+[#javascript]
+== JavaScript
+
+The {PRODUCT} CLI includes built-in integrations for test runners and build tools that are popular in the JavaScript ecosystem. For instructions to add {PRODUCT} to your CI pipeline, refer to the following integrations:
+
+* link:integrations.adoc#cypress[Cypress]
+* xref:references:integrations.adoc#jest[Jest]
+* xref:references:integrations.adoc#karma[Karma]
+
+[#perl]
+== Perl
+
+The {PRODUCT} CLI includes built-in integrations for test runners and build tools that are popular in the Perl ecosystem. For instructions to add {PRODUCT} to your CI pipeline, refer to the following integration:
+
+* xref:references:integrations.adoc#prove-for-perl[prove for Perl]
+
+[#python]
+== Python
+
+The {PRODUCT} CLI includes built-in integrations for test runners and build tools that are popular in the Python ecosystem. For instructions to add {PRODUCT} to your CI pipeline, refer to the following integrations:
+
+* xref:references:integrations.adoc#pytest[pytest integration]
+
+[#ruby]
+== Ruby
+
+The {PRODUCT} CLI includes built-in integrations for test runners and build tools that are popular in the Ruby ecosystem. For instructions to add {PRODUCT} to your CI pipeline, refer to the following integrations:
+
+* xref:references:integrations.adoc#minitest[minitest]
+* xref:references:integrations.adoc#rspec[RSpec]

@@ -10,4 +10,4 @@ Subsets are only generated using the Predictive test selection service.
 
 Subset is a feature in {PRODUCT} that allows you to create a subset of tests from your test suite based on specific criteria. This feature is useful for running a smaller set of tests that are relevant to a particular change or for prioritizing tests based on historical data. This means that the tests included in a subset can change over time as new data is collected.
 
-For more information on using subsets, refer to  xref:features:predictive-test-selection/request-and-run-a-subset-of-tests/subset-with-the-smart-tests-cli/subset-with-the-smart-tests-cli.adoc[Subset with the {PRODUCT} CLI].
+For more information on using subsets, refer to  xref:subset/subset-with-the-smart-tests-cli.adoc[Subset with the {PRODUCT} CLI].

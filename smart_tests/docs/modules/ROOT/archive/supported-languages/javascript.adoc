@@ -1,0 +1,10 @@
+= JavaScript
+:slug: javascript
+
+The {PRODUCT} CLI includes built-in integrations for test runners and build tools that are popular in the JavaScript ecosystem:
+
+* xref:references:integrations/cypress.adoc[Cypress]
+* xref:references:integrations/jest.adoc[Jest]
+* xref:references:integrations/karma.adoc[Karma]
+
+See each integration's page for instructions to add {PRODUCT} to your CI pipeline.

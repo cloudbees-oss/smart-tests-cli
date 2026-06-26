@@ -3,7 +3,7 @@ include::ROOT:partial$abbr.adoc[]
 = Send data to {PRODUCT}
 :slug: send-data-to-smart-tests
 
-To start using {PRODUCT}'s features, you must send build and test data from your CI pipeline to your {PRODUCT} workspace.
+To start using {PRODUCT} features, you must send build and test data from your CI pipeline to your {PRODUCT} workspace.
 
 The following diagram shows the high-level data flow:
 
@@ -16,21 +16,21 @@ image::ROOT:pts-v2-working.png[Predictive test selection data flow,role="screens
 
 We support a variety of tools to integrate with, all through the {PRODUCT} CLI. Tools supported include: Android Debug Bridge, Ant, Bazel, Behave, CTest, cucumber, Cypress, GoogleTest, Go Test, Gradle, Jasmin, Jest, Maven, minitest, pytest, Robot, Rspec, and other/custom test runners.
 
-First, follow the steps in xref:send-data-to-smart-tests:getting-started/getting-started.adoc[Getting Started] to create your account, set up your API key, install the {PRODUCT}, and verify your connection.
+First, follow the steps in xref:send-data-to-smart-tests:set-up-smart-tests/getting-started.adoc[] to create your account, set up your API key, install the {PRODUCT}, and verify your connection.
 
 Then complete the steps for sending your test suite’s data to your {PRODUCT} workspace:
 
-1. xref:send-data-to-smart-tests:record-builds/record-builds.adoc[Record builds]
-2. xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc[Record test results]
+1. xref:send-data-to-smart-tests:record-builds/record-builds.adoc[]
+2. xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc[]
 
 == Next steps
 
 Once you start sending builds and test results to {PRODUCT}, you will see the benefits of {PRODUCT} in your test sessions. Here are some next steps to take to get the most out of {PRODUCT}:
 
-* Set up xref:features:test-notifications/test-notifications-via-slack.adoc[Test Notifications via Slack] or xref:features:test-notifications/github-app-for-test-sessions.adoc[GitHub app for test sessions] to get notified about test results without having to check email or navigate to a pull request.
+* Set up xref:features:test-notifications/test-notifications-via-slack.adoc[] or xref:features:test-notifications/github-app-for-test-sessions.adoc[] to get notified about test results without having to check email or navigate to a pull request.
 
-* View xref:features:trends.adoc[Trends] in your test sessions.
+* View xref:features:test-trends-and-insights.adoc[] in your test sessions.
 
-* Find xref:features:unhealthy-tests.adoc[Unhealthy tests] in your test suite and fix them to run tests more reliably.
+* Refer xref:features:test-trends-and-insights.adoc[] in your test suite and resolve the issues to run tests more reliably.
 
-* Begin saving time running tests and run tests earlier with xref:features:predictive-test-selection.adoc[Predictive test selection].
+* Begin saving time running tests and run tests earlier with xref:features:predictive-test-selection.adoc[].

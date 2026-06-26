@@ -1,0 +1,86 @@
+include::ROOT:partial$abbr.adoc[]
+
+= Choose a subset optimization target
+:slug: choose-a-subset-optimization-target
+
+The optimization target you choose determines how {PRODUCT} populates your PTS subsets after xref:subset/smart-subset-optimization-target.adoc[prioritizing tests].
+
+.Optimization targets
+image::ROOT:optimization-target.png[Optimization targets,role="screenshot"]
+
+You declare an optimization target when you run `smart-tests subset` as part of xref:subset/subset-with-the-smart-tests-cli.adoc[Subset with the {PRODUCT} CLI] .
+
+There are three different optimization target types:
+
+* Confidence ( `--confidence` )
+* Fixed duration ( `--time` )
+* Percentage duration ( `--target` )
+
+Use the *Confidence* *curve* shown on the Simulate page in the {PRODUCT} dashboard to help choose an optimization target.
+
+.Confidence curve
+image::ROOT:confidence-curve.png[Confidence curve,role="screenshot"]
+
+== Confidence curve explanation
+On the X-axis, we have test execution time. The upper bound of this axis is the maximum total execution time from all the evaluation sessions.
+
+On the Y-axis, we have the Confidence percentage. This is the probability of correctly catching a failing session. When choosing an optimization target, we need to run enough tests to not mark a session as passing when it would fail if you ran all the tests. That's what this percentage represents.
+
+The pink line represents the intersection of these two factors aggregated across all the evaluation test sessions. Logically, the line starts at (0,0%) and ends at ([max],100%): if we run no tests, we'll miss every failing session, and if we run all the tests, we'll catch every failing session. However, {PRODUCT}'s power is in the in-between. Notice how the pink line isn't straight: it has a steep portion on the left. This means that {PRODUCT} can catch more failing sessions in less time!
+
+For example, the above image tells us that if we set our optimization target to *90% confidence* , we should expect only to run 10 minutes of tests (X-axis) and expect to catch 90% of failing sessions (Y-axis). Similarly, if we set our optimization target to 25 minutes (X-axis), we should expect to catch 95% of failing sessions (Y-axis). Both of these are great improvements over running all the tests.
+
+== Optimization targets
+
+=== Confidence target ( `--confidence` )
+
+[NOTE]
+--
+The confidence target is designed for use with test suites where the list of tests in each xref:concepts:test-session.adoc[Test Session] used to train your model is the same each time.
+
+If your sessions have variable test lists, use the percentage time target instead.
+--
+
+*Confidence* is shown on the y-axis of a confidence curve.
+
+Confidence is the probability that the subset will catch a failing session.
+
+When you request a subset using `--confidence 90%` , {PRODUCT} will populate the subset with relevant tests up to the corresponding expected duration value on the x-axis. For example, if the corresponding duration value for 90% confidence is 3 minutes, {PRODUCT} will populate the subset with up to 3 minutes of the most relevant tests for the changes in that build. This is useful to start with because the duration should decrease over time as {PRODUCT} learns more about your changes and tests.
+
+[WARNING]
+--
+It's possible for *all tests* to be returned in a subset request when you use `--confidence` .
+
+For example, let's say you request a subset with a 90% confidence target, which corresponds to 30 minutes of tests on the X-axis of your workspace's confidence curve. If the total estimated duration of the request's xref:concepts:subset.adoc[input test list] is less than 30 minutes, then all the input tests will be returned in the subset.
+
+This is why the confidence target should only be used with test suites that have consistent test lists.
+--
+
+==== Fixed time target ( `--time` )
+
+[NOTE]
+--
+The fixed time target is designed for use with test suites where the total duration of each run used to train the model is relatively stable. If your runs have highly variable duration, the percentage time target may be more useful.
+--
+
+*Time* is shown on the x-axis of a confidence curve. When you request a subset using `--time 10m` , {PRODUCT} will populate the subset with up to 10 minutes of the most relevant tests for the changes in that build. This is useful if you have a maximum test runtime in mind.
+
+[WARNING]
+--
+It's possible for all tests to be returned in a subset request when you use `--time` .
+
+For example, let's say you request a subset with a time target of 30 minutes. If the total estimated duration of the request's xref:concepts:subset.adoc[input test list] is less than 30 minutes, then all the input tests will be returned in the subset.
+
+This is why the time target should only be used with test suites that have consistent test lists.
+--
+
+==== Percentage time target ( `--target` )
+
+[NOTE]
+--
+*Percentage time* is not yet shown in the {PRODUCT} dashboard.
+--
+
+When you request a subset using `--target 20%` , {PRODUCT} will populate the subset with 20% of the expected duration of the most relevant tests. For example, if the expected duration of the full list of tests passed to `smart-tests subset` is 100 minutes, {PRODUCT} will return up to 20 minutes of the most relevant tests for the changes in that build.
+
+This is useful if your test sessions vary in duration.

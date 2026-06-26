@@ -1,5 +1,7 @@
-= Subset
+include::ROOT:partial$abbr.adoc[]
 :slug: subset
+
+= Subset
 
 A *subset* is a set of tests dynamically selected from a larger test suite using xref:features:predictive-test-selection.adoc[Predictive test selection].
 _Dynamically selected_ refers to how the tests returned in subsets change based on the request parameters.
@@ -9,11 +11,11 @@ _Dynamically selected_ refers to how the tests returned in subsets change based 
 A subset is the output of a subset _request_ made using the `smart-tests subset` CLI command. You make a subset request every time you want to run a subset of tests in your CI pipeline:
 
 .Subset diagram
-image::ROOT:subsetting-diagram-2x.png[Subset diagram,role="screenshot"]
+image::ROOT:pts-v2-working.png[Subset diagram,role="screenshot"]
 
 A subset request requires the following inputs:
 
-. The xref:concepts:build.adoc[Build] being tested.
+. The xref:concepts:build.adoc[build] being tested.
 . A subset *optimization target*.
 . The *test runner* to use.
 . The *input test list*: the complete list of tests that would typically run in a non-subset session (or "full run").
@@ -27,13 +29,13 @@ And outputs:
 
 When you request a subset of tests to run in your CI process, you pass in the name of the xref:concepts:build.adoc[Build] being tested:
 
-`smart-tests subset --build $BUILD_NAME --session $SESSION_NAME [other options...]`
+`smart-tests subset --session $SESSION_NAME [other options...]`
 
 This is important so that the Predictive Test Selection service can analyze the changes in the build and select tests appropriately.
 
 === Optimization target
 
-When you request a subset of tests to run in your CI process, you include an *optimization target* :
+When requesting a subset of tests to run in the CI process,include an *optimization target* :
 
 [source]
 ----
@@ -49,7 +51,7 @@ smart-tests subset \
 
 === Test runner
 
-When you request a subset of tests, specify the test runner you will run tests with. This value should be the same between `smart-tests subset` and `smart-tests record tests` commands.
+When requesting a subset of tests, specify the test runner to run tests with. This value should be the same between `smart-tests subset` and `smart-tests record tests` commands.
 
 The CLI uses this parameter to adjust three things automatically:
 
@@ -59,21 +61,22 @@ The CLI uses this parameter to adjust three things automatically:
 
 ==== Input test list format
 
-The complete list of tests you would typically run is a crucial input to any subset request. {PRODUCT} uses this list to create a subset of tests.
+The complete list of tests typically run is a crucial input to any subset request. {PRODUCT} uses this list to create a subset of tests.
 
-How this list is generated, formatted, and passed into the `smart-tests subset` depends on the test runner. In general, you don't have to worry about creating this list; the documentation for each test runner goes over the specific flow for your tool.
+How this list is generated, formatted, and passed into the `smart-tests subset` depends on the test runner. In general, don't worry about creating this list; the documentation for each test runner goes over the specific flow for your tool.
 
-However, for completeness, we'll outline the various methods used across test runners:
+However, for completeness, here is an outline of the various methods used across test runners:
 
 . Some test runners can generate a list of tests via a particular command. The output of this command is then passed into `smart-tests subset`.
-. Other test runners don't provide that feature. In that case, you pass the _directory/directories_ containing your tests into `smart-tests subset`. The CLI then creates the list of tests by scanning those directories and identifying tests using pattern-matching.
+. Other test runners don't provide that feature. In that case, pass the _directory/directories_ containing tests into `smart-tests subset`. The CLI then creates the list of tests by scanning those directories and identifying tests using pattern-matching.
 . Furthermore, some frameworks _can_ list individual tests only after compiling test packages. In this case, generating a list of higher-level packages can be preferable to individual test cases. (This relates to the next section.)
 
+[[subset-altitude-and-test-items]]
 ==== Subset altitude and test items
 
-To run a subset of tests, you pass the returned subset list into your test runner for execution.
+To run a subset of tests, pass the returned subset list into the test runner for execution.
 
-Each test runner has an option for specifying a list of tests to run, and these options allow for different 'altitudes' of filtering. For example, some test runners only let you pass in a list of _files_ to run, others support filtering by _class_ , while some support filtering by _test case_ or _method_.
+Each test runner has an option for specifying a list of tests to run, and these options allow for different 'altitudes' of filtering. For example, some test runners only let you pass in a list of _files_ to run, others support filtering by _class_, while some support filtering by _test case_ or _method_.
 
 Based on the test runner specified in `smart-tests subset`, the CLI automatically outputs a list of tests using the hierarchy level supported by that test runner.
 
@@ -82,7 +85,7 @@ Based on the test runner specified in `smart-tests subset`, the CLI automaticall
 Another factor that impacts subset altitude is the ability of the test runner/CLI to _list_ tests at a low altitude. (See above section for more info.)
 --
 
-For example, Maven supports filtering by class, so we say that Maven's _subset altitude_ is _class_. A test item for Maven is equivalent to a class. Test results captured using `smart-tests record tests` for Maven will include both class _and_ test case identifiers, but the output of `smart-tests subset` will include a list of classes.
+For example, Maven supports filtering by class, so that Maven's _subset altitude_ is _class_. A test item for Maven is equivalent to a class. Test results captured using `smart-tests record tests` for Maven will include both class _and_ test case identifiers, but the output of `smart-tests subset` will include a list of classes.
 
 Here's the mapping for all test runners:
 
@@ -152,15 +155,15 @@ Here's the mapping for all test runners:
 
 ==== Output test list format
 
-To run a subset of tests, you pass the returned subset list into your test runner for execution.
+To run a subset of tests, pass the returned subset list into the test runner for execution.
 
 Each test runner has a method or option for specifying a list of tests to run. For example, one test runner might expect a comma-delimited list of tests, whereas another might expect a list separated by spaces, etc.
 
-The CLI adjusts the output format automatically based on the test runner used in the request. In general, you don't need to worry about the output format because you'll pass it directly into your test runner per the documentation for your tool. But this does mean that the contents of subset files/outputs change based on the test runner value.
+The CLI adjusts the output format automatically based on the test runner used in the request. In general, don't worry about the output format because it will be passed directly into the test runner per the documentation for that tool. But this does mean that the contents of subset files/outputs change based on the test runner value.
 
 === Input test list
 
-As described above, the complete list of tests you typically run is a crucial input to any subset request. {PRODUCT} uses this list to create a subset of tests.
+As described above, the complete list of tests typically run is a crucial input to any subset request. {PRODUCT} uses this list to create a subset of tests.
 
 This list is essential because it can change between requests due to:
 
@@ -168,9 +171,9 @@ This list is essential because it can change between requests due to:
 * sub-suites being tested (refer to xref:concepts:workspace.adoc#sub-suites-within-larger-test-suites[Sub-suites within larger test suites]), and
 * multiple test runner invocations per test session (refer to xref:concepts:test-session.adoc#static-bins[Static bins]).
 
-In general, you don't have to worry about creating the input test list, but it's essential to understand this concept because it relates to your optimization target. For more information, refer to xref:features:predictive-test-selection/request-and-run-a-subset-of-tests/choose-a-subset-optimization-target/choose-a-subset-optimization-target.adoc[Choose a subset optimization target].
+In general, don't worry about creating the input test list. However, understanding this concept is important because it is directly related to the optimization target. For more information, refer to xref:send-data-to-smart-tests:subset/choose-a-subset-optimization-target.adoc[Choose a subset optimization target].
 
 [NOTE]
 --
-With xref:features:predictive-test-selection/request-and-run-a-subset-of-tests/subset-with-the-smart-tests-cli/zero-input-subsetting/zero-input-subsetting.adoc[Zero input subsetting], {PRODUCT} generates the input test list for you.
+With xref:send-data-to-smart-tests:subset/zero-input-subsetting.adoc[Zero input subsetting], {PRODUCT} generates the input test list automatically.
 --

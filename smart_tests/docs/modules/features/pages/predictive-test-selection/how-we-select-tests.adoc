@@ -1,8 +1,7 @@
 include::ROOT:partial$abbr.adoc[]
-= How we select tests
+= How {PRODUCT} select tests
 
-
-Predictive test selection (PTS) focuses on semantic similarity between the application source code and the test source code. For example, when you modify the order processing part of the application, the AI looks for tests that are "relevant". A test case that places an order would be deemed more relevant than a test case that checks the user registration page, for example.
+Predictive test selection (PTS) focuses on semantic similarity between the application source code and the test source code. For example, when you modify the order processing part of the application, the system looks for tests that are "relevant". For example, a test case that places an order would be deemed more relevant than a test case that checks the user registration page,.
 
 In order to do this, we preprocess the source code of the application and the tests to extract features that represent the semantics of the code. This happens during the `record build` invocations, incrementally, as your application and test source code evolve. The global context of the application as a whole is taken into account, as well as the local context of each file.
 

@@ -612,4 +612,4 @@ smart-tests record tests \
 
 == Other instructions
 
-If not using any of the above, refer to xref:resources:integrations/raw.adoc[`raw` profile for custom test runners] or xref:resources:integrations/use-the-generic-file-based-runner-integration.adoc[`file` profile for unsupported test runners].
+If not using any of the above, refer to xref:references:integrations/raw.adoc[`raw` profile for custom test runners] or xref:references:integrations/use-the-generic-file-based-runner-integration.adoc[`file` profile for unsupported test runners].

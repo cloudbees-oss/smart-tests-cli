@@ -1,4 +1,0 @@
-= Robot
-:slug: robot
-
-The Robot framework has its own test runner. Check out the xref:resources:integrations/robot.adoc[Robot] page for more info.
