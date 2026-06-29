@@ -1,5 +1,5 @@
 module(
-    name = "launchable",
+    name = "smart_tests_cli",
     version = "0.0.0",
 )
 
