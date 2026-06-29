@@ -4,13 +4,13 @@ on:
     branches:
       - main
     paths:
-      - "WORKSPACE"
+      - "MODULE.bazel"
       - "src/**"
       - "!src/**.md"
       - ".github/workflows/bazel-test.yml"
   pull_request:
     paths:
-      - "WORKSPACE"
+      - "MODULE.bazel"
       - "src/**"
       - "!src/**.md"
       - ".github/workflows/bazel-test.yml"
@@ -23,7 +23,7 @@ jobs:
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: temurin
-          java-version: '8'
+          java-version: "8"
       - name: Setup Bazel
         uses: bazelbuild/setup-bazelisk@b39c379c82683a5f25d34f0d062761f62693e0b2 # v3.0.0
       - name: Cache Bazel outputs
