@@ -8,7 +8,8 @@ set -o pipefail
 # the first number printed is the Java class file version. We want to support Java8 = 52.0, so no newer version allowed
 # - META-INF/versions/... is a mechanism known as multi-release jar, so we can ignore newer classes in there
 # - module-info.class is a metadata for Java module system (Java9+) that earlier JVM will ignore
-java -jar external/maven/org/jvnet/animal-sniffer/*/*.jar src/main/java/com/launchableinc/ingest/commits/exe_deploy.jar \
+ANIMAL_SNIFFER_JAR=$(echo external/rules_jvm_external~~maven~maven/org/jvnet/animal-sniffer/*/*.jar external/maven/org/jvnet/animal-sniffer/*/*.jar 2>/dev/null | tr ' ' '\n' | grep -v '\*' | head -1)
+java -jar "$ANIMAL_SNIFFER_JAR" src/main/java/com/launchableinc/ingest/commits/exe_deploy.jar \
   | grep -v META-INF/versions \
   | grep -v module-info.class \
   | tee classes
