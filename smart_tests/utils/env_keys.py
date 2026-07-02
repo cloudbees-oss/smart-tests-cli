@@ -2,6 +2,10 @@ import os
 
 REPORT_ERROR_KEY = "SMART_TESTS_REPORT_ERROR"
 TOKEN_KEY = "SMART_TESTS_TOKEN"
+# OIDC id-token presented by a CI pipeline (e.g. a Jenkins-minted RS256 JWT). Used by
+# `smart-tests verify --oidc` for credential-free bootstrap and as the bearer for subsequent
+# workspace-scoped calls. See authentication.authentication_headers().
+OIDC_TOKEN_KEY = "SMART_TESTS_OIDC_TOKEN"
 ORGANIZATION_KEY = "SMART_TESTS_ORGANIZATION"
 WORKSPACE_KEY = "SMART_TESTS_WORKSPACE"
 BASE_URL_KEY = "SMART_TESTS_BASE_URL"

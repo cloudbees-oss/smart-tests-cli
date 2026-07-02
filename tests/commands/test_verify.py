@@ -107,3 +107,77 @@ class VerifyCommandTest(CliTestCase):
         # Should show original org/workspace names
         self.assertIn(f"'{self.organization}'", result.output)
         self.assertIn(f"'{self.workspace}'", result.output)
+
+
+class VerifyOidcCommandTest(CliTestCase):
+    """Test the credential-free `verify --oidc` bootstrap flow."""
+
+    oidc_token = "header.payload.signature"
+    base_url = "http://localhost:8080"
+    oidc_verify_url = f"{base_url}/intake/oidc/verify"
+    oidc_env = {"SMART_TESTS_OIDC_TOKEN": oidc_token, "SMART_TESTS_BASE_URL": base_url}
+
+    @responses.activate
+    @patch.dict(os.environ, oidc_env, clear=True)
+    def test_oidc_registered_emits_exports(self):
+        """200 → print eval-able export lines for org/workspace/token, exit 0."""
+        responses.add(
+            responses.POST,
+            self.oidc_verify_url,
+            json={"organization": "acme", "workspace": "prod"},
+            status=200,
+        )
+
+        result = self.cli("verify", "--oidc")
+        self.assert_success(result)
+
+        self.assertIn("export SMART_TESTS_ORGANIZATION='acme'", result.output)
+        self.assertIn("export SMART_TESTS_WORKSPACE='prod'", result.output)
+        self.assertIn(f"export SMART_TESTS_OIDC_TOKEN='{self.oidc_token}'", result.output)
+
+        # The token must be presented as the bearer to the verify endpoint.
+        self.assertEqual(responses.calls[0].request.headers["Authorization"], f"Bearer {self.oidc_token}")
+
+    @responses.activate
+    @patch.dict(os.environ, oidc_env, clear=True)
+    def test_oidc_unregistered_shows_paste_block(self):
+        """403 → show the copy/paste registration block (issuer + normalized-sub), exit 1, no exports."""
+        issuer = "https://jenkins.example.com/oidc"
+        sub = "https://jenkins.example.com/job/my-pipeline/"
+        responses.add(
+            responses.POST,
+            self.oidc_verify_url,
+            json={"issuer": issuer, "sub": sub},
+            status=403,
+        )
+
+        result = self.cli("verify", "--oidc")
+        self.assert_exit_code(result, 1)
+        self.assertIn("########## start ##########", result.output)
+        self.assertIn("########## end ##########", result.output)
+        self.assertIn(issuer, result.output)
+        self.assertIn(sub, result.output)
+        self.assertIn("normalized-sub", result.output)
+        self.assertNotIn("export SMART_TESTS_ORGANIZATION", result.output)
+
+    @responses.activate
+    @patch.dict(os.environ, oidc_env, clear=True)
+    def test_oidc_invalid_token_fails(self):
+        """401 → authentication failed, exit 1."""
+        responses.add(
+            responses.POST,
+            self.oidc_verify_url,
+            json={"reason": "bad token"},
+            status=401,
+        )
+
+        result = self.cli("verify", "--oidc")
+        self.assert_exit_code(result, 1)
+        self.assertNotIn("export SMART_TESTS_ORGANIZATION", result.output)
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_oidc_missing_token(self):
+        """No OIDC token in the environment → usage error, exit 2."""
+        result = self.cli("verify", "--oidc")
+        self.assert_exit_code(result, 2)
+        self.assertIn("SMART_TESTS_OIDC_TOKEN", result.output)

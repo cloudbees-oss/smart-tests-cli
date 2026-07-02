@@ -6,7 +6,7 @@ import requests
 
 import smart_tests.args4p.typer as typer
 
-from .env_keys import ORGANIZATION_KEY, WORKSPACE_KEY, get_token
+from .env_keys import OIDC_TOKEN_KEY, ORGANIZATION_KEY, WORKSPACE_KEY, get_token
 
 
 def get_org_workspace():
@@ -39,10 +39,26 @@ def ensure_org_workspace() -> Tuple[str, str]:
     return org, workspace
 
 
+def get_oidc_token():
+    '''
+    Returns the CI-issued OIDC id-token (e.g. a Jenkins-minted RS256 JWT) from the environment,
+    or None if not set. This is the same token `smart-tests verify --oidc` exchanges for an
+    org/workspace, and the one subsequent workspace-scoped calls present as their bearer.
+    '''
+    return os.getenv(OIDC_TOKEN_KEY)
+
+
 def authentication_headers():
     token = get_token()
     if token:
         return {'Authorization': f'Bearer {token}'}
+
+    # A pipeline that authenticated via `verify --oidc` carries no SMART_TESTS_TOKEN; it presents
+    # its OIDC id-token directly. Intake routes this by `iss` (RESTAuthVerifier) to the generic OIDC
+    # verifier, so subsequent workspace-scoped calls authenticate with the same JWT.
+    oidc_token = get_oidc_token()
+    if oidc_token:
+        return {'Authorization': f'Bearer {oidc_token}'}
 
     if os.getenv('EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH'):
         req_url = os.getenv('ACTIONS_ID_TOKEN_REQUEST_URL')
