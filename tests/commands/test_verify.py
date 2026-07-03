@@ -1,3 +1,5 @@
+import base64
+import json
 import os
 from subprocess import CalledProcessError
 from unittest import TestCase
@@ -181,3 +183,107 @@ class VerifyOidcCommandTest(CliTestCase):
         result = self.cli("verify", "--oidc")
         self.assert_exit_code(result, 2)
         self.assertIn("SMART_TESTS_OIDC_TOKEN", result.output)
+
+
+def _make_jwt(claims: dict) -> str:
+    """Build an unsigned-looking JWT (header.payload.signature) with the given claims payload."""
+    def seg(obj):
+        raw = json.dumps(obj).encode()
+        return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+    return f"{seg({'alg': 'RS256', 'typ': 'JWT'})}.{seg(claims)}.signature"
+
+
+class VerifyOidcFetchIssuerCommandTest(CliTestCase):
+    """Test `verify --oidc-fetch-issuer`: discover the issuer's JWKS from inside the private network
+    and print an {issuer, jwks} paste block. It must NOT hit the credential-free verify endpoint."""
+
+    issuer = "http://jenkins.internal:8080/oidc"
+    token = _make_jwt({"iss": issuer, "sub": "http://jenkins.internal:8080/job/pipeline/"})
+    jwks = {"keys": [{"kty": "RSA", "kid": "k1", "n": "AAAA", "e": "AQAB"}]}
+
+    def _mock_discovery(self):
+        responses.add(
+            responses.GET,
+            f"{self.issuer}/.well-known/openid-configuration",
+            json={"jwks_uri": f"{self.issuer}/jwks"},
+            status=200,
+        )
+        responses.add(responses.GET, f"{self.issuer}/jwks", json=self.jwks, status=200)
+
+    @responses.activate
+    @patch.dict(os.environ, {"SMART_TESTS_OIDC_TOKEN": token}, clear=True)
+    def test_fetch_issuer_prints_issuer_jwks_block(self):
+        """--oidc-fetch-issuer → discover JWKS, print {issuer, jwks} block, exit 0."""
+        self._mock_discovery()
+
+        result = self.cli("verify", "--oidc-fetch-issuer")
+        self.assert_success(result)
+
+        self.assertIn("########## start ##########", result.output)
+        self.assertIn("########## end ##########", result.output)
+
+        # The stdout block must parse to {issuer, jwks} with the discovered keys.
+        start = result.output.index("########## start ##########") + len("########## start ##########")
+        end = result.output.index("########## end ##########")
+        parsed = json.loads(result.output[start:end])
+        self.assertEqual(parsed["issuer"], self.issuer)
+        self.assertEqual(parsed["jwks"], self.jwks)
+
+        # It must NOT call the credential-free verify endpoint — the key never travels with the token.
+        for call in responses.calls:
+            self.assertNotIn("/oidc/verify", call.request.url)
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_fetch_issuer_missing_token(self):
+        """No OIDC token → usage error, exit 2."""
+        result = self.cli("verify", "--oidc-fetch-issuer")
+        self.assert_exit_code(result, 2)
+        self.assertIn("SMART_TESTS_OIDC_TOKEN", result.output)
+
+    @patch.dict(os.environ, {"SMART_TESTS_OIDC_TOKEN": "not-a-jwt"}, clear=True)
+    def test_fetch_issuer_malformed_token(self):
+        """Token that isn't a well-formed JWT → exit 2, mentions iss."""
+        result = self.cli("verify", "--oidc-fetch-issuer")
+        self.assert_exit_code(result, 2)
+        self.assertIn("iss", result.output)
+
+    @responses.activate
+    @patch.dict(os.environ, {"SMART_TESTS_OIDC_TOKEN": token}, clear=True)
+    def test_fetch_issuer_unreachable_issuer_fails(self):
+        """Discovery endpoint unreachable/404 → exit 1, no paste block."""
+        responses.add(
+            responses.GET,
+            f"{self.issuer}/.well-known/openid-configuration",
+            status=404,
+        )
+        result = self.cli("verify", "--oidc-fetch-issuer")
+        self.assert_exit_code(result, 1)
+        self.assertNotIn("########## start ##########", result.output)
+
+    @responses.activate
+    @patch.dict(os.environ, {"SMART_TESTS_OIDC_TOKEN": token}, clear=True)
+    def test_fetch_issuer_cross_origin_jwks_uri_rejected(self):
+        """A tampered discovery document whose jwks_uri points at a different host is rejected:
+        exit 1, no paste block, and the off-origin JWKS URL is never fetched."""
+        evil_jwks_uri = "http://169.254.169.254/latest/meta-data/jwks"
+        responses.add(
+            responses.GET,
+            f"{self.issuer}/.well-known/openid-configuration",
+            json={"jwks_uri": evil_jwks_uri},
+            status=200,
+        )
+        responses.add(responses.GET, evil_jwks_uri, json=self.jwks, status=200)
+
+        result = self.cli("verify", "--oidc-fetch-issuer")
+        self.assert_exit_code(result, 1)
+        self.assertNotIn("########## start ##########", result.output)
+
+        # The off-origin jwks_uri must never be fetched.
+        for call in responses.calls:
+            self.assertNotIn("169.254.169.254", call.request.url)
+
+    @patch.dict(os.environ, {"SMART_TESTS_OIDC_TOKEN": token}, clear=True)
+    def test_oidc_and_fetch_issuer_mutually_exclusive(self):
+        """--oidc together with --oidc-fetch-issuer → usage error, exit 2."""
+        result = self.cli("verify", "--oidc", "--oidc-fetch-issuer")
+        self.assert_exit_code(result, 2)

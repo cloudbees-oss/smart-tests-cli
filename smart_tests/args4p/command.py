@@ -95,12 +95,14 @@ class Command:
                 if a in ["--help", "-h"]:
                     print(invoker.command.format_help())
                     raise Exit(0)
+                has_inline = False
                 if a.startswith("--") and '=' in a:
                     # --long-format=value
                     a, val = a.split('=', 1)
                     args.insert_front(val)
+                    has_inline = True
 
-                invoker.eat_options(a, args)
+                invoker.eat_options(a, args, has_inline)
             elif isinstance(invoker.command, Group):
                 invoker = invoker.sub_command(a)
             else:
@@ -613,13 +615,13 @@ class _Invoker:
         self.kwargs[a.name] = a.append(self.kwargs.get(a.name), arg)
         self.nargs += 1
 
-    def eat_options(self, option_name: str, args: ArgList):
+    def eat_options(self, option_name: str, args: ArgList, has_inline: bool = False):
         inv: _Invoker | None = self
         option_names = []
         while inv is not None:
             for o in inv.command.options:
                 if option_name in o.option_names:
-                    inv.kwargs[o.name] = o.append(inv.kwargs.get(o.name), option_name, args)
+                    inv.kwargs[o.name] = o.append(inv.kwargs.get(o.name), option_name, args, has_inline)
                     return
                 else:
                     option_names += o.option_names

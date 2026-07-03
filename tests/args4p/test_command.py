@@ -1,4 +1,4 @@
-from typing import Annotated, Optional
+from typing import Annotated, List, Optional
 from unittest import TestCase
 
 import smart_tests.args4p as args4p
@@ -67,6 +67,29 @@ class CommandTest(TestCase):
 
         cli("--foo", "5")
         self.assertEqual(v, 5)
+
+    def test_optional_value_option(self):
+        """An option with optional_value binds flag_value when bare, and the inline value when given
+        as --opt=value, WITHOUT consuming the following argument in the bare form."""
+        seen = []
+
+        @args4p.command()
+        @args4p.argument("rest", multiple=True, required=False)
+        @args4p.option("--mode", "mode", optional_value=True, flag_value="auto")
+        def cli(mode: Optional[str] = None, rest: Optional[List[str]] = None):
+            seen.append((mode, list(rest or [])))
+
+        # not given at all -> default
+        cli()
+        self.assertEqual(seen[-1], (None, []))
+
+        # bare -> flag_value, and does NOT swallow the trailing positional
+        cli("--mode", "leftover")
+        self.assertEqual(seen[-1], ("auto", ["leftover"]))
+
+        # inline value
+        cli("--mode=manual")
+        self.assertEqual(seen[-1], ("manual", []))
 
     def test_command_with_arguments(self):
         """Test command with positional arguments"""

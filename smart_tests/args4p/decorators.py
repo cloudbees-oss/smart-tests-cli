@@ -35,7 +35,8 @@ def group(name: Optional[str] = None, help: Optional[str] = None) -> Callable[..
 def option(
         *param_decls: str,
         help: str | None = None, type: type | Callable | None = None, default: Any = NO_DEFAULT, required: bool = False,
-        metavar: str | None = None, multiple: bool = False, hidden: bool = False
+        metavar: str | None = None, multiple: bool = False, hidden: bool = False,
+        optional_value: bool = False, flag_value: Any = None
 ) -> Callable:
     '''
     See README.md for usage
@@ -60,7 +61,9 @@ def option(
             required=required,
             metavar=metavar,
             multiple=multiple,
-            hidden=hidden)
+            hidden=hidden,
+            optional_value=optional_value,
+            flag_value=flag_value)
 
         return _attach(f, o)
 
