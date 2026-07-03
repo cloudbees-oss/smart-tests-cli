@@ -6,7 +6,7 @@ import platform
 import re
 import subprocess
 import urllib.parse
-from typing import Annotated, List, Optional
+from typing import Annotated, List
 
 import click
 import requests
