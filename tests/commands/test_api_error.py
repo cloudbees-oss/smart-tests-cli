@@ -457,9 +457,11 @@ class FallbackModeTest(CliTestCase):
             status=500)
 
         with tempfile.NamedTemporaryFile(delete=False) as rest_file:
-            result = self.cli(*self._subset_args(rest_file.name, ("--fallback-mode", "random-sample")), mix_stderr=False)
+            extra = ("--fallback-mode", "random-sample", "--fallback-sampling-target", "100%")
+            result = self.cli(*self._subset_args(rest_file.name, extra), mix_stderr=False)
             self.assert_success(result)
             self.assertIn("example_test.rb", result.stdout)
+            self.assertIn("100%", result.stderr)
 
     @responses.activate
     @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
@@ -502,7 +504,8 @@ class FallbackModeTest(CliTestCase):
             status=200)
 
         with tempfile.NamedTemporaryFile(delete=False) as rest_file:
-            result = self.cli(*self._subset_args(rest_file.name, ("--fallback-mode", "random-sample")), mix_stderr=False)
+            extra = ("--fallback-mode", "random-sample", "--fallback-sampling-target", "50%")
+            result = self.cli(*self._subset_args(rest_file.name, extra), mix_stderr=False)
             self.assert_success(result)
             self.assertIn("example_test.rb", result.stdout)
 
@@ -520,3 +523,13 @@ class FallbackModeTest(CliTestCase):
             result = self.cli(*self._subset_args(rest_file.name), mix_stderr=False)
             self.assert_success(result)
             self.assertIn("example_test.rb", result.stdout)
+
+    # --- Validation error cases ---
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
+    def test_random_sample_without_fallback_sampling_target_fails(self):
+        with tempfile.NamedTemporaryFile(delete=False) as rest_file:
+            result = self.cli(*self._subset_args(rest_file.name, ("--fallback-mode", "random-sample")), mix_stderr=False)
+            self.assertNotEqual(result.exit_code, 0)
+            self.assertIn("--fallback-sampling-target", result.stderr)
