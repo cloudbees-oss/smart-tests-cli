@@ -9,16 +9,14 @@ from ..option import Option as _Option
 def Option(
         *option_names: str,
         help: str | None = None, type: type | Callable | None = None, default: Any = NO_DEFAULT, required: bool = False,
-        metavar: str | None = None, multiple: bool = False, hidden: bool = False,
-        optional_value: bool = False, flag_value: Any = None
+        metavar: str | None = None, multiple: bool = False, hidden: bool = False
 ) -> _Option:
     '''
     See README.md for usage
     '''
 
     return _Option(name=None, option_names=list(option_names), help=help, type=type,
-                   default=default, required=required, metavar=metavar, multiple=multiple, hidden=hidden,
-                   optional_value=optional_value, flag_value=flag_value)
+                   default=default, required=required, metavar=metavar, multiple=multiple, hidden=hidden)
 
 
 def Argument(
