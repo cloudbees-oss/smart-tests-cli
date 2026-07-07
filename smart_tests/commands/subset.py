@@ -239,6 +239,7 @@ class Subset(TestPathWriter):
             )] = FallbackMode.RUN_ALL,
             fallback_sampling_target: Annotated[Percentage | None, typer.Option(
                 "--fallback-sampling-target",
+                hidden=True,
                 type=parse_percentage,
                 help="Sampling ratio (0%–100%) used when --fallback-mode=random-sample. "
                      "Required when --fallback-mode=random-sample is specified.",
