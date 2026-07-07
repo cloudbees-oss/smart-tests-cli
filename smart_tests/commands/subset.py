@@ -623,6 +623,7 @@ class Subset(TestPathWriter):
             )
             sys.exit(1)
         elif self.fallback_mode == FallbackMode.RANDOM_SAMPLE:
+            assert self.fallback_sampling_target is not None
             target_fraction = float(self.fallback_sampling_target)
             click.echo(
                 f"Warning: Smart Tests could not retrieve a subset. "
