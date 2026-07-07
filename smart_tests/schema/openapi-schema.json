@@ -11,8 +11,8 @@
   },
   "servers": [
     {
-      "url": "http://localhost:8080/intake",
-      "description": "Local development server"
+      "url": "hhttps://api.mercury.launchableinc.com/intake",
+      "description": "Cloudbees Smart Tests server url"
     }
   ],
   "security": [
@@ -503,6 +503,36 @@
         }
       }
     },
+    "/oidc/verify": {
+      "post": {
+        "tags": [
+          "oidc-verification-controller"
+        ],
+        "operationId": "verify",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/github_app_events": {
       "post": {
         "tags": [
@@ -842,13 +872,221 @@
           "400": {
             "description": "Invalid parameters (missing test-path, invalid limit/offset, branch/test-suite not found, invalid date range)",
             "content": {
-              "application/json": {}
+              "application/json": {
+
+              }
             }
           },
           "403": {
             "description": "Missing read:workspace permission",
             "content": {
-              "application/json": {}
+              "application/json": {
+
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{DoNotUse1}/workspaces/{DoNotUse2}/view/never-failing-tests": {
+      "get": {
+        "tags": [
+          "Test Data View"
+        ],
+        "summary": "Get never-failing tests",
+        "description": "Retrieve tests that have never failed for the specified time period. Returns weekly aggregated execution statistics per test.",
+        "operationId": "getNeverFailingTests",
+        "parameters": [
+          {
+            "name": "year-week",
+            "in": "query",
+            "description": "Specific ISO year-week to fetch (format: YYYY-Www, e.g., 2026-W15)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-W15"
+          },
+          {
+            "name": "weeks",
+            "in": "query",
+            "description": "Number of weeks to include (1-12)",
+            "required": false,
+            "schema": {
+              "maximum": 12,
+              "minimum": 1,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum tests per week (1-500)",
+            "required": false,
+            "schema": {
+              "maximum": 500,
+              "minimum": 1,
+              "type": "string"
+            }
+          },
+          {
+            "name": "test-path",
+            "in": "query",
+            "description": "Filter by specific test path",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "com.example.MyTest"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Start date for range query (ISO-8601: YYYY-MM-DD)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-05-01"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "End date for range query (ISO-8601: YYYY-MM-DD)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-05-11"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful retrieval of never-failing test data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JSNeverFailingTestsViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters (weeks out of range 1-12, limit out of range 1-500, invalid date format)",
+            "content": {
+              "application/json": {
+
+              }
+            }
+          },
+          "403": {
+            "description": "Missing read:workspace permission",
+            "content": {
+              "application/json": {
+
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{DoNotUse1}/workspaces/{DoNotUse2}/view/longest-tests": {
+      "get": {
+        "tags": [
+          "Test Data View"
+        ],
+        "summary": "Get longest tests",
+        "description": "Retrieve longest-running test data for the specified time period. Returns weekly aggregated duration statistics per test.",
+        "operationId": "getLongestTests",
+        "parameters": [
+          {
+            "name": "year-week",
+            "in": "query",
+            "description": "Specific ISO year-week to fetch (format: YYYY-Www, e.g., 2026-W15)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-W15"
+          },
+          {
+            "name": "weeks",
+            "in": "query",
+            "description": "Number of weeks to include (1-12)",
+            "required": false,
+            "schema": {
+              "maximum": 12,
+              "minimum": 1,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum tests per week (1-500)",
+            "required": false,
+            "schema": {
+              "maximum": 500,
+              "minimum": 1,
+              "type": "string"
+            }
+          },
+          {
+            "name": "test-path",
+            "in": "query",
+            "description": "Filter by specific test path",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "com.example.MyTest"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Start date for range query (ISO-8601: YYYY-MM-DD)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-05-01"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "End date for range query (ISO-8601: YYYY-MM-DD)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-05-11"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful retrieval of longest test data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JSLongestTestsViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters (weeks out of range 1-12, limit out of range 1-500, invalid date format)",
+            "content": {
+              "application/json": {
+
+              }
+            }
+          },
+          "403": {
+            "description": "Missing read:workspace permission",
+            "content": {
+              "application/json": {
+
+              }
             }
           }
         }
@@ -940,13 +1178,17 @@
           "400": {
             "description": "Invalid parameters (weeks out of range 1-12, limit out of range 1-500, invalid date format)",
             "content": {
-              "application/json": {}
+              "application/json": {
+
+              }
             }
           },
           "403": {
             "description": "Missing read:workspace permission",
             "content": {
-              "application/json": {}
+              "application/json": {
+
+              }
             }
           }
         }
@@ -957,7 +1199,7 @@
         "tags": [
           "verification-controller"
         ],
-        "operationId": "verify",
+        "operationId": "verify_1",
         "responses": {
           "200": {
             "description": "OK",
@@ -1346,6 +1588,26 @@
         }
       }
     },
+    "/organizations/{DoNotUse1}/workspaces/{DoNotUse2}/cbp-workspace": {
+      "get": {
+        "tags": [
+          "workspace-controller"
+        ],
+        "operationId": "getCbpWorkspace",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/JSCbpWorkspace"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/organizations/{DoNotUse1}/workspaces/{DoNotUse2}/builds/{buildNumber}": {
       "get": {
         "tags": [
@@ -1453,6 +1715,46 @@
           "health-controller"
         ],
         "operationId": "live",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/github-app/setup": {
+      "get": {
+        "tags": [
+          "github-app-install-controller"
+        ],
+        "operationId": "handlePostInstallationSetup",
+        "parameters": [
+          {
+            "name": "installation_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "setup_action",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -1740,7 +2042,7 @@
             "$ref": "#/components/schemas/OptimizationTarget"
           },
           "target": {
-            "maximum": 1.0,
+            "maximum": 1,
             "exclusiveMaximum": false,
             "minimum": 0,
             "exclusiveMinimum": false,
@@ -1893,15 +2195,15 @@
           "isObservation": {
             "type": "boolean"
           },
-          "subsettingId": {
-            "type": "integer",
-            "format": "int32"
-          },
           "splitGroups": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/JSSplitSubsetSplitGroup"
             }
+          },
+          "subsettingId": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -2234,12 +2536,12 @@
             "type": "integer",
             "format": "int32"
           },
-          "buildNumber": {
-            "type": "string"
-          },
           "organizationId": {
             "type": "integer",
             "format": "int32"
+          },
+          "buildNumber": {
+            "type": "string"
           },
           "isObservation": {
             "type": "boolean"
@@ -2565,6 +2867,196 @@
         },
         "description": "Paginated test results response with metadata"
       },
+      "JSNeverFailingTestItem": {
+        "type": "object",
+        "properties": {
+          "testPath": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestPathComponent"
+            }
+          },
+          "executionCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalDurationMs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "averageDurationMs": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "JSNeverFailingTestWeek": {
+        "type": "object",
+        "properties": {
+          "weekDate": {
+            "type": "string"
+          },
+          "calculationStatus": {
+            "type": "string",
+            "enum": [
+              "CALCULATED",
+              "NOT_READY",
+              "UNEXPECTED"
+            ]
+          },
+          "calculationTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "neverFailingTests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JSNeverFailingTestItem"
+            }
+          },
+          "testCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "JSNeverFailingTestsData": {
+        "type": "object",
+        "properties": {
+          "weeks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JSNeverFailingTestWeek"
+            }
+          }
+        }
+      },
+      "JSNeverFailingTestsMetadata": {
+        "type": "object",
+        "properties": {
+          "weeksRequested": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "weeksReturned": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "latestWeek": {
+            "type": "string"
+          }
+        }
+      },
+      "JSNeverFailingTestsViewResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/JSNeverFailingTestsData"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/JSNeverFailingTestsMetadata"
+          }
+        }
+      },
+      "JSLongestTestItem": {
+        "type": "object",
+        "properties": {
+          "testPath": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestPathComponent"
+            }
+          },
+          "executionCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalDurationMs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "averageDurationMs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "minimumDurationMs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "maximumDurationMs": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "JSLongestTestWeek": {
+        "type": "object",
+        "properties": {
+          "weekDate": {
+            "type": "string"
+          },
+          "calculationStatus": {
+            "type": "string",
+            "enum": [
+              "CALCULATED",
+              "NOT_READY",
+              "UNEXPECTED"
+            ]
+          },
+          "calculationTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "longestTests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JSLongestTestItem"
+            }
+          },
+          "testCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "JSLongestTestsData": {
+        "type": "object",
+        "properties": {
+          "weeks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JSLongestTestWeek"
+            }
+          }
+        }
+      },
+      "JSLongestTestsMetadata": {
+        "type": "object",
+        "properties": {
+          "weeksRequested": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "weeksReturned": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "latestWeek": {
+            "type": "string"
+          }
+        }
+      },
+      "JSLongestTestsViewResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/JSLongestTestsData"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/JSLongestTestsMetadata"
+          }
+        }
+      },
       "JSFlakyTestItem": {
         "type": "object",
         "properties": {
@@ -2747,6 +3239,9 @@
           },
           "isPtsV2Enabled": {
             "type": "boolean"
+          },
+          "isCbpWorkspace": {
+            "type": "boolean"
           }
         }
       },
@@ -2847,6 +3342,19 @@
           "filesProcessed": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "JSCbpWorkspace": {
+        "type": "object",
+        "properties": {
+          "organizationCbpId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workspaceCbpId": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
