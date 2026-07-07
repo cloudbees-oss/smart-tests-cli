@@ -234,9 +234,17 @@ class Subset(TestPathWriter):
                 hidden=True,
                 help="Behavior when the subset API is unavailable or the model is untrained. "
                      "'run-all' (default) runs all tests as usual; 'stop' exits with a non-zero status so CI halts; "
-                     "'random-sample' picks a random subset locally based on the count derived from --target "
+                     "'random-sample' picks a random subset locally based on the count derived from --fallback-sampling-target "
                      "(no duration estimates are available in this path).",
             )] = FallbackMode.RUN_ALL,
+            fallback_sampling_target: Annotated[Percentage | None, typer.Option(
+                "--fallback-sampling-target",
+                hidden=True,
+                type=parse_percentage,
+                help="Sampling ratio (0%–100%) used when --fallback-mode=random-sample. "
+                     "Required when --fallback-mode=random-sample is specified.",
+                metavar="PERCENTAGE"
+            )] = None,
             test_runner: Annotated[str | None, typer.Argument()] = None,
     ):
         super().__init__(app)
@@ -296,6 +304,20 @@ class Subset(TestPathWriter):
                 self.tracking_client,
                 Tracking.ErrorEvent.INTERNAL_CLI_ERROR)
 
+        if fallback_mode == FallbackMode.RANDOM_SAMPLE and fallback_sampling_target is None:
+            print_error_and_die(
+                "--fallback-sampling-target is required when --fallback-mode=random-sample",
+                self.tracking_client,
+                Tracking.ErrorEvent.USER_ERROR
+            )
+
+        if fallback_sampling_target is not None and fallback_mode != FallbackMode.RANDOM_SAMPLE:
+            print_error_and_die(
+                "--fallback-sampling-target can only be used with --fallback-mode=random-sample",
+                self.tracking_client,
+                Tracking.ErrorEvent.USER_ERROR
+            )
+
         self.target = target
         self.time = time
         self.confidence = confidence
@@ -319,6 +341,7 @@ class Subset(TestPathWriter):
         self.is_get_tests_from_guess = is_get_tests_from_guess
         self.use_case = use_case
         self.fallback_mode = fallback_mode
+        self.fallback_sampling_target = fallback_sampling_target
 
         self._validate_print_input_snapshot_option()
 
@@ -601,7 +624,8 @@ class Subset(TestPathWriter):
             )
             sys.exit(1)
         elif self.fallback_mode == FallbackMode.RANDOM_SAMPLE:
-            target_fraction = float(self.target) if self.target is not None else 1.0
+            assert self.fallback_sampling_target is not None
+            target_fraction = float(self.fallback_sampling_target)
             click.echo(
                 f"Warning: Smart Tests could not retrieve a subset. "
                 f"Falling back to local random sample at {target_fraction:.0%}.",
