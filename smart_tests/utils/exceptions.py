@@ -1,5 +1,6 @@
 # TODO: add cli-specific custom exceptions
 import sys
+from typing import NoReturn
 
 import click
 
@@ -28,7 +29,7 @@ class InvalidJUnitXMLException(Exception):
         super().__init__(self.message)
 
 
-def print_error_and_die(msg: str, tracking_client: TrackingClient, event: Tracking.ErrorEvent):
+def print_error_and_die(msg: str, tracking_client: TrackingClient, event: Tracking.ErrorEvent) -> NoReturn:
     click.secho(msg, fg='red', err=True)
     tracking_client.send_error_event(event_name=event, stack_trace=msg)
     sys.exit(1)
