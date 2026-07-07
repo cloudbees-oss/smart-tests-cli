@@ -248,8 +248,17 @@ LARGE_PAYLOAD_CONNECT_TIMEOUT = 60
     default="run-all",
     help="Behavior when the subset API is unavailable or the model is untrained. "
          "'run-all' (default) runs all tests as usual; 'stop' exits with a non-zero status so CI halts; "
-         "'random-sample' picks a random subset locally based on the count derived from --target "
+         "'random-sample' picks a random subset locally based on the count derived from --fallback-sampling-target "
          "(no duration estimates are available in this path).",
+)
+@click.option(
+    "--fallback-sampling-target",
+    "fallback_sampling_target",
+    hidden=True,
+    type=PERCENTAGE,
+    default=None,
+    help="Sampling ratio (0%–100%) used when --fallback-mode=random-sample. "
+         "Required when --fallback-mode=random-sample is specified.",
 )
 @click.pass_context
 def subset(
@@ -283,6 +292,7 @@ def subset(
     similarity: Optional[float] = None,
     subset_id_file: Optional[str] = None,
     fallback_mode: str = "run-all",
+    fallback_sampling_target: Optional[float] = None,
 ):
     fallback_mode_enum = FallbackMode(fallback_mode)
     app = context.obj
@@ -314,6 +324,18 @@ def subset(
         tracking_client.send_error_event(
             event_name=Tracking.ErrorEvent.WARNING_ERROR,
             stack_trace=msg
+        )
+
+    if fallback_mode_enum == FallbackMode.RANDOM_SAMPLE and fallback_sampling_target is None:
+        print_error_and_die(
+            "--fallback-sampling-target is required when --fallback-mode=random-sample",
+            Tracking.ErrorEvent.USER_ERROR
+        )
+
+    if fallback_sampling_target is not None and fallback_mode_enum != FallbackMode.RANDOM_SAMPLE:
+        print_error_and_die(
+            "--fallback-sampling-target can only be used with --fallback-mode=random-sample",
+            Tracking.ErrorEvent.USER_ERROR
         )
 
     if is_get_tests_from_guess and is_get_tests_from_previous_sessions:
@@ -425,6 +447,7 @@ def subset(
             self.is_get_tests_from_guess = is_get_tests_from_guess
             self.subset_id_file = subset_id_file
             self.fallback_mode = fallback_mode_enum
+            self.fallback_sampling_target = fallback_sampling_target
             super(Optimize, self).__init__(app=app)
 
         def _default_output_handler(self, output: List[TestPath], rests: List[TestPath]):
@@ -618,7 +641,8 @@ def subset(
                 )
                 sys.exit(1)
             elif self.fallback_mode == FallbackMode.RANDOM_SAMPLE:
-                target_fraction = float(target) if target is not None else 1.0
+                assert self.fallback_sampling_target is not None
+                target_fraction = float(self.fallback_sampling_target)
                 click.echo(
                     "Warning: the service failed to subset. Falling back to local random sample at {:.0%}.".format(
                         target_fraction),
