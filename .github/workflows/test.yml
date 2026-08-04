@@ -38,6 +38,9 @@ jobs:
         os: [ubuntu-22.04, windows-latest]
 
     steps:
+      - name: Debug
+        run:
+          echo "$RUNNER_NAME"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
