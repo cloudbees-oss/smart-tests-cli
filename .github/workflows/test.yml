@@ -39,6 +39,7 @@ jobs:
 
     steps:
       - name: Debug
+        shell: bash
         run:
           echo "$RUNNER_NAME"
       - uses: actions/checkout@v4
