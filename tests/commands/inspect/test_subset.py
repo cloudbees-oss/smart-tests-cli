@@ -142,21 +142,64 @@ class SubsetTest(CliTestCase):
   "subset": [
     {
       "test_path": "file=test_file1.py",
-      "estimated_duration_sec": 1.2
+      "estimated_duration_sec": 1.2,
+      "density": 0.8,
+      "is_new": false
     },
     {
       "test_path": "file=test_file3.py",
-      "estimated_duration_sec": 0.6
+      "estimated_duration_sec": 0.6,
+      "density": 0.5,
+      "is_new": false
     }
   ],
   "rest": [
     {
       "test_path": "file=test_file4.py",
-      "estimated_duration_sec": 1.8
+      "estimated_duration_sec": 1.8,
+      "density": 0.3,
+      "is_new": false
     },
     {
       "test_path": "file=test_file2.py",
-      "estimated_duration_sec": 0.1
+      "estimated_duration_sec": 0.1,
+      "density": 0.1,
+      "is_new": false
+    }
+  ]
+}
+"""
+
+        self.assertEqual(result.stdout, expect)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
+    def test_subset_json_new_tests_only(self):
+        responses.replace(
+            responses.GET,
+            f"{get_base_url()}/intake/organizations/{self.organization}/workspaces/"
+            f"{self.workspace}/subset/{self.subsetting_id}",
+            json=self.mock_json_with_new_tests,
+            status=200)
+
+        result = self.cli(
+            'inspect', 'subset', '--subset-id', self.subsetting_id, '--json', '--new-tests-only',
+            mix_stderr=False)
+        expect = """{
+  "subset": [
+    {
+      "test_path": "file=test_new1.py",
+      "estimated_duration_sec": 0.0,
+      "density": 0.0,
+      "is_new": true
+    }
+  ],
+  "rest": [
+    {
+      "test_path": "file=test_new2.py",
+      "estimated_duration_sec": 0.0,
+      "density": 0.0,
+      "is_new": true
     }
   ]
 }
