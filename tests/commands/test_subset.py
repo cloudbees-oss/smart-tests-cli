@@ -1154,3 +1154,98 @@ class SubsetTest(CliTestCase):
         self.assert_success(result)
         self.assertIn("| Subset", result.stderr)
         self.assertNotIn("Subset (New Tests)", result.stderr)
+
+    # Environment presented by a GitHub Actions job. detect_github_action_context reads these.
+    github_actions_env = {
+        "SMART_TESTS_TOKEN": CliTestCase.smart_tests_token,
+        "GITHUB_ACTIONS": "true",
+        "GITHUB_RUN_ID": "12345678",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_REPOSITORY": "cloudbees-oss/smart-tests-cli",
+        "GITHUB_JOB": "unit-tests",
+        "RUNNER_NAME": "GitHub Actions 1",
+    }
+
+    @responses.activate
+    @mock.patch.dict(os.environ, github_actions_env, clear=True)
+    def test_subset_from_github_actions(self):
+        pipe = "test_1.py\ntest_2.py\n"
+        mock_json_response = {
+            "testPaths": [[{"type": "file", "name": "test_1.py"}]],
+            "testRunner": "file",
+            "rest": [[{"type": "file", "name": "test_2.py"}]],
+            "subsettingId": 123,
+            "summary": {
+                "subset": {"duration": 10, "candidates": 1, "rate": 50},
+                "rest": {"duration": 10, "candidates": 1, "rate": 50},
+            },
+            "isObservation": False,
+        }
+        responses.replace(
+            responses.POST,
+            f"{get_base_url()}/intake/organizations/{self.organization}/workspaces/{self.workspace}/subset",
+            json=mock_json_response,
+            status=200,
+        )
+
+        result = self.cli("subset", "file", "--from-github-actions", "--target", "50%",
+                          mix_stderr=False, input=pipe)
+        self.assert_success(result)
+        self.assertEqual(result.stdout, "test_1.py\n")
+
+        payload = self.decode_request_body(self.find_request('/subset').request.body)
+        # The GitHub App flow sends run/repo/job identifiers instead of a client-side session.
+        self.assertNotIn("session", payload)
+        self.assertEqual(payload.get("fromGithubActions"), True)
+        self.assertEqual(payload.get("githubActionsRunId"), "12345678")
+        self.assertEqual(payload.get("githubActionsRunAttempt"), "1")
+        self.assertEqual(payload.get("repositoryOwner"), "cloudbees-oss")
+        self.assertEqual(payload.get("repositoryName"), "smart-tests-cli")
+        self.assertEqual(payload.get("githubActionsJobName"), "unit-tests")
+        self.assertEqual(payload.get("githubActionsRunnerName"), "GitHub Actions 1")
+        # The build/session summary line is omitted when there is no client-side session.
+        self.assertNotIn("test session", result.stderr)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, github_actions_env, clear=True)
+    def test_subset_from_github_actions_with_session_is_error(self):
+        result = self.cli("subset", "file", "--from-github-actions", "--session", self.session,
+                          mix_stderr=False, input="test_1.py\n")
+        self.assert_exit_code(result, 1)
+        self.assertIn("--from-github-actions cannot be used with --session", result.stderr)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token}, clear=True)
+    def test_subset_from_github_actions_outside_github_is_error(self):
+        # GITHUB_ACTIONS and friends are absent, so detection returns None.
+        result = self.cli("subset", "file", "--from-github-actions",
+                          mix_stderr=False, input="test_1.py\n")
+        self.assert_exit_code(result, 1)
+        self.assertIn("--from-github-actions requires running inside GitHub Actions", result.stderr)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token}, clear=True)
+    def test_subset_without_session_and_without_flag_is_error(self):
+        result = self.cli("subset", "file", mix_stderr=False, input="test_1.py\n")
+        self.assert_exit_code(result, 1)
+        self.assertIn("Missing option '--session'", result.stderr)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {**github_actions_env, "GITHUB_RUN_ID": ""}, clear=True)
+    def test_subset_from_github_actions_missing_env_var_is_error(self):
+        # Inside GitHub Actions but a required variable is missing: the error should name it,
+        # not claim we're outside GitHub Actions.
+        result = self.cli("subset", "file", "--from-github-actions",
+                          mix_stderr=False, input="test_1.py\n")
+        self.assert_exit_code(result, 1)
+        self.assertIn("required environment variable(s) not set", result.stderr)
+        self.assertIn("GITHUB_RUN_ID", result.stderr)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {**github_actions_env, "GITHUB_REPOSITORY": "no-slash"}, clear=True)
+    def test_subset_from_github_actions_malformed_repository_is_error(self):
+        result = self.cli("subset", "file", "--from-github-actions",
+                          mix_stderr=False, input="test_1.py\n")
+        self.assert_exit_code(result, 1)
+        self.assertIn("owner/repo", result.stderr)
+        self.assertIn("no-slash", result.stderr)

@@ -10,12 +10,13 @@ from enum import Enum
 from io import TextIOWrapper
 from multiprocessing import Process
 from os.path import join
-from typing import Annotated, Any, Callable, Dict, Iterable, List
+from typing import Annotated, Any, Callable, Dict, Iterable, List, Mapping
 
 import click
 from tabulate import tabulate
 
 import smart_tests.args4p.typer as typer
+from smart_tests.args4p.exceptions import BadCmdLineException
 from smart_tests.utils.authentication import get_org_workspace
 from smart_tests.utils.commands import Command
 from smart_tests.utils.exceptions import print_error_and_die
@@ -30,6 +31,8 @@ from ..utils.env_keys import REPORT_ERROR_KEY
 from ..utils.fail_fast_mode import (FailFastModeValidateParams, fail_fast_mode_validate,
                                     set_fail_fast_mode, warn_and_exit_if_fail_fast_mode)
 from ..utils.input_snapshot import InputSnapshotId
+from ..utils.link import (GITHUB_ACTIONS_JOB_KEY, GITHUB_ACTIONS_KEY, GITHUB_ACTIONS_REPOSITORY_KEY,
+                          GITHUB_ACTIONS_RUN_ATTEMPT_KEY, GITHUB_ACTIONS_RUN_ID_KEY, GITHUB_ACTIONS_RUNNER_NAME_KEY)
 from ..utils.smart_tests_client import SmartTestsClient
 from ..utils.typer_types import Duration, Fraction, Percentage, parse_duration, parse_fraction, parse_percentage
 from .test_path_writer import TestPathWriter
@@ -37,6 +40,56 @@ from .test_path_writer import TestPathWriter
 LARGE_TEST_PATHS_THRESHOLD = 100000
 DEFAULT_CONNECT_TIMEOUT = 5
 LARGE_PAYLOAD_CONNECT_TIMEOUT = 60
+
+
+class GithubActionsContextError(Exception):
+    """Raised when running inside GitHub Actions but the environment is missing or malformed."""
+
+
+def detect_github_action_context(env: Mapping[str, str]) -> dict[str, str] | None:
+    """Read the GitHub Actions context needed for the GitHub App subset flow.
+
+    Returns None when not running inside GitHub Actions. When running inside GitHub
+    Actions but a required variable is missing or malformed, raises
+    GithubActionsContextError naming the offending variable.
+    """
+    actions = env.get(GITHUB_ACTIONS_KEY)
+    if not actions or actions.lower() != "true":
+        return None
+
+    required_keys = [
+        GITHUB_ACTIONS_RUN_ID_KEY,
+        GITHUB_ACTIONS_RUN_ATTEMPT_KEY,
+        GITHUB_ACTIONS_RUNNER_NAME_KEY,
+        GITHUB_ACTIONS_JOB_KEY,
+        GITHUB_ACTIONS_REPOSITORY_KEY,
+    ]
+    missing = [key for key in required_keys if not env.get(key)]
+    if missing:
+        raise GithubActionsContextError(
+            "Running inside GitHub Actions but required environment variable(s) not set: "
+            f"{', '.join(missing)}."
+        )
+
+    run_id = env[GITHUB_ACTIONS_RUN_ID_KEY]
+    run_attempt = env[GITHUB_ACTIONS_RUN_ATTEMPT_KEY]
+    runner_name = env[GITHUB_ACTIONS_RUNNER_NAME_KEY]
+    job_name = env[GITHUB_ACTIONS_JOB_KEY]
+    repository = env[GITHUB_ACTIONS_REPOSITORY_KEY]
+    owner, sep, name = repository.partition("/")
+    if not sep or not owner or not name:
+        raise GithubActionsContextError(
+            f"{GITHUB_ACTIONS_REPOSITORY_KEY} is expected to be in 'owner/repo' format, but got '{repository}'."
+        )
+
+    return {
+        "run_id": run_id,
+        "run_attempt": run_attempt,
+        "runner_name": runner_name,
+        "repository_owner": owner,
+        "repository_name": name,
+        "job_name": job_name,
+    }
 
 
 class SubsetUseCase(str, Enum):
@@ -118,7 +171,17 @@ class Subset(TestPathWriter):
     def __init__(
             self,
             app: Application,
-            session: Annotated[SessionId, SessionId.as_option()],
+            session: Annotated[str | None, typer.Option(
+                "--session",
+                help="The session ID, or '@path/to/file' where it is stored. "
+                     "Cannot be used with --from-github-actions.",
+                metavar="SESSION",
+                type=str,
+            )] = None,
+            from_github_actions: Annotated[bool, typer.Option(
+                "--from-github-actions",
+                help="Required to identify GitHub App mode. Cannot be used with --session.",
+            )] = False,
             target: Annotated[Percentage | None, typer.Option(
                 type=parse_percentage,
                 help="Subsetting target from 0% to 100%",
@@ -253,9 +316,6 @@ class Subset(TestPathWriter):
         self.tracking_client = TrackingClient(Command.SUBSET, app=app)
         self.client = SmartTestsClient(app=app, tracking_client=self.tracking_client)
 
-        set_fail_fast_mode(self.client.is_fail_fast_mode())
-        fail_fast_mode_validate(FailFastModeValidateParams(command=Command.SUBSET, session=session))
-
         def warn(msg: str):
             click.secho("Warning: " + msg, fg="yellow", err=True)
             self.tracking_client.send_error_event(
@@ -263,23 +323,62 @@ class Subset(TestPathWriter):
                 stack_trace=msg
             )
 
+        self.github_action_context = None
+        session_id: SessionId | None = None
+        if from_github_actions:
+            if session is not None:
+                print_error_and_die(
+                    "--from-github-actions cannot be used with --session.",
+                    self.tracking_client,
+                    Tracking.ErrorEvent.USER_ERROR,
+                )
+            try:
+                self.github_action_context = detect_github_action_context(os.environ)
+            except GithubActionsContextError as e:
+                print_error_and_die(str(e), self.tracking_client, Tracking.ErrorEvent.USER_ERROR)
+            if self.github_action_context is None:
+                print_error_and_die(
+                    "--from-github-actions requires running inside GitHub Actions.",
+                    self.tracking_client,
+                    Tracking.ErrorEvent.USER_ERROR,
+                )
+        elif session is None:
+            print_error_and_die(
+                "Missing option '--session'.",
+                self.tracking_client,
+                Tracking.ErrorEvent.USER_ERROR,
+            )
+        else:
+            try:
+                session_id = SessionId(session)
+            except (BadCmdLineException, ValueError) as e:
+                print_error_and_die(str(e), self.tracking_client, Tracking.ErrorEvent.USER_ERROR)
+
+        set_fail_fast_mode(self.client.is_fail_fast_mode())
+        fail_fast_mode_validate(FailFastModeValidateParams(command=Command.SUBSET, session=session_id))
+
+        # Session-derived state defaults to None; only the classic --session path populates it.
+        self.build_name = None
+        self.session_id = None
         # Note(Konboi): when get_session throws exception, is_observation won't be defined
         # To avoid that, we define is_observation here (out of try block)
         is_observation = False
-        try:
-            test_session = get_session(session, self.client)
-            self.build_name = test_session.build_name
-            self.session_id = test_session.id
-            is_observation = test_session.observation_mode
-        except ValueError as e:
-            print_error_and_die(msg=str(e), tracking_client=self.tracking_client, event=Tracking.ErrorEvent.USER_ERROR)
-        except Exception as e:
-            if os.getenv(REPORT_ERROR_KEY):
-                raise e
-            else:
-                # not to block pipeline, parse session and use it
-                self.client.print_exception_and_recover(e, "Warning: failed to check test session")
-                self.build_name, self.session_id = session.build_part, session.test_part
+        if session_id is not None:
+            try:
+                test_session = get_session(session_id, self.client)
+                self.build_name = test_session.build_name
+                self.session_id = test_session.id
+                is_observation = test_session.observation_mode
+            except ValueError as e:
+                print_error_and_die(
+                    msg=str(e), tracking_client=self.tracking_client, event=Tracking.ErrorEvent.USER_ERROR)
+            except Exception as e:
+                if os.getenv(REPORT_ERROR_KEY):
+                    raise e
+                else:
+                    # not to block pipeline, parse session and use it
+                    self.client.print_exception_and_recover(e, "Warning: failed to check test session")
+                    self.build_name, self.session_id = session_id.build_part, session_id.test_part
 
         if is_get_tests_from_guess and is_get_tests_from_previous_sessions:
             print_error_and_die(
@@ -298,7 +397,9 @@ class Subset(TestPathWriter):
                     self.tracking_client,
                     Tracking.ErrorEvent.INTERNAL_CLI_ERROR)
 
-        if is_non_blocking and not is_observation:
+        if from_github_actions and is_non_blocking:
+            warn("ignoring non-blocking mode inside github actions because of --from-github-actions option")
+        elif is_non_blocking and not is_observation:
             print_error_and_die(
                 "You have to specify --observation option to use non-blocking mode",
                 self.tracking_client,
@@ -342,6 +443,7 @@ class Subset(TestPathWriter):
         self.use_case = use_case
         self.fallback_mode = fallback_mode
         self.fallback_sampling_target = fallback_sampling_target
+        self.from_github_actions = from_github_actions
 
         self._validate_print_input_snapshot_option()
 
@@ -447,14 +549,26 @@ class Subset(TestPathWriter):
         payload: dict[str, Any] = {
             "testPaths": self.test_paths,
             "testRunner": self.app.test_runner,
-            "session": {
-                # expecting just the last component, not the whole path
-                "id": os.path.basename(str(self.session_id))
-            },
             "ignoreNewTests": self.ignore_new_tests,
             "getTestsFromPreviousSessions": self.is_get_tests_from_previous_sessions,
             "getTestsFromGuess": self.is_get_tests_from_guess,
         }
+
+        if self.github_action_context is not None:
+            # GitHub App flow: the server creates the build and test session from these fields,
+            # so no client-supplied session id is sent. The server derives the test suite from the job name.
+            payload["fromGithubActions"] = True
+            payload["githubActionsJobName"] = self.github_action_context["job_name"]
+            payload["githubActionsRunAttempt"] = self.github_action_context["run_attempt"]
+            payload["githubActionsRunId"] = self.github_action_context["run_id"]
+            payload["githubActionsRunnerName"] = self.github_action_context["runner_name"]
+            payload["repositoryName"] = self.github_action_context["repository_name"]
+            payload["repositoryOwner"] = self.github_action_context["repository_owner"]
+        else:
+            payload["session"] = {
+                # expecting just the last component, not the whole path
+                "id": os.path.basename(str(self.session_id))
+            }
 
         if self.target is not None:
             payload["goal"] = {
@@ -645,7 +759,7 @@ class Subset(TestPathWriter):
         timeout = (connect_timeout, 300)
         payload = self.get_payload()
 
-        if self.is_non_blocking:
+        if not self.from_github_actions and self.is_non_blocking:
             # Create a new process for requesting a subset.
             process = Process(target=subset_request, args=(self.client, timeout, payload))
             process.start()
@@ -762,9 +876,11 @@ class Subset(TestPathWriter):
                     Tracking.ErrorEvent.USER_ERROR)
 
         # When Error occurs, return the test name as it is passed.
-        if not self.session_id:
+        if not self.from_github_actions and not self.session_id:
             # Session ID in --session is missing. It might be caused by
             # Launchable API errors.
+            # In the GitHub App flow there is no client-side
+            # session id, but the request should still proceed.
             subset_result = self._fallback_result()
         else:
             subset_result = self.request_subset()
@@ -853,14 +969,22 @@ class Subset(TestPathWriter):
             ],
         ]
 
-        click.echo(
-            "Smart Tests created subset {} for build {} (test session {}) in workspace {}/{}".format(
-                subset_result.subset_id,
-                self.build_name,
-                self.session_id,
-                org, workspace,
-            ), err=True,
-        )
+        if self.from_github_actions:
+            click.echo(
+                "Smart Tests created subset {} in workspace {}/{}".format(
+                    subset_result.subset_id,
+                    org, workspace,
+                ), err=True,
+            )
+        else:
+            click.echo(
+                "Smart Tests created subset {} for build {} (test session {}) in workspace {}/{}".format(
+                    subset_result.subset_id,
+                    self.build_name,
+                    self.session_id,
+                    org, workspace,
+                ), err=True,
+            )
         if subset_result.is_observation:
             click.echo(
                 "(This test session is under observation mode)",
