@@ -1083,3 +1083,74 @@ class SubsetTest(CliTestCase):
             self.assertEqual(payload.get('subsettingId'), self.subsetting_id)
         finally:
             os.unlink(id_file_path)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
+    def test_subset_shows_new_test_count_in_table(self):
+        pipe = "test_new.py\ntest_known.py\ntest_known2.py"
+        responses.replace(
+            responses.POST,
+            f"{get_base_url()}/intake/organizations/{self.organization}/workspaces/{self.workspace}/subset",
+            json={
+                "testPaths": [
+                    [{"type": "file", "name": "test_new.py"}],
+                    [{"type": "file", "name": "test_known.py"}],
+                ],
+                "rest": [
+                    [{"type": "file", "name": "test_known2.py"}],
+                ],
+                "subsettingId": 123,
+                "summary": {
+                    "subset": {"duration": 0, "candidates": 2, "rate": 67, "newTestCount": 1},
+                    "rest": {"duration": 5, "candidates": 1, "rate": 33, "newTestCount": 0},
+                },
+                "isObservation": False,
+            },
+            status=200,
+        )
+
+        result = self.cli(
+            "subset", "file",
+            "--target", "70%",
+            "--session", self.session,
+            mix_stderr=False,
+            input=pipe,
+        )
+        self.assert_success(result)
+        self.assertIn("Subset (New Tests)", result.stderr)
+        self.assertIn("2 (1)", result.stderr)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
+    def test_subset_shows_plain_subset_label_when_no_new_tests(self):
+        pipe = "test_known.py\ntest_known2.py"
+        responses.replace(
+            responses.POST,
+            f"{get_base_url()}/intake/organizations/{self.organization}/workspaces/{self.workspace}/subset",
+            json={
+                "testPaths": [
+                    [{"type": "file", "name": "test_known.py"}],
+                ],
+                "rest": [
+                    [{"type": "file", "name": "test_known2.py"}],
+                ],
+                "subsettingId": 123,
+                "summary": {
+                    "subset": {"duration": 10, "candidates": 1, "rate": 50},
+                    "rest": {"duration": 10, "candidates": 1, "rate": 50},
+                },
+                "isObservation": False,
+            },
+            status=200,
+        )
+
+        result = self.cli(
+            "subset", "file",
+            "--target", "50%",
+            "--session", self.session,
+            mix_stderr=False,
+            input=pipe,
+        )
+        self.assert_success(result)
+        self.assertIn("| Subset", result.stderr)
+        self.assertNotIn("Subset (New Tests)", result.stderr)
