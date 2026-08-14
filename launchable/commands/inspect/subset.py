@@ -2,7 +2,7 @@ import json
 import sys
 from abc import ABCMeta, abstractmethod
 from http import HTTPStatus
-from typing import List
+from typing import Any, Dict, List
 
 import click
 from tabulate import tabulate
@@ -80,7 +80,7 @@ class SubsetResultJSONDisplay(SubsetResultAbstractDisplay):
         super().__init__(results)
 
     def display(self, new_tests_only: bool = False):
-        result_json = {
+        result_json: Dict[str, List[Dict[str, Any]]] = {
             "subset": [],
             "rest": []
         }
