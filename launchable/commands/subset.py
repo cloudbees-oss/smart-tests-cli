@@ -752,7 +752,10 @@ def subset(
 
             new_test_count = summary["subset"].get("newTestCount", 0)
             subset_label = "Subset (New Tests)" if new_test_count > 0 else "Subset"
-            subset_candidates = "{} ({})".format(len(original_subset), new_test_count) if new_test_count > 0 else len(original_subset)
+            if new_test_count > 0:
+                subset_candidates = "{} ({})".format(len(original_subset), new_test_count)
+            else:
+                subset_candidates = len(original_subset)
 
             build_name, test_session_id = parse_session(session_id)
             org, workspace = get_org_workspace()

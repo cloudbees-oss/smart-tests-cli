@@ -10,10 +10,10 @@ from tests.cli_test_case import CliTestCase
 class SubsetTest(CliTestCase):
     mock_json = {
         "testPaths": [
-                {"testPath": [
-                    {"type": "file", "name": "test_file1.py"}], "duration": 1200, "density": 0.5, "numNewTests": 0},
-                {"testPath": [
-                    {"type": "file", "name": "test_file3.py"}], "duration": 600, "density": 0.3, "numNewTests": 0},
+            {"testPath": [
+                {"type": "file", "name": "test_file1.py"}], "duration": 1200, "density": 0.5, "numNewTests": 0},
+            {"testPath": [
+                {"type": "file", "name": "test_file3.py"}], "duration": 600, "density": 0.3, "numNewTests": 0},
         ],
         "rest": [
             {"testPath": [
@@ -25,10 +25,10 @@ class SubsetTest(CliTestCase):
 
     mock_json_with_new_tests = {
         "testPaths": [
-                {"testPath": [
-                    {"type": "file", "name": "test_file1.py"}], "duration": 1200, "density": 0.5, "numNewTests": 1},
-                {"testPath": [
-                    {"type": "file", "name": "test_file3.py"}], "duration": 600, "density": 0.3, "numNewTests": 0},
+            {"testPath": [
+                {"type": "file", "name": "test_file1.py"}], "duration": 1200, "density": 0.5, "numNewTests": 1},
+            {"testPath": [
+                {"type": "file", "name": "test_file3.py"}], "duration": 600, "density": 0.3, "numNewTests": 0},
         ],
         "rest": [
             {"testPath": [
@@ -57,7 +57,8 @@ class SubsetTest(CliTestCase):
     @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token})
     def test_subset_shows_new_column(self):
         responses.replace(responses.GET, "{}/intake/organizations/{}/workspaces/{}/subset/{}".format(
-            get_base_url(), self.organization, self.workspace, self.subsetting_id), json=self.mock_json_with_new_tests, status=200)
+            get_base_url(), self.organization, self.workspace, self.subsetting_id),
+            json=self.mock_json_with_new_tests, status=200)
 
         result = self.cli('inspect', 'subset', '--subset-id', self.subsetting_id, mix_stderr=False)
         self.assertIn("Yes", result.stdout)
@@ -68,7 +69,8 @@ class SubsetTest(CliTestCase):
     @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token})
     def test_subset_new_tests_only(self):
         responses.replace(responses.GET, "{}/intake/organizations/{}/workspaces/{}/subset/{}".format(
-            get_base_url(), self.organization, self.workspace, self.subsetting_id), json=self.mock_json_with_new_tests, status=200)
+            get_base_url(), self.organization, self.workspace, self.subsetting_id),
+            json=self.mock_json_with_new_tests, status=200)
 
         result = self.cli('inspect', 'subset', '--subset-id', self.subsetting_id, '--new-tests-only', mix_stderr=False)
         self.assertIn("file=test_file1.py", result.stdout)
@@ -130,7 +132,8 @@ class SubsetTest(CliTestCase):
     @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token})
     def test_subset_json_new_tests_only(self):
         responses.replace(responses.GET, "{}/intake/organizations/{}/workspaces/{}/subset/{}".format(
-            get_base_url(), self.organization, self.workspace, self.subsetting_id), json=self.mock_json_with_new_tests, status=200)
+            get_base_url(), self.organization, self.workspace, self.subsetting_id),
+            json=self.mock_json_with_new_tests, status=200)
 
         result = self.cli('inspect', 'subset', '--subset-id', self.subsetting_id, "--json", "--new-tests-only", mix_stderr=False)
         expect = """{
