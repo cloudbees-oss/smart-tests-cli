@@ -1249,3 +1249,36 @@ class SubsetTest(CliTestCase):
         self.assert_exit_code(result, 1)
         self.assertIn("owner/repo", result.stderr)
         self.assertIn("no-slash", result.stderr)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {
+        "SMART_TESTS_TOKEN": CliTestCase.smart_tests_token,
+        "SMART_TESTS_MATRIX": '{"shard": "1", "os": "ubuntu"}',
+    })
+    def test_subset_sends_flavors_from_matrix_env_var(self):
+        pipe = "test_1.py"
+        result = self.cli(
+            "subset", "file",
+            "--target", "50%",
+            "--session", self.session,
+            mix_stderr=False,
+            input=pipe,
+        )
+        self.assert_success(result)
+        payload = self.decode_request_body(self.find_request('/subset').request.body)
+        self.assertEqual(payload.get('flavors'), {"shard": "1", "os": "ubuntu"})
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
+    def test_subset_sends_no_flavors_when_matrix_env_var_absent(self):
+        pipe = "test_1.py"
+        result = self.cli(
+            "subset", "file",
+            "--target", "50%",
+            "--session", self.session,
+            mix_stderr=False,
+            input=pipe,
+        )
+        self.assert_success(result)
+        payload = self.decode_request_body(self.find_request('/subset').request.body)
+        self.assertNotIn('flavors', payload)

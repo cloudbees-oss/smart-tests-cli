@@ -27,7 +27,7 @@ from ..app import Application
 from ..args4p.command import Group
 from ..args4p.converters import fileText, floatType, intType
 from ..testpath import FilePathNormalizer, TestPath
-from ..utils.env_keys import REPORT_ERROR_KEY
+from ..utils.env_keys import MATRIX_KEY, REPORT_ERROR_KEY
 from ..utils.fail_fast_mode import (FailFastModeValidateParams, fail_fast_mode_validate,
                                     set_fail_fast_mode, warn_and_exit_if_fail_fast_mode)
 from ..utils.input_snapshot import InputSnapshotId
@@ -453,6 +453,16 @@ class Subset(TestPathWriter):
         self.output_handler = self._default_output_handler
         self.exclusion_output_handler = self._default_exclusion_output_handler
 
+        raw_matrix = os.environ.get(MATRIX_KEY)
+        if raw_matrix:
+            try:
+                matrix = json.loads(raw_matrix)
+                self.flavors = {str(k): str(v) for k, v in matrix.items()} if isinstance(matrix, dict) else {}
+            except (ValueError, AttributeError):
+                self.flavors = {}
+        else:
+            self.flavors = {}
+
     def _default_output_handler(self, output: list[TestPath], rests: list[TestPath]):
         if self.rest:
             self.write_file(self.rest, rests)
@@ -616,6 +626,9 @@ class Subset(TestPathWriter):
         split_subset = self._build_split_subset_payload()
         if split_subset:
             payload['splitSubset'] = split_subset
+
+        if self.flavors:
+            payload['flavors'] = self.flavors
 
         return payload
 
