@@ -1,5 +1,8 @@
 package com.launchableinc.ingest.commits;
 
+import com.launchableinc.ingest.embedding.EmbeddingStrategy;
+import com.launchableinc.ingest.embedding.FileToEmbed;
+import com.launchableinc.ingest.embedding.FileEmbeddingResult;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -98,6 +101,8 @@ public class CommitGraphCollector {
 
   private int maxDays;
 
+  private EmbeddingStrategy embeddingStrategy;
+
   private boolean reportAllFiles;
 
   private boolean audit;
@@ -169,14 +174,18 @@ public class CommitGraphCollector {
       ImmutableList<ObjectId> advertised = getAdvertisedRefs(latestResponse);
       honorControlHeaders(latestResponse);
 
-      // every time a new stream is needed, supply ByteArrayOutputStream, and when the data is all
-      // written, turn around and ship that over
-      transfer(
-        advertised,
-        (ContentProducer commits) -> sendCommits(service, client, commits),
-        new TreeReceiverImpl(service, client),
-        (ContentProducer files) -> sendFiles(service, client, files),
-        1024);
+      if (embeddingStrategy != null) {
+        transferWithEmbeddings(advertised, service, client);
+      } else {
+        // every time a new stream is needed, supply ByteArrayOutputStream, and when the data is all
+        // written, turn around and ship that over
+        transfer(
+          advertised,
+          (ContentProducer commits) -> sendCommits(service, client, commits),
+          new TreeReceiverImpl(service, client),
+          (ContentProducer files) -> sendFiles(service, client, files),
+          1024);
+      }
     }
   }
 
@@ -379,6 +388,83 @@ public class CommitGraphCollector {
     }
   }
 
+  /**
+   * Embedding mode: collects files via the tree handshake, embeds them, uploads vectors.
+   * Commits are sent normally. TAR file upload is skipped.
+   */
+  private void transferWithEmbeddings(ImmutableList<ObjectId> advertised, URL service, LaunchableHttpClient client) throws IOException {
+    EmbeddingUploader uploader = new EmbeddingUploader();
+    EmbeddingFileConsumer embeddingConsumer = new EmbeddingFileConsumer(
+        embeddingStrategy, uploader, service, client);
+
+    ByRepository r = new ByRepository(root, rootName);
+    ExecutorService scanPool = new BoundedExecutorService(4);
+    ExecutorService transferPool = new BoundedExecutorService(4);
+
+    try {
+      r.forEachSubModule(scanPool, br -> {
+        try (ConcurrentConsumer<ContentProducer> parallel = new ConcurrentConsumer<>((ContentProducer cp) -> {}, transferPool);
+             FlushableConsumer<VirtualFile> fsr = fileTransferProgressReporter.newProducer(embeddingConsumer)) {
+          br.collectFiles(advertised, new TreeReceiverImpl(service, client), fsr);
+        }
+
+        try (CommitChunkStreamer cs = new CommitChunkStreamer((ContentProducer commits) -> sendCommits(service, client, commits), 1024)) {
+          br.collectCommits(advertised, cs);
+        }
+      });
+    } finally {
+      scanPool.shutdown();
+      transferPool.shutdown();
+    }
+
+    if (!embeddingConsumer.pending.isEmpty()) {
+      embeddingConsumer.flush();
+    }
+  }
+
+  /** Accumulates VirtualFile objects, converts to FileToEmbed, and on flush calls embed + upload. */
+  private class EmbeddingFileConsumer implements FlushableConsumer<VirtualFile> {
+    private final EmbeddingStrategy strategy;
+    private final EmbeddingUploader uploader;
+    private final URL service;
+    private final LaunchableHttpClient client;
+    final List<FileToEmbed> pending = new ArrayList<>();
+
+    EmbeddingFileConsumer(EmbeddingStrategy strategy, EmbeddingUploader uploader,
+                          URL service, LaunchableHttpClient client) {
+      this.strategy = strategy;
+      this.uploader = uploader;
+      this.service = service;
+      this.client = client;
+    }
+
+    @Override
+    public void accept(VirtualFile f) {
+      try {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream((int) Math.min(f.size(), 1024 * 1024));
+        f.writeTo(baos);
+        String content = baos.toString("UTF-8");
+        pending.add(new FileToEmbed(f.path(), content, f.blob().name()));
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
+
+    @Override
+    public void flush() throws IOException {
+      if (pending.isEmpty()) return;
+      List<FileEmbeddingResult> results = strategy.embed(pending);
+      uploader.upload(service, client, results, strategy.modelName(), strategy.dimensions());
+      pending.clear();
+      filesSent.addAndGet(results.size());
+    }
+
+    @Override
+    public void close() throws IOException {
+      flush();
+    }
+  }
+
   public void collectCommitMessage(boolean commitMessage) {
     this.collectCommitMessage = commitMessage;
   }
@@ -397,6 +483,10 @@ public class CommitGraphCollector {
 
   public void collectFiles(boolean collectFiles) {
     this.collectFiles = collectFiles;
+  }
+
+  public void setEmbeddingStrategy(EmbeddingStrategy embeddingStrategy) {
+    this.embeddingStrategy = embeddingStrategy;
   }
 
   /** Process commits per repository. */

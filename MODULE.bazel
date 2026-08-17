@@ -11,6 +11,7 @@ maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     artifacts = [
         "args4j:args4j:2.33",  # can't go higher so long as we stay on Java 8
+        "com.knuddels:jtokkit:1.1.0",
         "com.fasterxml.jackson.core:jackson-annotations:2.18.2",
         "com.fasterxml.jackson.core:jackson-core:2.18.2",
         "com.fasterxml.jackson.core:jackson-databind:2.18.2",
