@@ -750,6 +750,13 @@ def subset(
             if "subset" not in summary.keys() or "rest" not in summary.keys():
                 return
 
+            new_test_count = summary["subset"].get("newTestCount", 0)
+            subset_label = "Subset (New Tests)" if new_test_count > 0 else "Subset"
+            if new_test_count > 0:
+                subset_candidates = "{} ({})".format(len(original_subset), new_test_count)
+            else:
+                subset_candidates = len(original_subset)
+
             build_name, test_session_id = parse_session(session_id)
             org, workspace = get_org_workspace()
 
@@ -757,8 +764,8 @@ def subset(
                       "Estimated duration (%)", "Estimated duration (min)"]
             rows = [
                 [
-                    "Subset",
-                    len(original_subset),
+                    subset_label,
+                    subset_candidates,
                     summary["subset"].get("rate", 0.0),
                     summary["subset"].get("duration", 0.0),
                 ],

@@ -917,3 +917,63 @@ class SubsetTest(CliTestCase):
         finally:
             if os.path.exists(id_file_path):
                 os.unlink(id_file_path)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token})
+    def test_subset_shows_new_test_count_in_table(self):
+        pipe = "test_1.py\ntest_2.py\ntest_3.py"
+        mock_json_response = {
+            "testPaths": [
+                [{"type": "file", "name": "test_1.py"}],
+                [{"type": "file", "name": "test_2.py"}],
+            ],
+            "testRunner": "file",
+            "rest": [
+                [{"type": "file", "name": "test_3.py"}],
+            ],
+            "subsettingId": 123,
+            "summary": {
+                "subset": {"duration": 10, "candidates": 2, "rate": 50, "newTestCount": 1},
+                "rest": {"duration": 10, "candidates": 1, "rate": 50}
+            },
+            "isObservation": False,
+        }
+        responses.replace(responses.POST, "{}/intake/organizations/{}/workspaces/{}/subset".format(
+            get_base_url(), self.organization, self.workspace),
+            json=mock_json_response, status=200)
+
+        result = self.cli("subset", "--target", "50%", "--session",
+                          self.session, "file", mix_stderr=False, input=pipe)
+        self.assert_success(result)
+        self.assertIn("Subset (New Tests)", result.stderr)
+        self.assertIn("2 (1)", result.stderr)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token})
+    def test_subset_shows_plain_subset_label_when_no_new_tests(self):
+        pipe = "test_1.py\ntest_2.py\ntest_3.py"
+        mock_json_response = {
+            "testPaths": [
+                [{"type": "file", "name": "test_1.py"}],
+                [{"type": "file", "name": "test_2.py"}],
+            ],
+            "testRunner": "file",
+            "rest": [
+                [{"type": "file", "name": "test_3.py"}],
+            ],
+            "subsettingId": 123,
+            "summary": {
+                "subset": {"duration": 10, "candidates": 2, "rate": 50},
+                "rest": {"duration": 10, "candidates": 1, "rate": 50}
+            },
+            "isObservation": False,
+        }
+        responses.replace(responses.POST, "{}/intake/organizations/{}/workspaces/{}/subset".format(
+            get_base_url(), self.organization, self.workspace),
+            json=mock_json_response, status=200)
+
+        result = self.cli("subset", "--target", "50%", "--session",
+                          self.session, "file", mix_stderr=False, input=pipe)
+        self.assert_success(result)
+        self.assertIn("| Subset", result.stderr)
+        self.assertNotIn("Subset (New Tests)", result.stderr)
