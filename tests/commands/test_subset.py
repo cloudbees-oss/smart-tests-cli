@@ -1253,7 +1253,7 @@ class SubsetTest(CliTestCase):
     @responses.activate
     @mock.patch.dict(os.environ, {
         "SMART_TESTS_TOKEN": CliTestCase.smart_tests_token,
-        "SMART_TESTS_MATRIX": '{"shard": "1", "os": "ubuntu"}',
+        "SMART_TEST_GITHUB_ACTIONS_MATRIX": '{"shard": "1", "os": "ubuntu"}',
     })
     def test_subset_sends_flavors_from_matrix_env_var(self):
         pipe = "test_1.py"

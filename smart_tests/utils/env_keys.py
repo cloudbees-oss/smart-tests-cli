@@ -18,8 +18,8 @@ CALLER_KEY = "SMART_TESTS_CALLER"
 # Legacy token key for backward compatibility
 LEGACY_TOKEN_KEY = "LAUNCHABLE_TOKEN"
 
-# GitHub Actions matrix as JSON, e.g. SMART_TESTS_MATRIX='{"shard":"1","os":"ubuntu"}'
-MATRIX_KEY = "SMART_TESTS_MATRIX"
+# GitHub Actions matrix as JSON, e.g. SMART_TEST_GITHUB_ACTIONS_MATRIX='{"shard":"1","os":"ubuntu"}'
+MATRIX_KEY = "SMART_TEST_GITHUB_ACTIONS_MATRIX"
 
 
 def get_token():
