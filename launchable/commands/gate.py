@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import uuid
 from http import HTTPStatus
 
 import click
@@ -81,6 +82,10 @@ def gate(ctx: click.core.Context, session: str, is_json_format: bool):
         client.print_exception_and_recover(e, "Warning: failed to fetch gate status")
 
 
+def _escape_github_actions_command_value(value: str) -> str:
+    return value.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+
+
 def display_as_json(res: Response):
     res_json = res.json()
     click.echo(json.dumps(res_json, indent=2))
@@ -112,10 +117,14 @@ def display_as_table(res: Response):
             ])
             stderr = (test.get("stderr") or "").strip()
             if is_github_actions:
-                click.echo("::group::{}. {}".format(i, test_path))
+                safe_test_path = _escape_github_actions_command_value(test_path)
+                token = uuid.uuid4().hex
+                click.echo("::group::{}. {}".format(i, safe_test_path))
+                click.echo("::stop-commands::{}".format(token))
                 if stderr:
                     for line in stderr.splitlines():
                         click.echo(line)
+                click.echo("::{}::".format(token))
                 click.echo("::endgroup::")
             else:
                 click.echo("{}. {}".format(i, test_path))
