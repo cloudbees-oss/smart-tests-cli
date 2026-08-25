@@ -99,3 +99,27 @@ def display_as_table(res: Response):
     ]]
 
     click.echo(tabulate(rows, headers, tablefmt="github"))
+
+    failed_tests = res_json.get('actionableFailedTests', [])
+    is_github_actions = os.getenv('GITHUB_ACTIONS')
+    if failed_tests:
+        click.echo("\nActionable Failure Details:\n")
+        for i, test in enumerate(failed_tests, 1):
+            test_path = "#".join([
+                p["type"] + "=" + p["name"]
+                for p in test.get("testPath", [])
+                if {"type", "name"} <= p.keys()
+            ])
+            stderr = (test.get("stderr") or "").strip()
+            if is_github_actions:
+                click.echo("::group::{}. {}".format(i, test_path))
+                if stderr:
+                    for line in stderr.splitlines():
+                        click.echo(line)
+                click.echo("::endgroup::")
+            else:
+                click.echo("{}. {}".format(i, test_path))
+                if stderr:
+                    for line in stderr.splitlines():
+                        click.echo("   {}".format(line))
+                click.echo("")

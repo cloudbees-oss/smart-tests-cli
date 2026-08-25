@@ -22,7 +22,8 @@ class GateTest(CliTestCase):
             json={
                 'status': 'PASSED',
                 'quarantinedFailures': 5,
-                'actionableFailures': 0
+                'actionableFailures': 0,
+                'actionableFailedTests': []
             },
             status=200)
 
@@ -43,13 +44,24 @@ class GateTest(CliTestCase):
             json={
                 'status': 'FAILED',
                 'quarantinedFailures': 2,
-                'actionableFailures': 3
+                'actionableFailures': 1,
+                'actionableFailedTests': [
+                    {
+                        'testPath': [
+                            {'type': 'file', 'name': 'src/FooTest.java'},
+                            {'type': 'testcase', 'name': 'testBar'}
+                        ],
+                        'stderr': 'AssertionError: expected true but was false'
+                    }
+                ]
             },
             status=200)
 
         result = self.cli('gate', '--session', self.session)
         self.assert_exit_code(result, 1)
         self.assertIn('FAILED', result.output)
+        self.assertIn('file=src/FooTest.java#testcase=testBar', result.output)
+        self.assertIn('AssertionError: expected true but was false', result.output)
 
     @responses.activate
     @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token})
@@ -58,7 +70,8 @@ class GateTest(CliTestCase):
         gate_data = {
             'status': 'PASSED',
             'quarantinedFailures': 5,
-            'actionableFailures': 0
+            'actionableFailures': 0,
+            'actionableFailedTests': []
         }
 
         responses.add(
@@ -86,7 +99,16 @@ class GateTest(CliTestCase):
         gate_data = {
             'status': 'FAILED',
             'quarantinedFailures': 2,
-            'actionableFailures': 3
+            'actionableFailures': 1,
+            'actionableFailedTests': [
+                {
+                    'testPath': [
+                        {'type': 'file', 'name': 'src/FooTest.java'},
+                        {'type': 'testcase', 'name': 'testBar'}
+                    ],
+                    'stderr': 'AssertionError: expected true but was false'
+                }
+            ]
         }
 
         responses.add(
@@ -105,7 +127,41 @@ class GateTest(CliTestCase):
         output_json = json.loads(result.output)
         self.assertEqual(output_json['status'], 'FAILED')
         self.assertEqual(output_json['quarantinedFailures'], 2)
-        self.assertEqual(output_json['actionableFailures'], 3)
+        self.assertEqual(output_json['actionableFailures'], 1)
+        self.assertEqual(len(output_json['actionableFailedTests']), 1)
+        self.assertEqual(output_json['actionableFailedTests'][0]['testPath'][0]['name'], 'src/FooTest.java')
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token, "GITHUB_ACTIONS": "true"})
+    def test_gate_failed_github_actions_format(self):
+        """Test gate command uses ::group:: syntax when running in GitHub Actions"""
+        responses.add(
+            responses.GET,
+            "{}/intake/organizations/{}/workspaces/{}/gate".format(
+                get_base_url(),
+                self.organization,
+                self.workspace),
+            json={
+                'status': 'FAILED',
+                'quarantinedFailures': 0,
+                'actionableFailures': 1,
+                'actionableFailedTests': [
+                    {
+                        'testPath': [
+                            {'type': 'file', 'name': 'src/FooTest.java'},
+                            {'type': 'testcase', 'name': 'testBar'}
+                        ],
+                        'stderr': 'AssertionError: expected true but was false'
+                    }
+                ]
+            },
+            status=200)
+
+        result = self.cli('gate', '--session', self.session)
+        self.assert_exit_code(result, 1)
+        self.assertIn('::group::1. file=src/FooTest.java#testcase=testBar', result.output)
+        self.assertIn('AssertionError: expected true but was false', result.output)
+        self.assertIn('::endgroup::', result.output)
 
     @responses.activate
     @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token})
