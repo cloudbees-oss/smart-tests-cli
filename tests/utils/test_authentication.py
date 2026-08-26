@@ -104,3 +104,61 @@ class AuthenticationTest(TestCase):
         self.assertEqual(
             header["Authorization"],
             "Bearer v1:launchableinc/test:token")
+
+    @mock.patch("smart_tests.utils.authentication.requests.get")
+    @mock.patch.dict(
+        os.environ,
+        {"SMART_TESTS_GITHUB_OIDC_TOKEN_AUTH": "1",
+         "ACTIONS_ID_TOKEN_REQUEST_URL": "https://runner.example/token?api-version=2.0",
+         "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "rt-token"},
+        clear=True,
+    )
+    def test_authentication_headers_github_oidc_generic(self, mock_get):
+        mock_get.return_value = mock.Mock(
+            raise_for_status=mock.Mock(), json=mock.Mock(return_value={"value": "id-token"}))
+
+        header = authentication_headers()
+
+        # Generic path: plain OIDC bearer, no legacy header.
+        self.assertEqual(header, {"Authorization": "Bearer id-token"})
+        # The id-token is requested for the Smart Tests audience so Intake's aud check passes.
+        requested_url = mock_get.call_args[0][0]
+        self.assertIn("audience=https%3A%2F%2Fapp.cloudbees.io%2Fsmart-tests", requested_url)
+
+    @mock.patch("smart_tests.utils.authentication.requests.get")
+    @mock.patch.dict(
+        os.environ,
+        {"EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH": "1",
+         "ACTIONS_ID_TOKEN_REQUEST_URL": "https://runner.example/token?api-version=2.0",
+         "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "rt-token"},
+        clear=True,
+    )
+    def test_authentication_headers_github_oidc_legacy(self, mock_get):
+        mock_get.return_value = mock.Mock(
+            raise_for_status=mock.Mock(), json=mock.Mock(return_value={"value": "id-token"}))
+
+        header = authentication_headers()
+
+        # Legacy path: bearer plus the opt-in header that routes Intake to the deprecated flow.
+        self.assertEqual(header["Authorization"], "Bearer id-token")
+        self.assertEqual(header["GitHub-OIDC-Legacy"], "1")
+        # Legacy path does not enforce aud, so no audience is requested.
+        self.assertNotIn("audience=", mock_get.call_args[0][0])
+
+    @mock.patch("smart_tests.utils.authentication.requests.get")
+    @mock.patch.dict(
+        os.environ,
+        {"SMART_TESTS_GITHUB_OIDC_TOKEN_AUTH": "1",
+         "EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH": "1",
+         "ACTIONS_ID_TOKEN_REQUEST_URL": "https://runner.example/token?api-version=2.0",
+         "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "rt-token"},
+        clear=True,
+    )
+    def test_authentication_headers_github_oidc_generic_wins_over_legacy(self, mock_get):
+        mock_get.return_value = mock.Mock(
+            raise_for_status=mock.Mock(), json=mock.Mock(return_value={"value": "id-token"}))
+
+        header = authentication_headers()
+
+        # When both flags are set, the generic (non-deprecated) path takes precedence.
+        self.assertEqual(header, {"Authorization": "Bearer id-token"})
