@@ -13,6 +13,7 @@ from launchable.utils.click import ignorable_error
 from launchable.utils.env_keys import REPORT_ERROR_KEY
 from launchable.utils.tracking import Tracking, TrackingClient
 
+from ..testpath import unparse_test_path
 from ..utils.commands import Command
 from ..utils.launchable_client import LaunchableClient
 
@@ -83,7 +84,7 @@ def gate(ctx: click.core.Context, session: str, is_json_format: bool):
 
 
 def _escape_github_actions_command_value(value: str) -> str:
-    return value.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+    return value.replace('\r', '%0D').replace('\n', '%0A')
 
 
 def display_as_json(res: Response):
@@ -110,11 +111,7 @@ def display_as_table(res: Response):
     if failed_tests:
         click.echo("\nActionable Failure Details:\n")
         for i, test in enumerate(failed_tests, 1):
-            test_path = "#".join([
-                p["type"] + "=" + p["name"]
-                for p in test.get("testPath", [])
-                if {"type", "name"} <= p.keys()
-            ])
+            test_path = unparse_test_path(test.get("testPath", []))
             stderr = (test.get("stderr") or "").strip()
             if is_github_actions:
                 safe_test_path = _escape_github_actions_command_value(test_path)
