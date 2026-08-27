@@ -1,0 +1,12 @@
+{
+  "testPaths": [
+    [{"type": "class", "name": "com.example.launchable.CalculatorTest"}],
+    [{"type": "class", "name": "com.example.launchable.UserTest"}]
+  ],
+  "testRunner": "maven",
+  "goal": {"type": "subset-by-percentage", "percentage": 0.1},
+  "ignoreNewTests": false,
+  "session": {"id": "16"},
+  "getTestsFromGuess": false,
+  "getTestsFromPreviousSessions": false
+}

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.example.launchable.UserTest" time="0" tests="1" errors="0" skipped="1" failures="0">
+  <testcase name="create" classname="com.example.launchable.UserTest" time="0">
+    <skipped/>
+  </testcase>
+</testsuite>
