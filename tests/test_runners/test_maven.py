@@ -227,6 +227,36 @@ class MavenTest(CliTestCase):
         self.assert_success(result)
         self.assert_subset_payload('subset_with_exclude_rules_result.json')
 
+    @responses.activate
+    @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token})
+    def test_scan_dryrun_results(self):
+        # Reports live under <dryrun-test>/target/surefire-reports/. The flag globs
+        # **/target/surefire-reports/TEST-*.xml relative to the cwd, so run from there.
+        test_data_dir = str(self.test_files_dir.joinpath('dryrun-test').resolve())
+        original_dir = os.getcwd()
+        try:
+            os.chdir(test_data_dir)
+            result = self.cli('subset', '--target', '10%', '--session',
+                              self.session, 'maven', '--scan-dryrun-results')
+            self.assert_success(result)
+            self.assert_subset_payload('subset_scan_dryrun_results_result.json')
+        finally:
+            os.chdir(original_dir)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token})
+    def test_scan_dryrun_results_no_reports(self):
+        original_dir = os.getcwd()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            try:
+                os.chdir(temp_dir)
+                result = self.cli('subset', '--target', '10%', '--session',
+                                  self.session, 'maven', '--scan-dryrun-results')
+                self.assertNotEqual(result.exit_code, 0)
+                self.assertIn("No surefire reports found", result.output)
+            finally:
+                os.chdir(original_dir)
+
     def test_glob(self):
         for x in [
             'foo/BarTest.java',
