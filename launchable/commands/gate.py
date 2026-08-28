@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import uuid
 from http import HTTPStatus
 
 import click
@@ -12,6 +13,7 @@ from launchable.utils.click import ignorable_error
 from launchable.utils.env_keys import REPORT_ERROR_KEY
 from launchable.utils.tracking import Tracking, TrackingClient
 
+from ..testpath import unparse_test_path
 from ..utils.commands import Command
 from ..utils.launchable_client import LaunchableClient
 
@@ -81,6 +83,10 @@ def gate(ctx: click.core.Context, session: str, is_json_format: bool):
         client.print_exception_and_recover(e, "Warning: failed to fetch gate status")
 
 
+def _escape_github_actions_command_value(value: str) -> str:
+    return value.replace('\r', '%0D').replace('\n', '%0A')
+
+
 def display_as_json(res: Response):
     res_json = res.json()
     click.echo(json.dumps(res_json, indent=2))
@@ -99,3 +105,27 @@ def display_as_table(res: Response):
     ]]
 
     click.echo(tabulate(rows, headers, tablefmt="github"))
+
+    failed_tests = res_json.get('actionableFailedTests', [])
+    is_github_actions = os.getenv('GITHUB_ACTIONS')
+    if failed_tests:
+        click.echo("\nActionable Failure Details:\n")
+        for i, test in enumerate(failed_tests, 1):
+            test_path = unparse_test_path(test.get("testPath", []))
+            stderr = (test.get("stderr") or "").strip()
+            if is_github_actions:
+                safe_test_path = _escape_github_actions_command_value(test_path)
+                token = uuid.uuid4().hex
+                click.echo("::group::{}. {}".format(i, safe_test_path))
+                click.echo("::stop-commands::{}".format(token))
+                if stderr:
+                    for line in stderr.splitlines():
+                        click.echo(line)
+                click.echo("::{}::".format(token))
+                click.echo("::endgroup::")
+            else:
+                click.echo("{}. {}".format(i, test_path))
+                if stderr:
+                    for line in stderr.splitlines():
+                        click.echo("   {}".format(line))
+                click.echo("")
