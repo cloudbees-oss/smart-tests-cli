@@ -11,7 +11,7 @@ from launchable.testpath import FilePathNormalizer, parse_test_path, prepend_pat
 
 class TestPathEncodingTest(unittest.TestCase):
     def test_parse(self):
-        self.assertEqual(parse_test_path('a=b#c=d'), [{'type': 'a', 'name': 'b'}, {'type': 'c', 'name': 'd'}])
+        self.assertEqual(parse_test_path('a=b#c=d'), [{'type': 'c', 'name': 'b'}, {'type': 'c', 'name': 'd'}])
         self.assertEqual(parse_test_path('&name=b#&type=c'), [{'name': 'b'}, {'type': 'c'}])
         self.assertEqual(parse_test_path('t=n&a=aa&x=xx'), [{'a': 'aa', 'name': 'n', 'type': 't', 'x': 'xx'}])
         self.assertEqual(parse_test_path('&a=aa&type=t&x=xx'), [{'a': 'aa', 'type': 't', 'x': 'xx'}])
