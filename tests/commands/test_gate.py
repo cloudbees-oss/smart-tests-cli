@@ -160,7 +160,6 @@ class GateTest(CliTestCase):
         result = self.cli('gate', '--session', self.session)
         self.assert_exit_code(result, 1)
         self.assertIn('::group::1. file=src/FooTest.java#testcase=testBar', result.output)
-        self.assertIn('::stop-commands::', result.output)
         self.assertIn('AssertionError: expected true but was false', result.output)
         self.assertIn('::endgroup::', result.output)
 
@@ -199,25 +198,15 @@ class GateTest(CliTestCase):
         result = self.cli('gate', '--session', self.session)
         self.assert_exit_code(result, 1)
 
-        # verify all dangerous commands are sandwiched between stop-commands and resume token
-        stop_idx = result.output.index('::stop-commands::')
-        # resume token is the line between stop-commands and ::endgroup::
-        endgroup_idx = result.output.index('::endgroup::')
+        # dangerous :: lines are escaped so GHA won't interpret them as commands
+        self.assertIn('%3A%3Aerror::some error', result.output)
+        self.assertIn('%3A%3Awarning::spoofed', result.output)
+        self.assertIn('%3A%3Aadd-mask::secret-value', result.output)
+        self.assertIn('%3A%3Aset-output name=x::y', result.output)
 
-        error_idx = result.output.index('::error::some error')
-        warning_idx = result.output.index('::warning::spoofed')
-        mask_idx = result.output.index('::add-mask::secret-value')
-        assertion_idx = result.output.index('java.lang.AssertionError')
-
-        # all stderr content must be after ::stop-commands:: and before ::endgroup::
-        self.assertLess(stop_idx, error_idx)
-        self.assertLess(stop_idx, warning_idx)
-        self.assertLess(stop_idx, mask_idx)
-        self.assertLess(stop_idx, assertion_idx)
-        self.assertLess(error_idx, endgroup_idx)
-        self.assertLess(warning_idx, endgroup_idx)
-        self.assertLess(mask_idx, endgroup_idx)
-        self.assertLess(assertion_idx, endgroup_idx)
+        # normal lines are untouched
+        self.assertIn('java.lang.AssertionError', result.output)
+        self.assertIn('::endgroup::', result.output)
 
     @responses.activate
     @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token})
