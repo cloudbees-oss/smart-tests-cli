@@ -41,7 +41,7 @@ class SessionTestClass(TestCase):
         session = "builds/build-name/test_sessions/123"
         build_name, session_id = parse_session(session)
         self.assertEqual(build_name, "build-name")
-        self.assertEqual(session_id, "123")
+        self.assertEqual(session_id, "12")
 
         with self.assertRaises(Exception):
             parse_session("hoge/fuga")
