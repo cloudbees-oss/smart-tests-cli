@@ -1,7 +1,6 @@
 import json
 import os
 import sys
-import uuid
 from http import HTTPStatus
 
 import click
@@ -87,6 +86,10 @@ def _escape_github_actions_command_value(value: str) -> str:
     return value.replace('\r', '%0D').replace('\n', '%0A')
 
 
+def _escape_github_actions_log_line(line: str) -> str:
+    return line.replace('::', '%3A%3A', 1) if line.startswith('::') else line
+
+
 def display_as_json(res: Response):
     res_json = res.json()
     click.echo(json.dumps(res_json, indent=2))
@@ -115,13 +118,10 @@ def display_as_table(res: Response):
             stderr = (test.get("stderr") or "").strip()
             if is_github_actions:
                 safe_test_path = _escape_github_actions_command_value(test_path)
-                token = uuid.uuid4().hex
                 click.echo("::group::{}. {}".format(i, safe_test_path))
-                click.echo("::stop-commands::{}".format(token))
                 if stderr:
                     for line in stderr.splitlines():
-                        click.echo(line)
-                click.echo("::{}::".format(token))
+                        click.echo(_escape_github_actions_log_line(line))
                 click.echo("::endgroup::")
             else:
                 click.echo("{}. {}".format(i, test_path))
