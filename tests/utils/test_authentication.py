@@ -1,6 +1,7 @@
 import os
 from unittest import TestCase, mock
 
+import smart_tests.utils.authentication as authentication
 from smart_tests.utils.authentication import authentication_headers, get_org_workspace
 
 
@@ -144,6 +145,29 @@ class AuthenticationTest(TestCase):
         self.assertEqual(header["GitHub-OIDC-Legacy"], "1")
         # Legacy path does not enforce aud, so no audience is requested.
         self.assertNotIn("audience=", mock_get.call_args[0][0])
+
+    @mock.patch("smart_tests.utils.authentication.click.secho")
+    @mock.patch("smart_tests.utils.authentication.requests.get")
+    @mock.patch.dict(
+        os.environ,
+        {"EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH": "1",
+         "ACTIONS_ID_TOKEN_REQUEST_URL": "https://runner.example/token?api-version=2.0",
+         "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "rt-token"},
+        clear=True,
+    )
+    def test_authentication_headers_legacy_warning_printed_once(self, mock_get, mock_secho):
+        mock_get.return_value = mock.Mock(
+            raise_for_status=mock.Mock(), json=mock.Mock(return_value={"value": "id-token"}))
+        # The once-per-process guard is module state; reset it so this test is deterministic.
+        authentication._legacy_oidc_warning_shown = False
+
+        # authentication_headers() runs on every API request; the deprecation warning must not
+        # repeat on each call.
+        authentication_headers()
+        authentication_headers()
+        authentication_headers()
+
+        self.assertEqual(mock_secho.call_count, 1)
 
     @mock.patch("smart_tests.utils.authentication.requests.get")
     @mock.patch.dict(

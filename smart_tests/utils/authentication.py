@@ -16,6 +16,10 @@ DEFAULT_OIDC_AUDIENCE = "https://app.cloudbees.io/smart-tests"
 # GitHub-issued token is verified through the generic OIDC path. Mirrors RESTAuthConverter.
 LEGACY_GITHUB_OIDC_HEADER = "GitHub-OIDC-Legacy"
 
+# authentication_headers() runs on every API request, so guard the legacy deprecation notice to
+# print at most once per process instead of once per request.
+_legacy_oidc_warning_shown = False
+
 
 def get_org_workspace():
     '''
@@ -81,12 +85,15 @@ def authentication_headers():
     # The header tells Intake to take the legacy branch; without it the token would be verified
     # through the generic path.
     if os.getenv(LEGACY_GITHUB_OIDC_KEY):
-        click.secho(
-            f"{LEGACY_GITHUB_OIDC_KEY} enables the deprecated GitHub Actions OIDC flow. Migrate by "
-            f"registering your repository as a Trusted OIDC subject and switching to "
-            f"{GITHUB_OIDC_KEY}=1. See "
-            "https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/send-data-to-smart-tests/set-up-smart-tests/migration-to-github-oidc-auth",  # noqa: E501
-            fg='yellow', err=True)
+        global _legacy_oidc_warning_shown
+        if not _legacy_oidc_warning_shown:
+            _legacy_oidc_warning_shown = True
+            click.secho(
+                f"{LEGACY_GITHUB_OIDC_KEY} enables the deprecated GitHub Actions OIDC flow. Migrate "
+                f"by registering your repository as a Trusted OIDC subject and switching to "
+                f"{GITHUB_OIDC_KEY}=1. See "
+                "https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/send-data-to-smart-tests/set-up-smart-tests/migration-to-github-oidc-auth",  # noqa: E501
+                fg='yellow', err=True)
         id_token = _fetch_github_id_token()
         return {
             'Authorization': f'Bearer {id_token}',
