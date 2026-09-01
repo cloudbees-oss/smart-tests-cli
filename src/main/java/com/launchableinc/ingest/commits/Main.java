@@ -110,8 +110,26 @@ public class Main {
           this.ws = w;
         }
 
-        if (System.getenv("EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH") != null) {
-          authenticator = new GitHubIdTokenAuthenticator();
+        if (System.getenv("SMART_TESTS_GITHUB_OIDC_TOKEN_AUTH") != null) {
+          // Generic GitHub Actions OIDC: fetch the id-token minted for the Smart Tests audience and
+          // present it like any other OIDC token. Intake routes by `iss` to the generic verifier
+          // and matches the normalized `repo:OWNER/REPO` subject against trusted_oidc_subjects. The
+          // audience is required because the generic path enforces `aud` for GitHub's issuer.
+          String audience = System.getenv("SMART_TESTS_OIDC_AUDIENCE");
+          if (audience == null || audience.isEmpty()) {
+            audience = GitHubIdTokenAuthenticator.DEFAULT_OIDC_AUDIENCE;
+          }
+          authenticator = new GitHubIdTokenAuthenticator(audience, false);
+        } else if (System.getenv("EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH") != null) {
+          // Deprecated legacy GitHub Actions OIDC: Intake matches the `repository` claim against
+          // trusted_github_repositories. The legacy path never checks `aud`, so no audience is
+          // requested; the legacy header tells Intake to take the legacy branch.
+          System.err.println(
+              "EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH enables the deprecated GitHub Actions OIDC flow."
+                  + " Migrate by registering your repository as a Trusted OIDC subject and switching"
+                  + " to SMART_TESTS_GITHUB_OIDC_TOKEN_AUTH=1. See "
+                  + "https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/send-data-to-smart-tests/set-up-smart-tests/migration-to-github-oidc-auth");
+          authenticator = new GitHubIdTokenAuthenticator(null, true);
         } else {
           authenticator = new GitHubActionsAuthenticator();
         }

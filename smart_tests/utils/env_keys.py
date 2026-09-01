@@ -9,6 +9,16 @@ OIDC_TOKEN_KEY = "SMART_TESTS_OIDC_TOKEN"
 ORGANIZATION_KEY = "SMART_TESTS_ORGANIZATION"
 WORKSPACE_KEY = "SMART_TESTS_WORKSPACE"
 BASE_URL_KEY = "SMART_TESTS_BASE_URL"
+# Opt in to the generic GitHub Actions OIDC flow: the CLI fetches the GitHub id-token and presents
+# it like any other OIDC token. Intake verifies it against trusted_oidc_subjects (self-serve in the
+# webapp) instead of the deprecated trusted_github_repositories path. See authentication_headers().
+GITHUB_OIDC_KEY = "SMART_TESTS_GITHUB_OIDC_TOKEN_AUTH"
+# Deprecated opt in to the legacy GitHub Actions OIDC flow (repository-claim matching). Kept working
+# for backward compatibility; when set, the CLI signals Intake to use the legacy path via a header.
+LEGACY_GITHUB_OIDC_KEY = "EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH"
+# Audience the GitHub id-token must be minted for so the generic OIDC path's aud check passes.
+# Overridable for non-production Intake environments.
+OIDC_AUDIENCE_KEY = "SMART_TESTS_OIDC_AUDIENCE"
 SKIP_TIMEOUT_RETRY = "SMART_TESTS_SKIP_TIMEOUT_RETRY"
 COMMIT_TIMEOUT = "SMART_TESTS_COMMIT_TIMEOUT"
 SKIP_CERT_VERIFICATION = "SMART_TESTS_SKIP_CERT_VERIFICATION"
