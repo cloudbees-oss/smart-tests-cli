@@ -25,6 +25,7 @@ import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.errors.ConfigInvalidException;
 import org.eclipse.jgit.errors.InvalidObjectIdException;
 import org.eclipse.jgit.errors.MissingObjectException;
+import org.eclipse.jgit.lib.AnyObjectId;
 import org.eclipse.jgit.lib.ConfigConstants;
 import org.eclipse.jgit.lib.FileMode;
 import org.eclipse.jgit.lib.ObjectId;
@@ -65,6 +66,7 @@ import java.util.zip.GZIPOutputStream;
 
 import static com.google.common.collect.ImmutableList.*;
 import static java.util.Arrays.*;
+import static org.eclipse.jgit.lib.Constants.OBJ_BLOB;
 
 /**
  * Compares what commits the local repository and the remote repository have, then send delta over.
@@ -463,12 +465,22 @@ public class CommitGraphCollector {
         if (treeWalk.isSubtree()) {
           treeWalk.enterSubtree();
         } else {
-          if ((treeWalk.getFileMode(0).getBits() & FileMode.TYPE_MASK) == FileMode.TYPE_FILE) {
-            GitFile f = new GitFile(name, treeWalk.getPathString(), head, objectReader);
-            // to avoid excessive data transfer, skip files that are too big
-            if (f.size() < 1024 * 1024 && f.isText() && !f.path.equals(HEADER_FILE)) {
-              treeReceiver.accept(f);
+          ObjectId blobId = head;
+          String filePath = treeWalk.getPathString();
+          FileMode mode = treeWalk.getFileMode(0);
+
+          if (mode == FileMode.SYMLINK) {
+            blobId = resolveSymlinkTarget(start.getTree(), filePath, head);
+            if (blobId == null) {
+              continue OUTER;
             }
+          } else if ((mode.getBits() & FileMode.TYPE_MASK) != FileMode.TYPE_FILE) {
+            continue OUTER;
+          }
+
+          GitFile f = new GitFile(name, filePath, blobId, objectReader);
+          if (f.size() < 1024 * 1024 && f.isText() && !f.path.equals(HEADER_FILE)) {
+            treeReceiver.accept(f);
           }
         }
       }
@@ -485,6 +497,47 @@ public class CommitGraphCollector {
           fileReceiver.accept(f);
           filesSent++;
         }
+      }
+    }
+
+    private ObjectId resolveSymlinkTarget(AnyObjectId treeId, String symlinkPath, ObjectId symlinkBlobId) {
+      try {
+        byte[] raw = objectReader.open(symlinkBlobId, OBJ_BLOB).getCachedBytes(10_000);
+        String targetRelative = new String(raw, StandardCharsets.UTF_8).trim();
+
+        java.nio.file.Path symlinkDir = java.nio.file.Paths.get(symlinkPath).getParent();
+        java.nio.file.Path resolved;
+        if (symlinkDir != null) {
+          resolved = symlinkDir.resolve(targetRelative).normalize();
+        } else {
+          resolved = java.nio.file.Paths.get(targetRelative).normalize();
+        }
+
+        if (resolved.startsWith("..")) {
+          logger.debug("Skipping symlink {} -> {} (points outside repository)", symlinkPath, targetRelative);
+          return null;
+        }
+
+        String resolvedPath = resolved.toString();
+
+        try (TreeWalk tw = TreeWalk.forPath(git, resolvedPath, treeId)) {
+          if (tw == null) {
+            logger.debug("Skipping symlink {} -> {} (target not found in tree)", symlinkPath, resolvedPath);
+            return null;
+          }
+
+          FileMode targetMode = tw.getFileMode(0);
+          if ((targetMode.getBits() & FileMode.TYPE_MASK) == FileMode.TYPE_FILE) {
+            return tw.getObjectId(0);
+          }
+
+          logger.debug("Skipping symlink {} -> {} (target is not a regular file, mode={})",
+              symlinkPath, resolvedPath, targetMode);
+          return null;
+        }
+      } catch (IOException e) {
+        logger.warn("Failed to resolve symlink {}: {}", symlinkPath, e.getMessage());
+        return null;
       }
     }
 
