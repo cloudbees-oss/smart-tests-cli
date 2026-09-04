@@ -472,10 +472,10 @@ public class CommitGraphCollector {
           if (mode == FileMode.SYMLINK) {
             blobId = resolveSymlinkTarget(start.getTree(), filePath, head);
             if (blobId == null) {
-              continue OUTER;
+              continue;
             }
           } else if ((mode.getBits() & FileMode.TYPE_MASK) != FileMode.TYPE_FILE) {
-            continue OUTER;
+            continue;
           }
 
           GitFile f = new GitFile(name, filePath, blobId, objectReader);
@@ -505,6 +505,8 @@ public class CommitGraphCollector {
         byte[] raw = objectReader.open(symlinkBlobId, OBJ_BLOB).getCachedBytes(10_000);
         String targetRelative = new String(raw, StandardCharsets.UTF_8).trim();
 
+        // symlink が sub/link.txt のように子ディレクトリにある場合、リンク先をそのディレクトリ基準で解決する
+        // repo ルート直下の場合は getParent() が null になるため、リンク先パスをそのまま使う
         java.nio.file.Path symlinkDir = java.nio.file.Paths.get(symlinkPath).getParent();
         java.nio.file.Path resolved;
         if (symlinkDir != null) {
@@ -513,7 +515,7 @@ public class CommitGraphCollector {
           resolved = java.nio.file.Paths.get(targetRelative).normalize();
         }
 
-        if (resolved.startsWith("..")) {
+        if (resolved.isAbsolute() || resolved.startsWith("..")) {
           logger.debug("Skipping symlink {} -> {} (points outside repository)", symlinkPath, targetRelative);
           return null;
         }

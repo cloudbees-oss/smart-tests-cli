@@ -256,6 +256,60 @@ public class CommitGraphCollectorTest {
   }
 
   @Test
+  public void symlinkFromSubdirToParentFile() throws Exception {
+    try (Git repo = Git.init().setDirectory(ws).call()) {
+      Files.writeString(ws.toPath().resolve("root.txt"), "root content");
+      Files.createDirectory(ws.toPath().resolve("sub"));
+      Files.createSymbolicLink(ws.toPath().resolve("sub").resolve("link.txt"), java.nio.file.Path.of("../root.txt"));
+      repo.add().addFilepattern("root.txt").addFilepattern("sub/link.txt").call();
+      commit(repo).setMessage("add subdir symlink to parent file").call();
+
+      List<VirtualFile> files = new ArrayList<>();
+      CommitGraphCollector cgc = new CommitGraphCollector("test", repo.getRepository());
+      cgc.collectFiles(true);
+      cgc.new ByRepository(repo.getRepository(), "main")
+          .transfer(Collections.emptyList(), c -> {},
+              new PassThroughTreeReceiverImpl(),
+              FlushableConsumer.of(files::add));
+
+      List<String> paths = new ArrayList<>();
+      for (VirtualFile f : files) {
+        if (!f.path().equals(CommitGraphCollector.HEADER_FILE)) {
+          paths.add(f.path());
+        }
+      }
+      assertThat(paths).containsAtLeast("root.txt", "sub/link.txt");
+    }
+  }
+
+  @Test
+  public void symlinkFromParentToSubdirFile() throws Exception {
+    try (Git repo = Git.init().setDirectory(ws).call()) {
+      Files.createDirectory(ws.toPath().resolve("sub"));
+      Files.writeString(ws.toPath().resolve("sub").resolve("deep.txt"), "deep content");
+      Files.createSymbolicLink(ws.toPath().resolve("link.txt"), java.nio.file.Path.of("sub/deep.txt"));
+      repo.add().addFilepattern("sub/deep.txt").addFilepattern("link.txt").call();
+      commit(repo).setMessage("add parent symlink to subdir file").call();
+
+      List<VirtualFile> files = new ArrayList<>();
+      CommitGraphCollector cgc = new CommitGraphCollector("test", repo.getRepository());
+      cgc.collectFiles(true);
+      cgc.new ByRepository(repo.getRepository(), "main")
+          .transfer(Collections.emptyList(), c -> {},
+              new PassThroughTreeReceiverImpl(),
+              FlushableConsumer.of(files::add));
+
+      List<String> paths = new ArrayList<>();
+      for (VirtualFile f : files) {
+        if (!f.path().equals(CommitGraphCollector.HEADER_FILE)) {
+          paths.add(f.path());
+        }
+      }
+      assertThat(paths).containsAtLeast("sub/deep.txt", "link.txt");
+    }
+  }
+
+  @Test
   public void brokenSymlinkSkipped() throws Exception {
     try (Git repo = Git.init().setDirectory(ws).call()) {
       Files.writeString(ws.toPath().resolve("target.txt"), "content");
