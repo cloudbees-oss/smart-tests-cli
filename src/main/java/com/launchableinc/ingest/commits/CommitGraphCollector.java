@@ -453,35 +453,47 @@ public class CommitGraphCollector {
       OUTER:
       while (treeWalk.next()) {
         ObjectId head = treeWalk.getObjectId(0);
+
+        if (treeWalk.isSubtree()) {
+          // For directories, compare tree IDs to skip unchanged subtrees entirely
+          for (int i = 1; i < c; i++) {
+            if (head.equals(treeWalk.getObjectId(i))) {
+              continue OUTER;
+            }
+          }
+          treeWalk.enterSubtree();
+          continue;
+        }
+
+        String filePath = treeWalk.getPathString();
+        FileMode mode = treeWalk.getFileMode(0);
+        ObjectId blobId;
+
+        if (mode == FileMode.SYMLINK) {
+          blobId = resolveSymlinkTarget(start.getTree(), filePath, head);
+          if (blobId == null) {
+            continue;
+          }
+        } else if ((mode.getBits() & FileMode.TYPE_MASK) == FileMode.TYPE_FILE) {
+          blobId = head;
+        } else {
+          continue;
+        }
+
+        // Dedup check using the actual content blob ID.
+        // For symlinks, this uses the target file's blob ID so changes to the target
+        // are detected even when the symlink itself (its path string) is unchanged.
         for (int i = 1; i < c; i++) {
-          if (head.equals(treeWalk.getObjectId(i))) {
+          if (blobId.equals(treeWalk.getObjectId(i))) {
             // file at the head is identical to one of the uninteresting commits,
-            // meaning we have already seen this file/directory on the server.
-            // if it is a dir, there's no need to visit this whole subtree, so skip over
+            // meaning we have already seen this file on the server.
             continue OUTER;
           }
         }
 
-        if (treeWalk.isSubtree()) {
-          treeWalk.enterSubtree();
-        } else {
-          ObjectId blobId = head;
-          String filePath = treeWalk.getPathString();
-          FileMode mode = treeWalk.getFileMode(0);
-
-          if (mode == FileMode.SYMLINK) {
-            blobId = resolveSymlinkTarget(start.getTree(), filePath, head);
-            if (blobId == null) {
-              continue;
-            }
-          } else if ((mode.getBits() & FileMode.TYPE_MASK) != FileMode.TYPE_FILE) {
-            continue;
-          }
-
-          GitFile f = new GitFile(name, filePath, blobId, objectReader);
-          if (f.size() < 1024 * 1024 && f.isText() && !f.path.equals(HEADER_FILE)) {
-            treeReceiver.accept(f);
-          }
+        GitFile f = new GitFile(name, filePath, blobId, objectReader);
+        if (f.size() < 1024 * 1024 && f.isText() && !f.path.equals(HEADER_FILE)) {
+          treeReceiver.accept(f);
         }
       }
 
@@ -505,8 +517,6 @@ public class CommitGraphCollector {
         byte[] raw = objectReader.open(symlinkBlobId, OBJ_BLOB).getCachedBytes(10_000);
         String targetRelative = new String(raw, StandardCharsets.UTF_8).trim();
 
-        // symlink が sub/link.txt のように子ディレクトリにある場合、リンク先をそのディレクトリ基準で解決する
-        // repo ルート直下の場合は getParent() が null になるため、リンク先パスをそのまま使う
         java.nio.file.Path symlinkDir = java.nio.file.Paths.get(symlinkPath).getParent();
         java.nio.file.Path resolved;
         if (symlinkDir != null) {
@@ -520,7 +530,7 @@ public class CommitGraphCollector {
           return null;
         }
 
-        String resolvedPath = resolved.toString();
+        String resolvedPath = resolved.toString().replace(java.io.File.separatorChar, '/');
 
         try (TreeWalk tw = TreeWalk.forPath(git, resolvedPath, treeId)) {
           if (tw == null) {
