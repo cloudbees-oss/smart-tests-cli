@@ -6,6 +6,7 @@ java_library(
     name = "commits",
     srcs = glob(["*.java"]),
     deps = [
+        "//src/main/java/com/launchableinc/ingest/embedding",
         "@maven//:args4j_args4j",
         "@maven//:com_fasterxml_jackson_core_jackson_annotations",
         "@maven//:com_fasterxml_jackson_core_jackson_core",

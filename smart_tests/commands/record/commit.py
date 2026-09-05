@@ -14,7 +14,7 @@ from ... import args4p
 from ...app import Application
 from ...utils.commands import Command
 from ...utils.commit_ingester import upload_commits
-from ...utils.env_keys import COMMIT_TIMEOUT, REPORT_ERROR_KEY
+from ...utils.env_keys import COMMIT_TIMEOUT, EMBEDDING_API_KEY_KEY, EMBEDDING_ENDPOINT_KEY, EMBEDDING_MODEL_KEY, REPORT_ERROR_KEY
 from ...utils.fail_fast_mode import set_fail_fast_mode, warn_and_exit_if_fail_fast_mode
 from ...utils.git_log_parser import parse_git_log
 from ...utils.http_client import get_base_url
@@ -63,11 +63,25 @@ def commit(
     # Commit messages are not collected in the default.
     is_collect_message = False
     is_collect_files = False
+    embedding_mode = None
+    embedding_model = None
+    embedding_dimensions = None
+    embedding_augmentation = False
+    embedding_provider = None
+    embedding_endpoint = None
     try:
         res = client.request("get", "commits/collect/options")
         res.raise_for_status()
-        is_collect_message = res.json().get("commitMessage", False)
-        is_collect_files = res.json().get("files", False)
+        opts = res.json()
+        is_collect_message = opts.get("commitMessage", False)
+        is_collect_files = opts.get("files", False)
+        embedding_mode = opts.get("embeddingMode")
+        # env var overrides take precedence over server-provided values
+        embedding_model = os.getenv(EMBEDDING_MODEL_KEY) or opts.get("embeddingModel")
+        embedding_dimensions = opts.get("embeddingDimensions")
+        embedding_augmentation = opts.get("embeddingAugmentation", False)
+        embedding_provider = opts.get("embeddingProvider")
+        embedding_endpoint = os.getenv(EMBEDDING_ENDPOINT_KEY) or opts.get("embeddingEndpoint")
     except Exception as e:
         tracking_client.send_error_event(
             event_name=Tracking.ErrorEvent.INTERNAL_CLI_ERROR,
@@ -79,8 +93,36 @@ def commit(
     cwd = os.path.abspath(source)
     if not name:
         name = os.path.basename(cwd)
+
+    embedding_api_key = os.getenv(EMBEDDING_API_KEY_KEY)
+
+    if embedding_mode == "client":
+        if not embedding_endpoint:
+            warn_and_exit_if_fail_fast_mode(
+                f"Workspace requires client-side embeddings but no endpoint is configured. "
+                f"Set {EMBEDDING_ENDPOINT_KEY} to override.")
+            click.secho(
+                f"Warning: workspace requires client-side embeddings but no endpoint is configured. "
+                f"Set {EMBEDDING_ENDPOINT_KEY} to override. Skipping embeddings.",
+                fg="yellow", err=True)
+            embedding_mode = None
+        elif not embedding_api_key:
+            warn_and_exit_if_fail_fast_mode(
+                f"Workspace requires client-side embeddings but {EMBEDDING_API_KEY_KEY} is not set.")
+            click.secho(
+                f"Warning: workspace requires client-side embeddings but "
+                f"{EMBEDDING_API_KEY_KEY} is not set. Skipping embeddings.",
+                fg="yellow",
+                err=True)
+            embedding_mode = None
+
     try:
-        exec_jar(name, cwd, max_days, app, is_collect_message, is_collect_files)
+        exec_jar(name, cwd, max_days, app, is_collect_message, is_collect_files,
+                 embedding_endpoint if embedding_mode == "client" else None,
+                 embedding_model if embedding_mode == "client" else None,
+                 embedding_dimensions if embedding_mode == "client" else None,
+                 embedding_augmentation if embedding_mode == "client" else False,
+                 embedding_provider if embedding_mode == "client" else None)
     except Exception as e:
         if os.getenv(REPORT_ERROR_KEY):
             raise e
@@ -90,7 +132,10 @@ def commit(
                 "If not, please set a directory use by --source option.\nerror: {}".format(cwd, e))
 
 
-def exec_jar(name: str, source: str, max_days: int, app: Application, is_collect_message: bool, is_collect_files: bool):
+def exec_jar(name: str, source: str, max_days: int, app: Application, is_collect_message: bool, is_collect_files: bool,
+             embedding_endpoint: str | None = None, embedding_model: str | None = None,
+             embedding_dimensions: int | None = None, embedding_augmentation: bool = False,
+             embedding_provider: str | None = None):
     java = get_java_command()
 
     if not java:
@@ -126,6 +171,16 @@ def exec_jar(name: str, source: str, max_days: int, app: Application, is_collect
         command.append("-files")
     if os.getenv(COMMIT_TIMEOUT):
         command.append("-enable-timeout")
+    if embedding_endpoint:
+        command.extend(["-embedding-endpoint", embedding_endpoint])
+    if embedding_model:
+        command.extend(["-embedding-model", embedding_model])
+    if embedding_dimensions is not None:
+        command.extend(["-embedding-dimensions", str(embedding_dimensions)])
+    if embedding_augmentation:
+        command.append("-embedding-augmentation")
+    if embedding_provider:
+        command.extend(["-embedding-provider", embedding_provider])
     command.append(name)
     command.append(cygpath(source))
 

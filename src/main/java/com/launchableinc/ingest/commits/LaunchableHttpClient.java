@@ -22,10 +22,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * to raise an exception for every 4xx/5xx response. We'll wrap those idioms in this class
  * to keep {@link CommitGraphCollector} DRY and apply consistent behavior.
  */
-final class LaunchableHttpClient implements Closeable {
+public final class LaunchableHttpClient implements Closeable {
   final CloseableHttpClient core;
 
-  LaunchableHttpClient(CloseableHttpClient core) {
+  public LaunchableHttpClient(CloseableHttpClient core) {
     this.core = core;
   }
 

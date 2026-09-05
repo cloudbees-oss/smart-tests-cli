@@ -1,12 +1,16 @@
 package com.launchableinc.ingest.commits;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.launchableinc.ingest.embedding.EmbeddingStrategyFactory;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.logging.Logger;
 import java.util.logging.Level;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.RepositoryBuilder;
@@ -55,6 +59,21 @@ public class Main {
 
   @Option(name = "-enable-timeout", usage = "Enable timeout for the HTTP requests")
   public boolean enableTimeout;
+
+  @Option(name = "-embedding-endpoint", usage = "OpenAI-compatible endpoint for client-side embeddings")
+  public URL embeddingEndpoint;
+
+  @Option(name = "-embedding-model", usage = "Embedding model name (e.g. text-embedding-3-small)")
+  public String embeddingModel;
+
+  @Option(name = "-embedding-dimensions", usage = "Expected vector dimensions (e.g. 1536)")
+  public int embeddingDimensions = 0;
+
+  @Option(name = "-embedding-augmentation", usage = "Prepend server-generated summaries to file content before embedding")
+  public boolean embeddingAugmentation;
+
+  @Option(name = "-embedding-provider", usage = "Embedding provider: openai, azure_openai, or custom")
+  public String embeddingProvider;
 
   private Authenticator authenticator;
 
@@ -141,6 +160,25 @@ public class Main {
       cgc.setDryRun(dryRun);
       cgc.collectCommitMessage(commitMessage);
       cgc.collectFiles(collectFiles);
+      if (embeddingEndpoint != null && embeddingModel != null && embeddingDimensions > 0) {
+        String apiKey = System.getenv("SMART_TESTS_EMBEDDING_API_KEY");
+        if (apiKey != null && !apiKey.isEmpty()) {
+          URL summariesUrl = new URL(endpoint, "collect/summaries");
+          // Plain client for the customer's LLM endpoint — must NOT carry Launchable auth.
+          CloseableHttpClient embeddingClient = HttpClientBuilder.create()
+              .useSystemProperties()
+              .build();
+          // Auth-configured client for the summaries endpoint (Launchable-gated).
+          CloseableHttpClient summariesClient = HttpClientBuilder.create()
+              .useSystemProperties()
+              .setDefaultHeaders(authenticator.getAuthenticationHeaders())
+              .build();
+          cgc.setEmbeddingStrategy(EmbeddingStrategyFactory.create(
+              embeddingEndpoint, embeddingModel, embeddingDimensions, apiKey,
+              embeddingAugmentation, embeddingProvider, summariesUrl,
+              embeddingClient, summariesClient));
+        }
+      }
       cgc.transfer(endpoint, authenticator, enableTimeout);
       int numCommits = cgc.getCommitsSent();
       int numFiles = cgc.getFilesSent();
