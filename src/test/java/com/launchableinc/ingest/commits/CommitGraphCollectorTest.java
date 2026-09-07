@@ -29,6 +29,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -224,6 +225,96 @@ public class CommitGraphCollectorTest {
       submodrepo.add().addFilepattern("x").call();
       commit(submodrepo).setMessage("added x").call();
     }
+  }
+
+  @Test
+  public void symlinkResolvedAsRegularFile() throws Exception {
+    try (Git repo = Git.init().setDirectory(ws).call()) {
+      Files.writeString(ws.toPath().resolve("real.txt"), "hello");
+      repo.add().addFilepattern("real.txt").call();
+      commit(repo).setMessage("add real file").call();
+
+      Files.createSymbolicLink(ws.toPath().resolve("link.txt"), java.nio.file.Path.of("real.txt"));
+      repo.add().addFilepattern("link.txt").call();
+      commit(repo).setMessage("add symlink").call();
+
+      assertThat(collectFilePaths(repo)).containsAtLeast("real.txt", "link.txt");
+    }
+  }
+
+  @Test
+  public void symlinkAcrossDirectories() throws Exception {
+    try (Git repo = Git.init().setDirectory(ws).call()) {
+      Files.createDirectory(ws.toPath().resolve("sub"));
+
+      // subdir -> parent: sub/link.txt -> ../root.txt
+      Files.writeString(ws.toPath().resolve("root.txt"), "root content");
+      Files.createSymbolicLink(ws.toPath().resolve("sub").resolve("link.txt"), java.nio.file.Path.of("../root.txt"));
+      repo.add().addFilepattern("root.txt").addFilepattern("sub/link.txt").call();
+
+      // parent -> subdir: link2.txt -> sub/deep.txt
+      Files.writeString(ws.toPath().resolve("sub").resolve("deep.txt"), "deep content");
+      Files.createSymbolicLink(ws.toPath().resolve("link2.txt"), java.nio.file.Path.of("sub/deep.txt"));
+      repo.add().addFilepattern("sub/deep.txt").addFilepattern("link2.txt").call();
+
+      commit(repo).setMessage("add cross-directory symlinks").call();
+
+      assertThat(collectFilePaths(repo)).containsAtLeast("root.txt", "sub/link.txt", "sub/deep.txt", "link2.txt");
+    }
+  }
+
+  @Test
+  public void brokenSymlinkSkipped() throws Exception {
+    try (Git repo = Git.init().setDirectory(ws).call()) {
+      Files.writeString(ws.toPath().resolve("target.txt"), "content");
+      Files.createSymbolicLink(ws.toPath().resolve("broken.txt"), java.nio.file.Path.of("target.txt"));
+      repo.add().addFilepattern("target.txt").addFilepattern("broken.txt").call();
+      commit(repo).setMessage("add files").call();
+
+      repo.rm().addFilepattern("target.txt").call();
+      commit(repo).setMessage("remove target").call();
+
+      assertThat(collectFilePaths(repo)).doesNotContain("broken.txt");
+    }
+  }
+
+  @Test
+  public void symlinkOutsideRepoSkipped() throws Exception {
+    try (Git repo = Git.init().setDirectory(ws).call()) {
+      Files.createSymbolicLink(ws.toPath().resolve("escape.txt"), java.nio.file.Path.of("../outside.txt"));
+      repo.add().addFilepattern("escape.txt").call();
+      commit(repo).setMessage("add symlink to outside").call();
+
+      assertThat(collectFilePaths(repo)).doesNotContain("escape.txt");
+    }
+  }
+
+  @Test
+  public void regularFilesUnaffectedBySymlinkChange() throws Exception {
+    try (Git repo = Git.init().setDirectory(ws).call()) {
+      Files.writeString(ws.toPath().resolve("a.txt"), "aaa");
+      Files.writeString(ws.toPath().resolve("b.txt"), "bbb");
+      repo.add().addFilepattern("a.txt").addFilepattern("b.txt").call();
+      commit(repo).setMessage("add regular files").call();
+
+      assertThat(collectFilePaths(repo)).containsExactly("a.txt", "b.txt");
+    }
+  }
+
+  private List<String> collectFilePaths(Git repo) throws IOException {
+    List<VirtualFile> files = new ArrayList<>();
+    CommitGraphCollector cgc = new CommitGraphCollector("test", repo.getRepository());
+    cgc.new ByRepository(repo.getRepository(), "main")
+        .collectFiles(Collections.emptyList(), new PassThroughTreeReceiverImpl(),
+            FlushableConsumer.of(files::add));
+
+    List<String> paths = new ArrayList<>();
+    for (VirtualFile f : files) {
+      if (!f.path().equals(CommitGraphCollector.HEADER_FILE)) {
+        paths.add(f.path());
+      }
+    }
+    return paths;
   }
 
   private CommitCommand commit(Git r) {
