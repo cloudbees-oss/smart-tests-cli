@@ -77,8 +77,8 @@ class TestResultJSONDisplay(TestResultAbstractDisplay):
                 "duration_min": round(self._results.filter_by_status("FAILURE").total_duration_min(), 2)
             },
             "skip": {
-                "report_count": self._results.filter_by_status("SKIPPED").total_count(),
-                "duration_min": round(self._results.filter_by_status("SKIPPED").total_duration_min(), 2)
+                "report_count": self._results.filter_by_status("SKIP").total_count(),
+                "duration_min": round(self._results.filter_by_status("SKIP").total_duration_min(), 2)
             }
         }
         result_json["results"] = []
