@@ -1,0 +1,4 @@
+.gradle/
+build/
+smart-tests-session.txt
+smart-tests-subset.txt
