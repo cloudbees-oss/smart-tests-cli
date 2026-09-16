@@ -881,7 +881,7 @@ class Subset(TestPathWriter):
 
         if self._requires_test_input():
             if self.input_given:
-                print_error_and_die("ERROR: Given arguments did not match any tests. They appear to be incorrect/non-existent.", tracking_client, Tracking.ErrorEvent.USER_ERROR)  # noqa E501
+                print_error_and_die("ERROR: Given arguments did not match any tests. They appear to be incorrect/non-existent.", self.tracking_client, Tracking.ErrorEvent.USER_ERROR)  # noqa E501
             else:
                 print_error_and_die(
                     "ERROR: Expecting tests to be given, but none provided. See https://help.launchableinc.com/features/predictive-test-selection/requesting-and-running-a-subset-of-tests/ and provide ones, or use the `--get-tests-from-previous-sessions` option",  # noqa E501

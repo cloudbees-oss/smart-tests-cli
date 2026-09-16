@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 from http import HTTPStatus
 from typing import Annotated
@@ -12,6 +13,7 @@ from smart_tests.utils.tracking import TrackingClient
 from .. import args4p
 from ..app import Application
 from ..args4p import typer
+from ..testpath import unparse_test_path
 from ..utils.commands import Command
 from ..utils.session import SessionId
 from ..utils.smart_tests_client import SmartTestsClient
@@ -21,8 +23,8 @@ from ..utils.smart_tests_client import SmartTestsClient
 def gate(app_instance: Application,
          session: Annotated[SessionId, SessionId.as_option()],
          is_json_format: Annotated[bool, typer.Option(
-                "--json",
-                help="display JSON format")] = False):
+             "--json",
+             help="display JSON format")] = False):
     tracking_client = TrackingClient(Command.GATE, app=app_instance)
     client = SmartTestsClient(tracking_client=tracking_client, app=app_instance)
     try:
@@ -50,6 +52,14 @@ def gate(app_instance: Application,
         client.print_exception_and_recover(e, "Warning: failed to fetch gate status")
 
 
+def _escape_github_actions_command_value(value: str) -> str:
+    return value.replace('\r', '%0D').replace('\n', '%0A')
+
+
+def _escape_github_actions_log_line(line: str) -> str:
+    return line.replace('::', '%3A%3A', 1) if line.startswith('::') else line
+
+
 def display_as_json(res: Response):
     res_json = res.json()
     click.echo(json.dumps(res_json, indent=2))
@@ -68,3 +78,24 @@ def display_as_table(res: Response):
     ]]
 
     click.echo(tabulate(rows, headers, tablefmt="github"))
+
+    failed_tests = res_json.get('actionableFailedTests', [])
+    is_github_actions = os.getenv('GITHUB_ACTIONS')
+    if failed_tests:
+        click.echo("\nActionable Failure Details:\n")
+        for i, test in enumerate(failed_tests, 1):
+            test_path = unparse_test_path(test.get("testPath", []))
+            stderr = (test.get("stderr") or "").strip()
+            if is_github_actions:
+                safe_test_path = _escape_github_actions_command_value(test_path)
+                click.echo("::group::{}. {}".format(i, safe_test_path))
+                if stderr:
+                    for line in stderr.splitlines():
+                        click.echo(_escape_github_actions_log_line(line))
+                click.echo("::endgroup::")
+            else:
+                click.echo("{}. {}".format(i, test_path))
+                if stderr:
+                    for line in stderr.splitlines():
+                        click.echo("   {}".format(line))
+                click.echo("")
