@@ -81,4 +81,19 @@ public class JSFileChange {
   public void setStatus(String status) {
     this.status = status;
   }
+
+  /**
+   * Optional diff hunk text for config/schema files (e.g. pom.xml, *.sql, *.proto). Set by
+   * {@link CountingDiffFormatter} when the changed file matches the config-or-schema heuristic so
+   * the server can embed the delta instead of the full-file content. {@code null} for normal files.
+   */
+  private String diffContent;
+
+  public String getDiffContent() {
+    return diffContent;
+  }
+
+  public void setDiffContent(String diffContent) {
+    this.diffContent = diffContent;
+  }
 }

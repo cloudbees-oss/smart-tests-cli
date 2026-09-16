@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
@@ -77,7 +78,8 @@ import static org.eclipse.jgit.lib.Constants.OBJ_BLOB;
  */
 public class CommitGraphCollector {
   private static final Logger logger = LoggerFactory.getLogger(CommitGraphCollector.class);
-  static final ObjectMapper objectMapper = new ObjectMapper();
+  static final ObjectMapper objectMapper =
+      new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
   private static final int HTTP_TIMEOUT_MILLISECONDS = 15_000;
   /**
    * Repository header is sent using this reserved file name
@@ -690,15 +692,20 @@ public class CommitGraphCollector {
 
         parseEachCommit(walk, advertised, walk::markUninteresting);
 
+        // If the server hasn't advertised any commits, this is the first time this repository is
+        // being recorded, so there is no prior build for the server to diff against. Skip
+        // diffContent capture in that case since it would have no consumer.
+        boolean captureDiffContent = !advertised.isEmpty();
+
         // walk the commits, transform them, and send them to the commitReceiver
         for (RevCommit c : walk) {
-          commitReceiver.accept(transform(c));
+          commitReceiver.accept(transform(c, captureDiffContent));
           commitsSent.incrementAndGet();
         }
       }
     }
 
-    private JSCommit transform(RevCommit r) throws IOException {
+    private JSCommit transform(RevCommit r, boolean captureDiffContent) throws IOException {
       JSCommit c = new JSCommit();
       c.setCommitHash(r.name());
       c.setMessage(collectCommitMessage ? r.getFullMessage() : "");
@@ -731,7 +738,7 @@ public class CommitGraphCollector {
       }
 
       for (RevCommit p : r.getParents()) {
-        CountingDiffFormatter diff = new CountingDiffFormatter(git);
+        CountingDiffFormatter diff = CountingDiffFormatter.create(git, captureDiffContent);
         List<DiffEntry> files = diff.scan(p.getTree(), r.getTree());
         List<JSFileChange> changes = new ArrayList<>();
         for (DiffEntry de : files) {
