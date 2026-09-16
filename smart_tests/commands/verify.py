@@ -18,8 +18,7 @@ from .. import args4p
 from ..app import Application
 from ..utils.authentication import ensure_org_workspace, get_oidc_token, get_org_workspace
 from ..utils.commands import Command
-from ..utils.env_keys import (GITHUB_OIDC_KEY, LEGACY_GITHUB_OIDC_KEY, OIDC_TOKEN_KEY,
-                              ORGANIZATION_KEY, TOKEN_KEY, WORKSPACE_KEY)
+from ..utils.env_keys import GITHUB_OIDC_KEY, LEGACY_GITHUB_OIDC_KEY, OIDC_TOKEN_KEY, ORGANIZATION_KEY, TOKEN_KEY, WORKSPACE_KEY
 from ..utils.http_client import DEFAULT_GET_TIMEOUT, _HttpClient
 from ..utils.java import get_java_command
 from ..utils.smart_tests_client import SmartTestsClient
