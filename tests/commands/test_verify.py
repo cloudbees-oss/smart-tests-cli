@@ -179,10 +179,48 @@ class VerifyOidcCommandTest(CliTestCase):
 
     @patch.dict(os.environ, {}, clear=True)
     def test_oidc_missing_token(self):
-        """No OIDC token in the environment → usage error, exit 2."""
+        """No OIDC flow configured → usage error, exit 2."""
         result = self.cli("verify", "--oidc")
         self.assert_exit_code(result, 2)
         self.assertIn("SMART_TESTS_OIDC_TOKEN", result.output)
+
+    gh_id_token = "gh-header.gh-payload.gh-signature"
+    gh_oidc_env = {
+        "SMART_TESTS_GITHUB_OIDC_TOKEN_AUTH": "1",
+        "SMART_TESTS_BASE_URL": base_url,
+        "ACTIONS_ID_TOKEN_REQUEST_URL": "http://gh-oidc.local/token",
+        "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "runner-rt-token",
+    }
+
+    @responses.activate
+    @patch.dict(os.environ, gh_oidc_env, clear=True)
+    def test_oidc_github_generic_no_token_export(self):
+        """GitHub generic flow (no SMART_TESTS_OIDC_TOKEN): the CLI fetches a fresh id-token, presents
+        it as the bearer, and on 200 exports org/workspace but NOT the short-lived token."""
+        responses.add(
+            responses.GET,
+            "http://gh-oidc.local/token",
+            json={"value": self.gh_id_token},
+            status=200,
+        )
+        responses.add(
+            responses.POST,
+            self.oidc_verify_url,
+            json={"organization": "acme", "workspace": "prod"},
+            status=200,
+        )
+
+        result = self.cli("verify", "--oidc")
+        self.assert_success(result)
+
+        self.assertIn("export SMART_TESTS_ORGANIZATION='acme'", result.output)
+        self.assertIn("export SMART_TESTS_WORKSPACE='prod'", result.output)
+        # The GitHub token is minted per request, so it must not be exported for reuse.
+        self.assertNotIn("export SMART_TESTS_OIDC_TOKEN", result.output)
+
+        # The fetched GitHub id-token is the bearer presented to the verify endpoint.
+        verify_call = next(c for c in responses.calls if "/oidc/verify" in c.request.url)
+        self.assertEqual(verify_call.request.headers["Authorization"], f"Bearer {self.gh_id_token}")
 
 
 def _make_jwt(claims: dict) -> str:
