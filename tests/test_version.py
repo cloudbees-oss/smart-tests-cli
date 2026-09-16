@@ -12,3 +12,4 @@ class VersionTest(TestCase):
         result = runner.invoke(cli, ['--version'])
         self.assertEqual(result.exit_code, 0)
         self.assertIn(__version__, result.stdout)
+        self.fail("FAIL")
