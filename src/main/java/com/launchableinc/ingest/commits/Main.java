@@ -1,6 +1,7 @@
 package com.launchableinc.ingest.commits;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -110,17 +111,17 @@ public class Main {
           this.ws = w;
         }
 
-        if (System.getenv("SMART_TESTS_GITHUB_OIDC_TOKEN_AUTH") != null) {
+        if (!Strings.isNullOrEmpty(System.getenv("SMART_TESTS_GITHUB_OIDC_TOKEN_AUTH"))) {
           // Generic GitHub Actions OIDC: fetch the id-token minted for the Smart Tests audience and
           // present it like any other OIDC token. Intake routes by `iss` to the generic verifier
           // and matches the normalized `repo:OWNER/REPO` subject against trusted_oidc_subjects. The
           // audience is required because the generic path enforces `aud` for GitHub's issuer.
           String audience = System.getenv("SMART_TESTS_OIDC_AUDIENCE");
-          if (audience == null || audience.isEmpty()) {
+          if (Strings.isNullOrEmpty(audience)) {
             audience = GitHubIdTokenAuthenticator.DEFAULT_OIDC_AUDIENCE;
           }
           authenticator = new GitHubIdTokenAuthenticator(audience, false);
-        } else if (System.getenv("EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH") != null) {
+        } else if (!Strings.isNullOrEmpty(System.getenv("EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH"))) {
           // Deprecated legacy GitHub Actions OIDC: Intake matches the `repository` claim against
           // trusted_github_repositories. The legacy path never checks `aud`, so no audience is
           // requested; the legacy header tells Intake to take the legacy branch.
