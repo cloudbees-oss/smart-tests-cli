@@ -18,7 +18,7 @@ from .. import args4p
 from ..app import Application
 from ..utils.authentication import ensure_org_workspace, get_oidc_token, get_org_workspace
 from ..utils.commands import Command
-from ..utils.env_keys import OIDC_TOKEN_KEY, ORGANIZATION_KEY, TOKEN_KEY, WORKSPACE_KEY
+from ..utils.env_keys import GITHUB_OIDC_KEY, LEGACY_GITHUB_OIDC_KEY, OIDC_TOKEN_KEY, ORGANIZATION_KEY, TOKEN_KEY, WORKSPACE_KEY
 from ..utils.http_client import DEFAULT_GET_TIMEOUT, _HttpClient
 from ..utils.java import get_java_command
 from ..utils.smart_tests_client import SmartTestsClient
@@ -204,20 +204,27 @@ def verify_oidc(app_instance: Application):
     Credential-free OIDC bootstrap. Presents the pipeline's OIDC id-token to Intake's
     /intake/oidc/verify endpoint and translates the 200/403/401 contract into CLI behavior:
 
-      - 200: the subject is registered. Print `export` lines (org/workspace/oidc-token) so the
-             pipeline can `eval "$(smart-tests verify --oidc)"` and authenticate subsequent
-             commands with the same token. Exit 0.
+      - 200: the subject is registered. Print `export` lines (org/workspace, plus the OIDC token
+             when it is a fixed pass-through value) so the pipeline can
+             `eval "$(smart-tests verify --oidc)"` and authenticate subsequent commands. Exit 0.
       - 403: the token verified but its subject isn't registered to any workspace yet. Show the
              normalized `sub` so the user can register it from the WebApp settings. Exit 1.
       - 401: the token is missing/expired/invalid. Exit 1.
     '''
     tracking_client = TrackingClient(Command.VERIFY, app=app_instance)
 
-    token = get_oidc_token()
-    if not token:
-        msg = (f"OIDC authentication requires the {OIDC_TOKEN_KEY} environment variable to hold the "
-               "pipeline's OIDC id-token. In Jenkins, bind an id-token credential to this variable; "
-               "see the OIDC pipeline-authentication setup guide.")
+    # authentication_headers() supplies the bearer for the request below; here we only confirm an OIDC
+    # flow is configured (fail fast) and decide whether the token can be echoed back. A pass-through
+    # token (SMART_TESTS_OIDC_TOKEN, e.g. a Jenkins-bound credential) is a fixed value we re-export;
+    # the GitHub flows mint a short-lived token per request, so exporting one here would only leave a
+    # stale value behind.
+    passthrough_token = get_oidc_token()
+    github_oidc_configured = os.getenv(GITHUB_OIDC_KEY) or os.getenv(LEGACY_GITHUB_OIDC_KEY)
+    if not passthrough_token and not github_oidc_configured:
+        msg = (f"OIDC authentication requires an OIDC flow to be configured: set {OIDC_TOKEN_KEY} to "
+               "the pipeline's OIDC id-token (e.g. a Jenkins-bound credential), or set "
+               f"{GITHUB_OIDC_KEY}=1 in GitHub Actions to fetch one automatically. "
+               "See the OIDC pipeline-authentication setup guide.")
         click.secho(msg, fg='red', err=True)
         tracking_client.send_error_event(
             event_name=Tracking.ErrorEvent.USER_ERROR,
@@ -296,11 +303,13 @@ def verify_oidc(app_instance: Application):
 
     # Emit eval-able export lines so the pipeline can hydrate its environment:
     #   eval "$(smart-tests verify --oidc)"
-    # Subsequent commands then read org/workspace from these vars and present the same OIDC token
-    # (kept in SMART_TESTS_OIDC_TOKEN) as their bearer.
+    # Subsequent commands read org/workspace from these vars. For a pass-through token we also
+    # re-export it as the bearer; the GitHub flows re-mint a fresh short-lived token per request in
+    # authentication_headers(), so exporting one here would only leave a stale value behind.
     click.echo(f'export {ORGANIZATION_KEY}={_shell_quote(org)}')
     click.echo(f'export {WORKSPACE_KEY}={_shell_quote(workspace)}')
-    click.echo(f'export {OIDC_TOKEN_KEY}={_shell_quote(token)}')
+    if passthrough_token:
+        click.echo(f'export {OIDC_TOKEN_KEY}={_shell_quote(passthrough_token)}')
     click.secho(
         f"OIDC authentication verified for organization {org!r}, workspace {workspace!r}" + emoji(" \U0001f389"),
         fg='green', err=True)
