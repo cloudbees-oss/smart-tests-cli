@@ -4,8 +4,12 @@ import tempfile
 from unittest import mock
 
 import responses  # type: ignore
+from junitparser import JUnitXml  # type: ignore
 
+from smart_tests.commands.record.case_event import CaseEvent
 from smart_tests.test_runners import maven
+from smart_tests.testpath import FilePathNormalizer
+from smart_tests.utils.java import junit5_nested_class_path_builder
 from tests.cli_test_case import CliTestCase
 
 
@@ -106,47 +110,52 @@ class MavenTest(CliTestCase):
         self.assert_success(result)
         self.assert_record_tests_payload("record_test_result.json")
 
+    def _build_path_builder(self):
+        """Builds the same wrapped path_builder that maven.py's record_tests wires up."""
+        default_path_builder = CaseEvent.default_path_builder(FilePathNormalizer())
+        return junit5_nested_class_path_builder(default_path_builder)
+
+    def _class_path_for_first_case(self, report_path):
+        path_builder = self._build_path_builder()
+        xml = JUnitXml.fromfile(str(self.test_files_dir.joinpath(report_path)))
+        suite = next(iter(xml))
+        case = next(iter(suite))
+        test_path = path_builder(case, suite, str(report_path))
+        return next(item["name"] for item in test_path if item["type"] == "class")
+
+    def test_junit5_nested_class_path_builder_strips_dollar_suffix(self):
+        """@Nested class WITHOUT @DisplayName: Surefire keeps "Outer$Inner" as classname."""
+        class_name = self._class_path_for_first_case('reports/TEST-nested.xml')
+        self.assertEqual(class_name, "com.example.sample_app_maven.NestedTest")
+        self.assertNotIn("$", class_name)
+
+    def test_junit5_nested_class_path_builder_falls_back_to_suite_name(self):
+        """@Nested class WITH @DisplayName: Surefire (>= ~3.5.x) drops the outer class from
+        `classname` entirely (e.g. classname="addFollowList"). We must fall back to the
+        enclosing <testsuite name="..."> attribute, which is always the outer class FQCN."""
+        class_name = self._class_path_for_first_case('reports-nested-displayname/TEST-nested-displayname.xml')
+        self.assertEqual(class_name, "com.example.sample_app_maven.NestedDisplayNameTest")
+        self.assertNotIn("$", class_name)
+        self.assertNotEqual(class_name, "addFollowList")
+
     @responses.activate
     @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
     def test_record_test_maven_with_nested_class(self):
         """Verify that class names containing $ (inner class marker) are processed correctly during test recording"""
-        # Test the path_builder function directly by extracting it from the maven module
-        from unittest import TestCase as UnitTestCase
-        from unittest import TestSuite as UnitTestSuite
-
-        # Extract the implementation from maven.py directly
-        # This gets the implementation without going through the CLI/Click command
-        def create_custom_path_builder(default_path_builder):
-            def path_builder(case, suite, report_file):
-                test_path = default_path_builder(case, suite, report_file)
-                return [{**item, "name": item["name"].split("$")[0]} if item["type"] == "class" else item for item in test_path]
-            return path_builder
-
-        # Mock the default path builder that would return a class with $ in it
-        def default_path_builder(case, suite, report_file):
-            return [{"type": "class", "name": "com.launchableinc.rocket_car_maven.NestedTest$InnerClass"}]
-
-        # Create our custom path builder function
-        custom_path_builder = create_custom_path_builder(default_path_builder)
-
-        # Test it directly with dummy inputs
-        test_case = UnitTestCase()
-        test_suite = UnitTestSuite()
-        report_file = "TEST-nested.xml"
-
-        # Call the path_builder
-        result_path = custom_path_builder(test_case, test_suite, report_file)
-
-        # Verify the result - it should remove everything after $
-        self.assertEqual(result_path[0]["name"], "com.launchableinc.rocket_car_maven.NestedTest")
-        self.assertNotIn("$", result_path[0]["name"])
-
-        # Now run the actual CLI command to ensure integration works
         result = self.cli('record', 'tests', 'maven', '--session', self.session,
-                          str(self.test_files_dir) + "/maven/reports/TEST-1.xml",
-                          str(self.test_files_dir) + "/maven/reports/TEST-2.xml",
-                          str(self.test_files_dir) + "/maven/reports/TEST-nested.xml")
+                          str(self.test_files_dir.joinpath('reports/TEST-1.xml')),
+                          str(self.test_files_dir.joinpath('reports/TEST-2.xml')),
+                          str(self.test_files_dir.joinpath('reports/TEST-nested.xml')))
         self.assert_success(result)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
+    def test_record_test_maven_with_nested_displayname_class(self):
+        """Verify the bare-@DisplayName-as-classname bug (no dot, no $) is corrected end-to-end."""
+        result = self.cli('record', 'tests', 'maven', '--session', self.session,
+                          str(self.test_files_dir.joinpath('reports-nested-displayname/TEST-nested-displayname.xml')))
+        self.assert_success(result)
+        self.assert_record_tests_payload("record_test_nested_displayname_result.json")
 
     @responses.activate
     @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
