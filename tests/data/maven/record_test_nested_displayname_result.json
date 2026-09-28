@@ -1,0 +1,27 @@
+{
+    "events": [
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.launchableinc.rocket_car_maven.NestedDisplayNameTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "methodIsCalled"
+                }
+            ],
+            "duration": 0.001,
+            "status": 1,
+            "stdout": "",
+            "stderr": "",
+            "data": null
+        }
+    ],
+    "testRunner": "maven",
+    "group": "",
+    "noBuild": false,
+    "flavors": [],
+    "testSuite": ""
+}
