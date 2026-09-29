@@ -48,6 +48,12 @@ def junit5_nested_class_path_builder(
     Note: Launchable allows $ in test paths. But we decided to remove it in this case
           because $ in the class name is not a common case.
 
+    Separately, when a @Nested class carries an explicit @DisplayName, Surefire (>= ~3.5.x)
+    drops the outer class name from the `classname` attribute entirely and reports just the
+    @DisplayName value (e.g. classname="addFollowList", with no dot and no $). In that case we
+    fall back to the enclosing <testsuite name="..."> attribute, which is always the outer
+    class's fully-qualified name.
+
     Args:
         default_path_builder: The original path builder function to wrap
 
@@ -56,6 +62,17 @@ def junit5_nested_class_path_builder(
     """
     def path_builder(case: TestCase, suite: TestSuite, report_file: str) -> TestPath:
         test_path = default_path_builder(case, suite, report_file)
-        return [{**item, "name": item["name"].split("$")[0]} if item["type"] == "class" else item for item in test_path]
+
+        def fix_class(item):
+            if item["type"] != "class":
+                return item
+            name = item["name"]
+            if "." not in name:
+                suite_name = suite._elem.attrib.get("name")
+                if suite_name and "." in suite_name:
+                    name = suite_name
+            return {**item, "name": name.split("$")[0]}
+
+        return [fix_class(item) for item in test_path]
 
     return path_builder
