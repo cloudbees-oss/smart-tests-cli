@@ -12,6 +12,7 @@ import click
 from dateutil.parser import ParserError, parse
 from junitparser import JUnitXml, TestCase, TestSuite  # type: ignore  # noqa: F401
 from more_itertools import ichunked
+from requests_toolbelt import MultipartEncoder  # type: ignore
 from tabulate import tabulate
 
 import smart_tests.args4p.converters as converters
@@ -32,6 +33,13 @@ from ...utils.fail_fast_mode import (FailFastModeValidateParams, fail_fast_mode_
 from ...utils.logger import Logger
 from ...utils.smart_tests_client import SmartTestsClient
 from .case_event import CaseEvent, CaseEventGenerator, CaseEventType, DataBuilder, TestPathBuilder
+
+# Together with the workers sending events, this stays within urllib3's default pool size (10 connections per host)
+MAX_RAW_FILE_UPLOAD_WORKERS = 5
+# (connect timeout, read timeout)
+# urllib3 applies the connect timeout to each write of the request body, too. The read timeout is long because
+# the server may store the file before responding.
+RAW_FILE_UPLOAD_TIMEOUT = (30, 300)
 
 GROUP_NAME_RULE = re.compile("^[a-zA-Z0-9][a-zA-Z0-9_-]*$")
 RESERVED_GROUP_NAMES = ["group", "groups", "nogroup", "nogroups"]
@@ -272,17 +280,19 @@ class RecordTests:
             url = f"{self.client.base_url()}{path}"
 
             with open(file_path, 'rb') as f:
-                files = {'file': (os.path.basename(file_path), f)}
+                # Stream the multipart body instead of using `files=`. With `files=`, requests builds the whole body
+                # in memory and writes it in one go, and urllib3 applies the connect timeout to that write, so large
+                # files fail with "The write operation timed out".
+                body = MultipartEncoder(fields={'file': (os.path.basename(file_path), f)})
                 headers = self.client.http_client._headers(compress=False)
-                # Remove Content-Type header to let requests set it for multipart
-                headers.pop('Content-Type', None)
+                headers['Content-Type'] = body.content_type
 
                 response = self.client.http_client.session.request(
                     'POST',
                     url,
-                    files=files,
+                    data=body,
                     headers=headers,
-                    timeout=(5, 60),
+                    timeout=RAW_FILE_UPLOAD_TIMEOUT,
                     verify=(not self.client.http_client.skip_cert_verification)
                 )
 
@@ -300,17 +310,21 @@ class RecordTests:
             self.logger.warning(f"Error uploading raw test result file {file_path}: {str(e)}")
             return False
 
-    def upload_raw_files(self) -> None:
+    def upload_raw_files(self, executor: ThreadPoolExecutor) -> None:
 
         if self.reports and not self.dry_run:
             self.logger.debug(f"Uploading {len(self.reports)} raw test result file(s)")
             for report_file in self.reports:
-                self.upload_raw_file(report_file)
+                executor.submit(self.upload_raw_file, report_file)
 
     def run(self):
-        # Upload raw test result files before parsing
-        self.upload_raw_files()
+        # Upload raw test result files in the background while parsing and recording test results,
+        # so that large files don't delay recording. Leaving the `with` block waits for the uploads to finish.
+        with ThreadPoolExecutor(max_workers=MAX_RAW_FILE_UPLOAD_WORKERS) as executor:
+            self.upload_raw_files(executor)
+            self._record_tests()
 
+    def _record_tests(self):
         count = 0  # count number of test cases sent
         is_observation = False
 
