@@ -487,7 +487,7 @@ class RecordTests:
         url = self._get_test_session_url()
         click.echo(
             f"\nVisit {url} to view uploaded test results "
-            f"(or run `launchable inspect tests --test-session-id {self.test_session_id}`)")
+            f"(or run `smart-tests inspect tests --test-session-id {self.test_session_id}`)")
 
     def _get_test_session_url(self) -> str:
         cbp_workspace = self.client.get_cbp_workspace()
