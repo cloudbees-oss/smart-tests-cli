@@ -97,8 +97,8 @@ def session(
         res = client.request("post", sub_path, payload=payload)
 
         if res.status_code == HTTPStatus.NOT_FOUND:
-            msg = f"Build {build_name} was not found." \
-                f"Make sure to run `launchable record build --build {build_name}` before you run this command."
+            msg = f"Build {build_name} was not found. " \
+                f"Make sure to run `smart-tests record build --build {build_name}` before you run this command."
             tracking_client.send_error_event(
                 event_name=Tracking.ErrorEvent.INTERNAL_CLI_ERROR,
                 stack_trace=msg,

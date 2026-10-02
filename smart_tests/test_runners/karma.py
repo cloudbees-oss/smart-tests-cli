@@ -26,10 +26,10 @@ def subset(client, _with: Annotated[str | None, typer.Option(
     """
     Usage:
         find src -name "*.spec.ts" -o -name "*.spec.js" > test-list.txt
-        cat test-list.txt | launchable subset --target 10% karma
+        cat test-list.txt | smart-tests subset karma --session @session.txt --target 10%
 
         # Output in ng test format
-        find src -name "*.spec.ts" | launchable subset --target 10% karma --with ng
+        find src -name "*.spec.ts" | smart-tests subset karma --session @session.txt --target 10% --with ng
     """
     for t in client.stdin():
         path = t.strip()
