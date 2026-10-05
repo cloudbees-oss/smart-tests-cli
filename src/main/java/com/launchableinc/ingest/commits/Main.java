@@ -144,10 +144,13 @@ public class Main {
       cgc.transfer(endpoint, authenticator, enableTimeout);
       int numCommits = cgc.getCommitsSent();
       int numFiles = cgc.getFilesSent();
-      System.out.printf("Smart Tests transferred %d more %s and %d more %s from repository %s%n",
+      int numDiffContentChanges = cgc.getDiffContentCapturedChanges();
+      System.out.printf("Smart Tests transferred %d more %s and %d more %s from repository %s"
+              + " (diffContent captured for %d file change%s)%n",
           numCommits, plural(numCommits, "commit"),
           numFiles, plural(numFiles, "file"),
-          repo);
+          repo,
+          numDiffContentChanges, numDiffContentChanges == 1 ? "" : "s");
     }
   }
 

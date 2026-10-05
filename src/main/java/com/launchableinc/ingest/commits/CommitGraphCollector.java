@@ -98,6 +98,7 @@ public class CommitGraphCollector {
   private final Repository root;
 
   private final AtomicInteger commitsSent = new AtomicInteger(), filesSent = new AtomicInteger();
+  private final AtomicInteger diffContentCapturedChanges = new AtomicInteger();
 
   private boolean collectCommitMessage, collectFiles;
 
@@ -140,6 +141,11 @@ public class CommitGraphCollector {
 
   public int getFilesSent() {
     return filesSent.get();
+  }
+
+  /** How many file changes had their diff hunk captured as {@code diffContent}? */
+  public int getDiffContentCapturedChanges() {
+    return diffContentCapturedChanges.get();
   }
 
   private String dumpHeaderAsJson(Header[] headers) throws JsonProcessingException {
@@ -696,6 +702,12 @@ public class CommitGraphCollector {
         // being recorded, so there is no prior build for the server to diff against. Skip
         // diffContent capture in that case since it would have no consumer.
         boolean captureDiffContent = !advertised.isEmpty();
+        System.err.printf(
+            "diffContent capture is %s for repository %s (server advertised %d prior commit%s)%n",
+            captureDiffContent ? "ENABLED" : "DISABLED",
+            name,
+            advertised.size(),
+            advertised.size() == 1 ? "" : "s");
 
         // walk the commits, transform them, and send them to the commitReceiver
         for (RevCommit c : walk) {
@@ -743,7 +755,11 @@ public class CommitGraphCollector {
         List<JSFileChange> changes = new ArrayList<>();
         for (DiffEntry de : files) {
           try {
-            changes.add(diff.process(de));
+            JSFileChange fc = diff.process(de);
+            if (fc.getDiffContent() != null) {
+              diffContentCapturedChanges.incrementAndGet();
+            }
+            changes.add(fc);
           } catch (MissingObjectException e) {
             // in a partially cloned repository, BLOBs might be unavailable and that'd result in MissingObjectException
             System.err.printf("Warning: %s is missing. Skipping diff calculation for %s -> %s%n",
