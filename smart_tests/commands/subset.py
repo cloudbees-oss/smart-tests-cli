@@ -32,7 +32,9 @@ from ..utils.fail_fast_mode import (FailFastModeValidateParams, fail_fast_mode_v
                                     set_fail_fast_mode, warn_and_exit_if_fail_fast_mode)
 from ..utils.input_snapshot import InputSnapshotId
 from ..utils.link import (GITHUB_ACTIONS_JOB_KEY, GITHUB_ACTIONS_KEY, GITHUB_ACTIONS_REPOSITORY_KEY,
-                          GITHUB_ACTIONS_RUN_ATTEMPT_KEY, GITHUB_ACTIONS_RUN_ID_KEY, GITHUB_ACTIONS_RUNNER_NAME_KEY)
+                          GITHUB_ACTIONS_RUN_ATTEMPT_KEY, GITHUB_ACTIONS_RUN_ID_KEY, GITHUB_ACTIONS_RUNNER_NAME_KEY,
+                          JENKINS_BUILD_DISPLAY_NAME_KEY, JENKINS_BUILD_NUMBER_KEY, JENKINS_BUILD_URL_KEY, JENKINS_GIT_BRANCH_KEY,
+                          JENKINS_GIT_COMMIT_KEY, JENKINS_GIT_URL_KEY, JENKINS_JOB_NAME_KEY, JENKINS_URL_KEY)
 from ..utils.smart_tests_client import SmartTestsClient
 from ..utils.typer_types import Duration, Fraction, Percentage, parse_duration, parse_fraction, parse_percentage
 from .test_path_writer import TestPathWriter
@@ -90,6 +92,96 @@ def detect_github_action_context(env: Mapping[str, str]) -> dict[str, str] | Non
         "repository_name": name,
         "job_name": job_name,
     }
+
+
+class JenkinsContextError(Exception):
+    """Raised when running inside Jenkins but the environment is missing or malformed."""
+
+
+def _parse_owner_repo_from_git_url(git_url: str) -> tuple[str, str] | None:
+    """Parse 'owner' and 'repo' from a GitHub remote URL.
+
+    Handles both https ('https://github.com/owner/repo.git') and ssh
+    ('git@github.com:owner/repo.git') forms. Returns None if it can't be parsed.
+    """
+    url = git_url.strip()
+    # Drop a trailing '.git' and any trailing slash.
+    if url.endswith(".git"):
+        url = url[:-len(".git")]
+    url = url.rstrip("/")
+    # ssh form: git@host:owner/repo -> take the part after ':'
+    if ":" in url and "//" not in url:
+        url = url.rsplit(":", 1)[-1]
+    # Take the last two path components as owner/repo.
+    parts = [p for p in url.replace(":", "/").split("/") if p]
+    if len(parts) < 2:
+        return None
+    owner, name = parts[-2], parts[-1]
+    if not owner or not name:
+        return None
+    return owner, name
+
+
+def detect_jenkins_context(env: Mapping[str, str]) -> dict[str, str] | None:
+    """Read the Jenkins context needed for the GitHub App + Jenkins subset flow.
+
+    Returns None when not running inside Jenkins. When running inside Jenkins but a
+    required variable is missing or malformed, raises JenkinsContextError naming the
+    offending variable(s). Requires the Git plugin's GIT_COMMIT / GIT_URL to be set.
+    """
+    if not env.get(JENKINS_URL_KEY):
+        return None
+
+    job_name = env.get(JENKINS_JOB_NAME_KEY)
+    git_commit = env.get(JENKINS_GIT_COMMIT_KEY)
+    git_url = env.get(JENKINS_GIT_URL_KEY)
+
+    missing = []
+    if not job_name:
+        missing.append(JENKINS_JOB_NAME_KEY)
+    if not git_commit:
+        missing.append(JENKINS_GIT_COMMIT_KEY)
+    if not git_url:
+        missing.append(JENKINS_GIT_URL_KEY)
+    if missing:
+        raise JenkinsContextError(
+            "Running inside Jenkins but required environment variable(s) not set: "
+            f"{', '.join(missing)}."
+        )
+    assert job_name is not None and git_commit is not None and git_url is not None
+
+    owner_repo = _parse_owner_repo_from_git_url(git_url)
+    if owner_repo is None:
+        raise JenkinsContextError(
+            f"{JENKINS_GIT_URL_KEY} could not be parsed into 'owner/repo', but got '{git_url}'."
+        )
+    owner, name = owner_repo
+
+    # BUILD_DISPLAY_NAME is usually '#<n>'; fall back to '#<BUILD_NUMBER>' when unset.
+    display_name = env.get(JENKINS_BUILD_DISPLAY_NAME_KEY)
+    if not display_name:
+        build_number = env.get(JENKINS_BUILD_NUMBER_KEY)
+        display_name = f"#{build_number}" if build_number else None
+    if not display_name:
+        raise JenkinsContextError(
+            "Running inside Jenkins but neither "
+            f"{JENKINS_BUILD_DISPLAY_NAME_KEY} nor {JENKINS_BUILD_NUMBER_KEY} is set."
+        )
+
+    context = {
+        "job_full_name": job_name,
+        "build_display_name": display_name,
+        "head_sha": git_commit,
+        "repository_owner": owner,
+        "repository_name": name,
+    }
+    head_branch = env.get(JENKINS_GIT_BRANCH_KEY)
+    if head_branch:
+        context["head_branch"] = head_branch
+    build_url = env.get(JENKINS_BUILD_URL_KEY)
+    if build_url:
+        context["build_url"] = build_url
+    return context
 
 
 class SubsetUseCase(str, Enum):
@@ -181,6 +273,11 @@ class Subset(TestPathWriter):
             from_github_actions: Annotated[bool, typer.Option(
                 "--from-github-actions",
                 help="Required to identify GitHub App mode. Cannot be used with --session.",
+            )] = False,
+            from_jenkins: Annotated[bool, typer.Option(
+                "--from-jenkins",
+                help="Required to identify Jenkins (GitHub App combination) mode. "
+                     "Cannot be used with --session.",
             )] = False,
             target: Annotated[Percentage | None, typer.Option(
                 type=parse_percentage,
@@ -314,7 +411,10 @@ class Subset(TestPathWriter):
 
         app.test_runner = test_runner
         self.tracking_client = TrackingClient(Command.SUBSET, app=app)
-        self.client = SmartTestsClient(app=app, tracking_client=self.tracking_client)
+        # The Jenkins flow authenticates via an OIDC token whose subject maps to a workspace
+        # server-side, so it needs neither an org/workspace nor SMART_TESTS_TOKEN locally.
+        self.client = SmartTestsClient(
+            app=app, tracking_client=self.tracking_client, require_org_workspace=not from_jenkins)
 
         def warn(msg: str):
             click.secho("Warning: " + msg, fg="yellow", err=True)
@@ -324,7 +424,14 @@ class Subset(TestPathWriter):
             )
 
         self.github_action_context = None
+        self.jenkins_context = None
         session_id: SessionId | None = None
+        if from_github_actions and from_jenkins:
+            print_error_and_die(
+                "--from-github-actions and --from-jenkins cannot be used together.",
+                self.tracking_client,
+                Tracking.ErrorEvent.USER_ERROR,
+            )
         if from_github_actions:
             if session is not None:
                 print_error_and_die(
@@ -339,6 +446,23 @@ class Subset(TestPathWriter):
             if self.github_action_context is None:
                 print_error_and_die(
                     "--from-github-actions requires running inside GitHub Actions.",
+                    self.tracking_client,
+                    Tracking.ErrorEvent.USER_ERROR,
+                )
+        elif from_jenkins:
+            if session is not None:
+                print_error_and_die(
+                    "--from-jenkins cannot be used with --session.",
+                    self.tracking_client,
+                    Tracking.ErrorEvent.USER_ERROR,
+                )
+            try:
+                self.jenkins_context = detect_jenkins_context(os.environ)
+            except JenkinsContextError as e:
+                print_error_and_die(str(e), self.tracking_client, Tracking.ErrorEvent.USER_ERROR)
+            if self.jenkins_context is None:
+                print_error_and_die(
+                    "--from-jenkins requires running inside Jenkins.",
                     self.tracking_client,
                     Tracking.ErrorEvent.USER_ERROR,
                 )
@@ -399,6 +523,8 @@ class Subset(TestPathWriter):
 
         if from_github_actions and is_non_blocking:
             warn("ignoring non-blocking mode inside github actions because of --from-github-actions option")
+        elif from_jenkins and is_non_blocking:
+            warn("ignoring non-blocking mode inside jenkins because of --from-jenkins option")
         elif is_non_blocking and not is_observation:
             print_error_and_die(
                 "You have to specify --observation option to use non-blocking mode",
@@ -444,6 +570,7 @@ class Subset(TestPathWriter):
         self.fallback_mode = fallback_mode
         self.fallback_sampling_target = fallback_sampling_target
         self.from_github_actions = from_github_actions
+        self.from_jenkins = from_jenkins
 
         self._validate_print_input_snapshot_option()
 
@@ -574,6 +701,20 @@ class Subset(TestPathWriter):
             payload["githubActionsRunnerName"] = self.github_action_context["runner_name"]
             payload["repositoryName"] = self.github_action_context["repository_name"]
             payload["repositoryOwner"] = self.github_action_context["repository_owner"]
+        elif self.jenkins_context is not None:
+            # Jenkins (GitHub App combination): the server resolves-or-creates the build + test
+            # session from these fields (no client-supplied session id) and reuses the GitHub App
+            # collectors to ingest commit/history/embeddings via repositoryOwner/repositoryName.
+            payload["fromJenkins"] = True
+            payload["jenkinsJobFullName"] = self.jenkins_context["job_full_name"]
+            payload["jenkinsBuildDisplayName"] = self.jenkins_context["build_display_name"]
+            payload["headSha"] = self.jenkins_context["head_sha"]
+            payload["repositoryName"] = self.jenkins_context["repository_name"]
+            payload["repositoryOwner"] = self.jenkins_context["repository_owner"]
+            if "head_branch" in self.jenkins_context:
+                payload["headBranch"] = self.jenkins_context["head_branch"]
+            if "build_url" in self.jenkins_context:
+                payload["jenkinsBuildUrl"] = self.jenkins_context["build_url"]
         else:
             payload["session"] = {
                 # expecting just the last component, not the whole path
@@ -772,9 +913,9 @@ class Subset(TestPathWriter):
         timeout = (connect_timeout, 300)
         payload = self.get_payload()
 
-        if not self.from_github_actions and self.is_non_blocking:
+        if not self.from_github_actions and not self.from_jenkins and self.is_non_blocking:
             # Create a new process for requesting a subset.
-            process = Process(target=subset_request, args=(self.client, timeout, payload))
+            process = Process(target=subset_request, args=(self.client, timeout, payload, self.from_jenkins))
             process.start()
             click.echo("The subset was requested in non-blocking mode.", err=True)
             self.output_handler(self.test_paths, [])
@@ -782,7 +923,8 @@ class Subset(TestPathWriter):
             sys.exit(0)
 
         try:
-            res = subset_request(client=self.client, timeout=timeout, payload=payload)
+            res = subset_request(client=self.client, timeout=timeout, payload=payload,
+                                 from_jenkins=self.from_jenkins)
             # The status code 422 is returned when validation error of the test mapping file occurs.
             if res.status_code == 422:
                 print_error_and_die("Error: {}".format(res.reason), self.tracking_client, Tracking.ErrorEvent.USER_ERROR)
@@ -889,10 +1031,10 @@ class Subset(TestPathWriter):
                     Tracking.ErrorEvent.USER_ERROR)
 
         # When Error occurs, return the test name as it is passed.
-        if not self.from_github_actions and not self.session_id:
+        if not self.from_github_actions and not self.from_jenkins and not self.session_id:
             # Session ID in --session is missing. It might be caused by
             # Launchable API errors.
-            # In the GitHub App flow there is no client-side
+            # In the GitHub App / Jenkins flows there is no client-side
             # session id, but the request should still proceed.
             subset_result = self._fallback_result()
         else:
@@ -982,7 +1124,7 @@ class Subset(TestPathWriter):
             ],
         ]
 
-        if self.from_github_actions:
+        if self.from_github_actions or self.from_jenkins:
             click.echo(
                 "Smart Tests created subset {} in workspace {}/{}".format(
                     subset_result.subset_id,
@@ -1014,5 +1156,12 @@ class Subset(TestPathWriter):
 subset = Group(callback=Subset, help="Subsetting tests")
 
 
-def subset_request(client: SmartTestsClient, timeout: tuple[int, int], payload: dict[str, Any]):
+def subset_request(client: SmartTestsClient, timeout: tuple[int, int], payload: dict[str, Any],
+                   from_jenkins: bool = False):
+    # The Jenkins flow authenticates via an OIDC token whose subject (the job URL) maps to a
+    # workspace server-side, so it targets the workspace-unscoped /intake/jenkins/subset endpoint.
+    # Every other flow posts to the workspace-scoped /intake/organizations/{org}/workspaces/{ws}/subset.
+    if from_jenkins:
+        return client.request("post", "jenkins/subset", timeout=timeout, payload=payload,
+                              compress=True, workspace_scoped=False)
     return client.request("post", "subset", timeout=timeout, payload=payload, compress=True)
