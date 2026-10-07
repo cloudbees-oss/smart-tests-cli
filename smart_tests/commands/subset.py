@@ -33,9 +33,8 @@ from ..utils.fail_fast_mode import (FailFastModeValidateParams, fail_fast_mode_v
 from ..utils.input_snapshot import InputSnapshotId
 from ..utils.link import (GITHUB_ACTIONS_JOB_KEY, GITHUB_ACTIONS_KEY, GITHUB_ACTIONS_REPOSITORY_KEY,
                           GITHUB_ACTIONS_RUN_ATTEMPT_KEY, GITHUB_ACTIONS_RUN_ID_KEY, GITHUB_ACTIONS_RUNNER_NAME_KEY,
-                          JENKINS_BUILD_DISPLAY_NAME_KEY, JENKINS_BUILD_NUMBER_KEY, JENKINS_BUILD_URL_KEY,
-                          JENKINS_GIT_BRANCH_KEY, JENKINS_GIT_COMMIT_KEY, JENKINS_GIT_URL_KEY,
-                          JENKINS_JOB_NAME_KEY, JENKINS_URL_KEY)
+                          JENKINS_BUILD_DISPLAY_NAME_KEY, JENKINS_BUILD_NUMBER_KEY, JENKINS_BUILD_URL_KEY, JENKINS_GIT_BRANCH_KEY,
+                          JENKINS_GIT_COMMIT_KEY, JENKINS_GIT_URL_KEY, JENKINS_JOB_NAME_KEY, JENKINS_URL_KEY)
 from ..utils.smart_tests_client import SmartTestsClient
 from ..utils.typer_types import Duration, Fraction, Percentage, parse_duration, parse_fraction, parse_percentage
 from .test_path_writer import TestPathWriter
