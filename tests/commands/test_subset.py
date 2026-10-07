@@ -1250,6 +1250,147 @@ class SubsetTest(CliTestCase):
         self.assertIn("owner/repo", result.stderr)
         self.assertIn("no-slash", result.stderr)
 
+    # Environment presented by a Jenkins build. detect_jenkins_context reads these.
+    jenkins_env = {
+        "SMART_TESTS_TOKEN": CliTestCase.smart_tests_token,
+        "JENKINS_URL": "https://jenkins.example.com/",
+        "JOB_NAME": "my-folder/my-job",
+        "BUILD_DISPLAY_NAME": "#42",
+        "BUILD_NUMBER": "42",
+        "BUILD_URL": "https://jenkins.example.com/job/my-job/42/",
+        "GIT_COMMIT": "abc123",
+        "GIT_BRANCH": "origin/main",
+        "GIT_URL": "https://github.com/cloudbees-oss/smart-tests-cli.git",
+    }
+
+    @responses.activate
+    @mock.patch.dict(os.environ, jenkins_env, clear=True)
+    def test_subset_from_jenkins(self):
+        pipe = "test_1.py\ntest_2.py\n"
+        mock_json_response = {
+            "testPaths": [[{"type": "file", "name": "test_1.py"}]],
+            "testRunner": "file",
+            "rest": [[{"type": "file", "name": "test_2.py"}]],
+            "subsettingId": 123,
+            "summary": {
+                "subset": {"duration": 10, "candidates": 1, "rate": 50},
+                "rest": {"duration": 10, "candidates": 1, "rate": 50},
+            },
+            "isObservation": False,
+        }
+        # The Jenkins flow targets the OIDC-only, workspace-unscoped endpoint.
+        responses.replace(
+            responses.POST,
+            f"{get_base_url()}/intake/jenkins/subset",
+            json=mock_json_response,
+            status=200,
+        )
+
+        result = self.cli("subset", "file", "--from-jenkins", "--target", "50%",
+                          mix_stderr=False, input=pipe)
+        self.assert_success(result)
+        self.assertEqual(result.stdout, "test_1.py\n")
+
+        request = self.find_request('/jenkins/subset')
+        self.assertEqual(
+            request.request.url,
+            f"{get_base_url()}/intake/jenkins/subset",
+        )
+        payload = self.decode_request_body(request.request.body)
+        # The Jenkins flow sends Jenkins/repo identifiers instead of a client-side session.
+        self.assertNotIn("session", payload)
+        self.assertEqual(payload.get("fromJenkins"), True)
+        self.assertEqual(payload.get("jenkinsJobFullName"), "my-folder/my-job")
+        self.assertEqual(payload.get("jenkinsBuildDisplayName"), "#42")
+        self.assertEqual(payload.get("headSha"), "abc123")
+        self.assertEqual(payload.get("headBranch"), "origin/main")
+        self.assertEqual(payload.get("repositoryOwner"), "cloudbees-oss")
+        self.assertEqual(payload.get("repositoryName"), "smart-tests-cli")
+        self.assertEqual(payload.get("jenkinsBuildUrl"), "https://jenkins.example.com/job/my-job/42/")
+        # The build/session summary line is omitted when there is no client-side session.
+        self.assertNotIn("test session", result.stderr)
+
+    # Jenkins env with only an OIDC token and no org/workspace: the plugin authenticates via the
+    # signed JWT and the server resolves the workspace from its subject, so no SMART_TESTS_TOKEN or
+    # SMART_TESTS_ORGANIZATION/WORKSPACE is configured.
+    jenkins_env_oidc = {
+        "SMART_TESTS_OIDC_TOKEN": "signed.jwt.token",
+        "JENKINS_URL": "https://jenkins.example.com/",
+        "JOB_NAME": "my-folder/my-job",
+        "BUILD_DISPLAY_NAME": "#42",
+        "BUILD_NUMBER": "42",
+        "BUILD_URL": "https://jenkins.example.com/job/my-job/42/",
+        "GIT_COMMIT": "abc123",
+        "GIT_BRANCH": "origin/main",
+        "GIT_URL": "https://github.com/cloudbees-oss/smart-tests-cli.git",
+    }
+
+    @responses.activate
+    @mock.patch.dict(os.environ, jenkins_env_oidc, clear=True)
+    def test_subset_from_jenkins_without_org_workspace(self):
+        result = self.cli("subset", "file", "--from-jenkins", "--target", "50%",
+                          mix_stderr=False, input="test_1.py\ntest_2.py\n")
+        self.assert_success(result)
+
+        request = self.find_request('/jenkins/subset')
+        # No org/workspace anywhere in the path; the request carries the OIDC bearer token.
+        self.assertEqual(request.request.url, f"{get_base_url()}/intake/jenkins/subset")
+        self.assertEqual(request.request.headers["Authorization"], "Bearer signed.jwt.token")
+        payload = self.decode_request_body(request.request.body)
+        self.assertEqual(payload.get("fromJenkins"), True)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, jenkins_env, clear=True)
+    def test_subset_from_jenkins_with_session_is_error(self):
+        result = self.cli("subset", "file", "--from-jenkins", "--session", self.session,
+                          mix_stderr=False, input="test_1.py\n")
+        self.assert_exit_code(result, 1)
+        self.assertIn("--from-jenkins cannot be used with --session", result.stderr)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token}, clear=True)
+    def test_subset_from_jenkins_outside_jenkins_is_error(self):
+        # JENKINS_URL and friends are absent, so detection returns None.
+        result = self.cli("subset", "file", "--from-jenkins",
+                          mix_stderr=False, input="test_1.py\n")
+        self.assert_exit_code(result, 1)
+        self.assertIn("--from-jenkins requires running inside Jenkins", result.stderr)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {**jenkins_env, "GIT_COMMIT": ""}, clear=True)
+    def test_subset_from_jenkins_missing_env_var_is_error(self):
+        result = self.cli("subset", "file", "--from-jenkins",
+                          mix_stderr=False, input="test_1.py\n")
+        self.assert_exit_code(result, 1)
+        self.assertIn("required environment variable(s) not set", result.stderr)
+        self.assertIn("GIT_COMMIT", result.stderr)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {**jenkins_env, "GIT_URL": "no-slash"}, clear=True)
+    def test_subset_from_jenkins_malformed_git_url_is_error(self):
+        result = self.cli("subset", "file", "--from-jenkins",
+                          mix_stderr=False, input="test_1.py\n")
+        self.assert_exit_code(result, 1)
+        self.assertIn("owner/repo", result.stderr)
+        self.assertIn("no-slash", result.stderr)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {**jenkins_env, "BUILD_DISPLAY_NAME": ""}, clear=True)
+    def test_subset_from_jenkins_falls_back_to_build_number(self):
+        result = self.cli("subset", "file", "--from-jenkins", "--target", "50%",
+                          mix_stderr=False, input="test_1.py\ntest_2.py\n")
+        self.assert_success(result)
+        payload = self.decode_request_body(self.find_request('/jenkins/subset').request.body)
+        self.assertEqual(payload.get("jenkinsBuildDisplayName"), "#42")
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {**jenkins_env, "GITHUB_ACTIONS": "true"}, clear=True)
+    def test_subset_from_jenkins_and_github_actions_together_is_error(self):
+        result = self.cli("subset", "file", "--from-jenkins", "--from-github-actions",
+                          mix_stderr=False, input="test_1.py\n")
+        self.assert_exit_code(result, 1)
+        self.assertIn("cannot be used together", result.stderr)
+
     @responses.activate
     @mock.patch.dict(os.environ, {
         "SMART_TESTS_TOKEN": CliTestCase.smart_tests_token,
