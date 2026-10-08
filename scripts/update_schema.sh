@@ -5,12 +5,15 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLI_DIR="$(dirname "$SCRIPT_DIR")"
 SCHEMA_FILE="$CLI_DIR/smart_tests/schema/openapi-schema.json"
+# Override with SCHEMA_PORT if the dev server runs on another port
+SCHEMA_PORT="${SCHEMA_PORT:-8081}"
+API_DOCS_URL="http://localhost:$SCHEMA_PORT/intake/v3/api-docs"
 
 echo "Fetching OpenAPI schema from local dev server..."
 
 # Check if mothership is running
-if ! curl -s -f http://localhost:8080/intake/v3/api-docs > /dev/null 2>&1; then
-    echo "Error: Mothership dev server not running at localhost:8080"
+if ! curl -s -f "$API_DOCS_URL" > /dev/null 2>&1; then
+    echo "Error: Mothership dev server not running at localhost:$SCHEMA_PORT"
     echo "Please start it with: cd mothership && bazel run //src/main/java/com/launchableinc/mercury/intake"
     exit 1
 fi
@@ -19,7 +22,7 @@ fi
 mkdir -p "$(dirname "$SCHEMA_FILE")"
 
 # Fetch and save schema
-curl -s http://localhost:8080/intake/v3/api-docs > "$SCHEMA_FILE"
+curl -s "$API_DOCS_URL" > "$SCHEMA_FILE"
 
 # Validate and format the JSON with proper indentation and trailing newline
 python3 << PYTHON_EOF

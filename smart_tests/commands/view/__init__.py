@@ -3,6 +3,7 @@ from ...app import Application
 from .flaky_tests import flaky_tests
 from .longest_tests import longest_tests
 from .never_failing_tests import never_failing_tests
+from .subsets import subsets
 from .test_results import test_results
 
 
@@ -14,4 +15,5 @@ def view(app: Application):
 view.add_command(flaky_tests)
 view.add_command(longest_tests)
 view.add_command(never_failing_tests)
+view.add_command(subsets)
 view.add_command(test_results)
