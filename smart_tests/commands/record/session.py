@@ -111,6 +111,7 @@ def session(
         session_id = res.json().get('id', None)
         if is_no_build:
             build_name = res.json().get("buildNumber", "")
+            sub_path = f"builds/{build_name}/test_sessions"
             assert build_name is not None
 
         click.echo(f"{sub_path}/{session_id}", nl=False)
