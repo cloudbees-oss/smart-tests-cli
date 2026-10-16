@@ -65,6 +65,16 @@ jobs:
 
       - name: Lint with flake8
         run: uv run poe lint
+
+      - name: Check CLI reference docs are up to date
+        run: |
+          uv run tools/generate_reference.py smart_tests/docs/modules/references/pages/cli-reference.adoc
+          git diff --exit-code smart_tests/docs/modules/references/pages/cli-reference.adoc || {
+            echo "::error::cli-reference.adoc is stale. Run 'tools/generate_reference.py smart_tests/docs/modules/references/pages/cli-reference.adoc' and commit the updated doc."
+            exit 1
+          }
+        shell: bash
+
       - name: Pull request validation
         run: |
           # Install Smart Tests CLI from this repo's code as a global tool
