@@ -78,6 +78,53 @@ tests/fooo/filenameonly_test.py
             {"type": "testcase", "name": "test_func6"},
         ])
 
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
+    def test_subset_preserves_parameter_id_containing_separator(self):
+        nodeid = 'tests/test_mod.py::TestClass::test_value[left::right]'
+        result = self.cli('subset', 'pytest', '--target', '10%', '--session', self.session,
+                          input=nodeid + '\n\n')
+        self.assert_success(result)
+        payload = json.loads(gzip.decompress(self.find_request('/subset').request.body).decode())
+        self.assertEqual(payload['testPaths'], [[
+            {'type': 'file', 'name': os.path.normpath('tests/test_mod.py')},
+            {'type': 'class', 'name': 'tests.test_mod.TestClass'},
+            {'type': 'testcase', 'name': 'test_value[left::right]'},
+        ]])
+
+
+class PytestParameterIdTest(TestCase):
+    def test_function_parameter_id_preserves_separator(self):
+        self.assertEqual(_parse_pytest_nodeid('tests/test_mod.py::test_value[left::right]'), [
+            {'type': 'file', 'name': os.path.normpath('tests/test_mod.py')},
+            {'type': 'class', 'name': 'tests.test_mod'},
+            {'type': 'testcase', 'name': 'test_value[left::right]'},
+        ])
+
+    def test_class_parameter_id_preserves_separators_and_brackets(self):
+        self.assertEqual(_parse_pytest_nodeid('tests/test_mod.py::TestClass::test_value[a[::b]::c]'), [
+            {'type': 'file', 'name': os.path.normpath('tests/test_mod.py')},
+            {'type': 'class', 'name': 'tests.test_mod.TestClass'},
+            {'type': 'testcase', 'name': 'test_value[a[::b]::c]'},
+        ])
+
+    def test_brackets_in_file_path_do_not_start_parameter_id(self):
+        self.assertEqual(_parse_pytest_nodeid('tests/[group]/test_mod.py::TestClass::test_value'), [
+            {'type': 'file', 'name': os.path.normpath('tests/[group]/test_mod.py')},
+            {'type': 'class', 'name': 'tests.[group].test_mod.TestClass'},
+            {'type': 'testcase', 'name': 'test_value'},
+        ])
+
+    def test_json_report_preserves_parameter_id(self):
+        parser = PytestJSONReportParser(mock.Mock())
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, 'report.json')
+            with open(path, 'w') as stream:
+                stream.write(json.dumps({'nodeid': 'tests/test_mod.py::test_value[left::right]',
+                                         'when': 'call', 'outcome': 'passed'}) + '\n')
+            events = list(parser.parse_func(path))
+        self.assertEqual(events[0]['testPath'][-1], {'type': 'testcase', 'name': 'test_value[left::right]'})
+
 
 class PytestJSONReportParserLongreprTest(TestCase):
     class DummyClient:
