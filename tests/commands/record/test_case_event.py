@@ -13,11 +13,11 @@ class TestCaseEventTimestamp(unittest.TestCase):
             test_path=[], duration_secs=1.0, status=CaseEvent.TEST_PASSED, timestamp=ts
         )
         # Sent verbatim, with no client-side timezone resolution, and no resolved createdAt.
-        self.assertEqual(result["suiteTimestamp"], ts)
+        self.assertEqual(result["junitSuiteTimestamp"], ts)
         self.assertNotIn("createdAt", result)
 
     def test_absent_timestamp_is_none(self):
         result = CaseEvent.create(
             test_path=[], duration_secs=1.0, status=CaseEvent.TEST_PASSED, timestamp=None
         )
-        self.assertIsNone(result["suiteTimestamp"])
+        self.assertIsNone(result["junitSuiteTimestamp"])

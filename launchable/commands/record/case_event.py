@@ -239,7 +239,7 @@ class CaseEvent:
             "status": status,
             "stdout": stdout or "",
             "stderr": stderr or "",
-            "suiteTimestamp": timestamp,
+            "junitSuiteTimestamp": timestamp,
             "data": data
         }
 

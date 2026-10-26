@@ -268,7 +268,7 @@ class CliTestCase(unittest.TestCase):
         # value now; dedicated runner tests assert it directly).
         for c in payload['events']:
             c.pop('createdAt', None)
-            c.pop('suiteTimestamp', None)
+            c.pop('junitSuiteTimestamp', None)
         # metadata and the agent offset include machine/clock-dependent data
         del payload['metadata']
         payload.pop('agentUtcOffset', None)
