@@ -18,16 +18,16 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@v4.2.2
       - name: Set up JDK 8
-        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        uses: actions/setup-java@v4.7.1
         with:
           distribution: temurin
           java-version: "8"
       - name: Setup Bazel
-        uses: bazelbuild/setup-bazelisk@b39c379c82683a5f25d34f0d062761f62693e0b2 # v3.0.0
+        uses: bazelbuild/setup-bazelisk@v3.0.0
       - name: Cache Bazel outputs
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache@v4.2.3
         with:
           path: "~/.cache/bazel"
           key: bazel
@@ -43,5 +43,5 @@ jobs:
           fi
 
       - name: Upload test results
-        uses: cloudbees-oss/smart-tests-results-upload-action@v1
+        uses: cloudbees-oss/smart-tests-results-upload-action@v1.3.0
         if: always()
