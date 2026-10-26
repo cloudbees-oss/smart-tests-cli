@@ -497,6 +497,9 @@ class RecordTests:
                     f"{self.workspace}/test-sessions/{self.test_session_id}")
 
 
+tests = Group(name="tests", callback=RecordTests, help="Record test results")
+
+
 def summarize_case_events(events: Iterable[CaseEventType]) -> Tuple[int, int, int, float]:
     """
     Summarizes a stream of case events into (test_count, success_count, fail_count, duration_minutes),
@@ -525,9 +528,6 @@ def summarize_case_events(events: Iterable[CaseEventType]) -> Tuple[int, int, in
     fail_count = sum(1 for e in tests.values() if e["failed"] and not e["passed"])
 
     return test_count, success_count, fail_count, duration / 60   # sec to min
-
-
-tests = Group(name="tests", callback=RecordTests, help="Record test results")
 
 
 # if we fail to determine the timestamp of the build, we err on the side of collecting more test reports
