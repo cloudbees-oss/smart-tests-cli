@@ -530,36 +530,6 @@ def summarize_case_events(events: Iterable[CaseEventType]) -> Tuple[int, int, in
 tests = Group(name="tests", callback=RecordTests, help="Record test results")
 
 
-def summarize_case_events(events: Iterable[CaseEventType]) -> Tuple[int, int, int, float]:
-    """
-    Summarizes a stream of case events into (test_count, success_count, fail_count, duration_minutes),
-    for the "Tests found / Tests passed / Tests failed" table printed after `record tests` runs.
-
-    Grouped by testPath rather than counted per event: a flaky/rerun testcase produces multiple
-    events (see CaseEvent.from_case_and_suite), but it's still a single test. A test that ever
-    passed counts as passed (even if it also failed on earlier attempts); a test that only ever
-    failed counts as failed.
-    """
-    tests: Dict[Tuple, Dict[str, bool]] = {}
-    duration = float(0)
-
-    for tc in events:
-        key = tuple((p["type"], p["name"]) for p in tc.get("testPath", []))
-        entry = tests.setdefault(key, {"passed": False, "failed": False})
-        status = tc.get("status")
-        if status == 1:
-            entry["passed"] = True
-        elif status == 0:
-            entry["failed"] = True
-        duration += float(tc.get("duration") or 0)  # sec
-
-    test_count = len(tests)
-    success_count = sum(1 for e in tests.values() if e["passed"])
-    fail_count = sum(1 for e in tests.values() if e["failed"] and not e["passed"])
-
-    return test_count, success_count, fail_count, duration / 60   # sec to min
-
-
 # if we fail to determine the timestamp of the build, we err on the side of collecting more test reports
 # than no test reports, so we use the 'epoch' timestamp
 INVALID_TIMESTAMP = datetime.datetime.fromtimestamp(0)
