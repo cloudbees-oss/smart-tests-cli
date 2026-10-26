@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from time import time_ns
-from typing import Annotated, Callable, Dict, Generator, Iterable, List, Tuple, Union
+from typing import Annotated, Any, Callable, Dict, Generator, Iterable, List, Tuple, Union
 
 import click
 from dateutil.parser import ParserError, parse
@@ -32,7 +32,7 @@ from ...utils.fail_fast_mode import (FailFastModeValidateParams, fail_fast_mode_
                                      set_fail_fast_mode, warn_and_exit_if_fail_fast_mode)
 from ...utils.logger import Logger
 from ...utils.smart_tests_client import SmartTestsClient
-from .case_event import CaseEvent, CaseEventGenerator, CaseEventType, DataBuilder, TestPathBuilder
+from .case_event import BATCH_ID_KEY, CaseEvent, CaseEventGenerator, CaseEventType, DataBuilder, TestPathBuilder
 
 # Together with the workers sending events, this stays within urllib3's default pool size (10 connections per host)
 MAX_RAW_FILE_UPLOAD_WORKERS = 5
@@ -352,7 +352,7 @@ class RecordTests:
 
         # generator that creates the payload incrementally
         def payload(
-                cases: Generator[TestCase, None, None],
+                cases: Generator[CaseEventType, None, None],
                 test_runner, group: str,
                 test_suite_name: str,
                 flavors: Dict[str, str]) -> Tuple[Dict[str, Union[str, List, dict, bool]], List[Exception]]:
@@ -362,11 +362,15 @@ class RecordTests:
 
             while True:
                 try:
-                    cs.append(next(cases))
+                    tc = next(cases)
                 except StopIteration:
                     break
                 except Exception as ex:
                     exs.append(ex)
+                    continue
+                # internal-only; never leaves the process
+                tc.pop(BATCH_ID_KEY, None)
+                cs.append(tc)
 
             count += len(cs)
             return {
@@ -505,16 +509,27 @@ def summarize_case_events(events: Iterable[CaseEventType]) -> Tuple[int, int, in
     Summarizes a stream of case events into (test_count, success_count, fail_count, duration_minutes),
     for the "Tests found / Tests passed / Tests failed" table printed after `record tests` runs.
 
-    Grouped by testPath rather than counted per event: a flaky/rerun testcase produces multiple
-    events (see CaseEvent.from_case_and_suite), but it's still a single test. A test that ever
-    passed counts as passed (even if it also failed on earlier attempts); a test that only ever
-    failed counts as failed.
+    Grouped by which original testcase an event came from, not counted per event: a flaky/rerun
+    testcase produces multiple events (see CaseEvent.from_case_and_suite), but it's still a
+    single test. A test that ever passed counts as passed (even if it also failed on earlier
+    attempts); a test that only ever failed counts as failed.
+
+    JUnit-based events carry BATCH_ID_KEY (one id per original <testcase>, see
+    from_case_and_suite), which is used as the grouping key directly. Other runners (e.g. raw)
+    build events without going through from_case_and_suite, so they never have that key; for
+    those, fall back to grouping by testPath's complete attribute set. This fallback never
+    assumes a component has "type"/"name" specifically -- TestPathComponent is an arbitrary
+    bag of string attributes (see raw's free-form testPath/testPathComponents) -- and keeps
+    every attribute, not just type/name, so two components differing only in some other
+    attribute are never treated as the same path.
     """
-    tests: Dict[Tuple, Dict[str, bool]] = {}
+    tests: Dict[Any, Dict[str, bool]] = {}
     duration = float(0)
 
     for tc in events:
-        key = tuple((p["type"], p["name"]) for p in tc.get("testPath", []))
+        key = tc.get(BATCH_ID_KEY)
+        if key is None:
+            key = tuple(tuple(sorted(p.items())) for p in tc.get("testPath", []))
         entry = tests.setdefault(key, {"passed": False, "failed": False})
         status = tc.get("status")
         if status == 1:
