@@ -14,7 +14,7 @@
       "status": 1,
       "stdout": "",
       "stderr": "",
-      "createdAt": "2020-12-23T13:10:01+09:00",
+      "suiteTimestamp": "2020-12-23T13:10:01+09:00",
       "data": null
     },
     {
@@ -31,7 +31,7 @@
       "status": 1,
       "stdout": "",
       "stderr": "",
-      "createdAt": "2020-12-23T13:10:01+09:00",
+      "suiteTimestamp": "2020-12-23T13:10:01+09:00",
       "data": null
     },
     {
@@ -48,7 +48,7 @@
       "status": 1,
       "stdout": "",
       "stderr": "",
-      "createdAt": "2020-12-23T13:10:01+09:00",
+      "suiteTimestamp": "2020-12-23T13:10:01+09:00",
       "data": null
     },
     {
@@ -65,7 +65,7 @@
       "status": 1,
       "stdout": "",
       "stderr": "",
-      "createdAt": "2020-12-23T13:10:01+09:00",
+      "suiteTimestamp": "2020-12-23T13:10:01+09:00",
       "data": null
     },
     {
@@ -82,7 +82,7 @@
       "status": 1,
       "stdout": "",
       "stderr": "",
-      "createdAt": "2020-12-23T13:10:01+09:00",
+      "suiteTimestamp": "2020-12-23T13:10:01+09:00",
       "data": null
     }
   ],
