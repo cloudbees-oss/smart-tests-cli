@@ -84,7 +84,12 @@ def subset(
 
 
 def _parse_pytest_nodeid(nodeid: str) -> TestPath:
-    data = nodeid.split("::")
+    data = nodeid.split("::", 1)
+    if len(data) > 1:
+        # Parameter IDs may themselves contain the node separator.
+        test_name, bracket, parameter_id = data.pop().partition("[")
+        data.extend(test_name.split("::"))
+        data[-1] += bracket + parameter_id
     file = data[0]
     class_name = _path_to_class_name(file)
     normalized_file = os.path.normpath(file)
