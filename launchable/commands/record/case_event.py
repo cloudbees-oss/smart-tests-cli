@@ -1,5 +1,6 @@
 import datetime
 import sys
+import uuid
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import dateutil.parser
@@ -17,6 +18,13 @@ POSSIBLE_RESULTS = (Failure, Error, Skipped)
 # read directly off the raw element.
 RERUN_TAGS = ("rerunFailure", "rerunError")
 FLAKY_TAGS = ("flakyFailure", "flakyError")
+
+# Internal-only key tagging which original <testcase> an event came from (see
+# from_case_and_suite). Used by summarize_case_events to group retry/flaky attempts of the
+# SAME testcase without relying on testPath (which can be lossy, e.g. Maven's nested-class
+# $-stripping, or missing/extra attributes from the raw runner's free-form TestPathComponent).
+# Must be stripped before a payload is uploaded (see tests.py's payload()).
+BATCH_ID_KEY = "testcaseBatchId"
 
 CaseEventType = Dict[str, Any]
 
@@ -196,17 +204,23 @@ class CaseEvent:
 
         test_path = path_canonicalizer(path_builder(case, suite, report_file))
         data = data_builder(case)
+        # One id per original <testcase>, shared by every attempt derived from it here, so
+        # summarize_case_events can group retries correctly without relying on test_path.
+        batch_id = uuid.uuid4()
 
         return [
-            CaseEvent.create(
-                test_path=test_path,
-                duration_secs=attempt_duration,
-                status=attempt_status,
-                stdout=attempt_stdout,
-                stderr=attempt_stderr,
-                timestamp=suite.timestamp,
-                data=data,
-            )
+            {
+                **CaseEvent.create(
+                    test_path=test_path,
+                    duration_secs=attempt_duration,
+                    status=attempt_status,
+                    stdout=attempt_stdout,
+                    stderr=attempt_stderr,
+                    timestamp=suite.timestamp,
+                    data=data,
+                ),
+                BATCH_ID_KEY: batch_id,
+            }
             for attempt_status, attempt_stdout, attempt_stderr, attempt_duration in attempts
         ]
 
