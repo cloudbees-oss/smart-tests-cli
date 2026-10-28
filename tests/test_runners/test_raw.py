@@ -6,7 +6,6 @@ from unittest import mock
 
 import dateutil.parser
 import responses  # type: ignore
-from dateutil.tz import tzlocal
 
 from launchable.utils.http_client import get_base_url
 from launchable.utils.session import write_build
@@ -228,6 +227,7 @@ class RawTest(CliTestCase):
             # Check request body
             payload = json.loads(gzip.decompress(self.find_request('/events').request.body).decode())
             del payload['metadata']
+            payload.pop('agentUtcOffset', None)
             self.assert_json_orderless_equal(payload, {
                 'events': [
                     {
@@ -239,7 +239,7 @@ class RawTest(CliTestCase):
                         'status': 1,
                         'stdout': 'This is stdout',
                         'stderr': 'This is stderr',
-                        'createdAt': test_ruby_timestamp.replace(tzinfo=tzlocal()).isoformat(),
+                        'junitSuiteTimestamp': str(test_ruby_timestamp),
                         'data': None,
                         'type': 'case',
                     },
@@ -252,7 +252,7 @@ class RawTest(CliTestCase):
                         'status': 1,
                         'stdout': 'This is stdout',
                         'stderr': 'This is stderr',
-                        'createdAt': test_go_timestamp.replace(tzinfo=tzlocal()).isoformat(),
+                        'junitSuiteTimestamp': str(test_go_timestamp),
                         'data': None,
                         'type': 'case',
                     },
@@ -266,7 +266,7 @@ class RawTest(CliTestCase):
                         'status': 1,
                         'stdout': 'This is stdout',
                         'stderr': 'This is stderr',
-                        'createdAt': test_java_timestamp.replace(tzinfo=tzlocal()).isoformat(),
+                        'junitSuiteTimestamp': str(test_java_timestamp),
                         'data': None,
                         'type': 'case',
                     },
@@ -279,7 +279,7 @@ class RawTest(CliTestCase):
                         'status': 1,
                         'stdout': 'This is stdout',
                         'stderr': 'This is stderr',
-                        'createdAt': test_python_timestamp.replace(tzinfo=tzlocal()).isoformat(),
+                        'junitSuiteTimestamp': str(test_python_timestamp),
                         'data': {"lineNumber": 5},
                         'type': 'case',
                     },
@@ -335,6 +335,7 @@ class RawTest(CliTestCase):
             # Check request body
             payload = json.loads(gzip.decompress(self.find_request('/events').request.body).decode())
             del payload['metadata']
+            payload.pop('agentUtcOffset', None)
             self.assert_json_orderless_equal(payload, {
                 'events': [
                     {
@@ -346,7 +347,7 @@ class RawTest(CliTestCase):
                         'status': 1,
                         'stdout': '',
                         'stderr': '',
-                        'createdAt': timestamp1.replace(tzinfo=tzlocal()).isoformat(),
+                        'junitSuiteTimestamp': str(timestamp1),
                         'data': None,
                         'type': 'case',
                     },
@@ -359,7 +360,7 @@ class RawTest(CliTestCase):
                         'status': 1,
                         'stdout': '',
                         'stderr': '',
-                        'createdAt': timestamp2.replace(tzinfo=tzlocal()).isoformat(),
+                        'junitSuiteTimestamp': str(timestamp2),
                         'data': None,
                         'type': 'case',
                     },
