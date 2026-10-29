@@ -222,11 +222,14 @@ class CliTestCase(unittest.TestCase):
         if not payload:
             payload = self.decode_request_body(self.find_request('/events').request.body)
 
-        # Remove timestamp because it depends on the machine clock
+        # Remove the suite timestamp: goldens compared here don't assert it (it's the raw report
+        # value now; dedicated runner tests assert it directly).
         for c in payload['events']:
-            del c['createdAt']
-        # metadata includes server dependent data
+            c.pop('createdAt', None)
+            c.pop('junitSuiteTimestamp', None)
+        # metadata and the agent offset include machine/clock-dependent data
         del payload['metadata']
+        payload.pop('agentUtcOffset', None)
 
         expected = self.load_json_from_file(self.test_files_dir.joinpath(golden_image_filename))
         self.assert_json_orderless_equal(expected, payload)

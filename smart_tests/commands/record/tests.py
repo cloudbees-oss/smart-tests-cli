@@ -45,6 +45,18 @@ GROUP_NAME_RULE = re.compile("^[a-zA-Z0-9][a-zA-Z0-9_-]*$")
 RESERVED_GROUP_NAMES = ["group", "groups", "nogroup", "nogroups"]
 
 
+def _agent_utc_offset() -> str:
+    """The recording agent's current UTC offset as an ISO string (e.g. '+09:00', '+00:00').
+
+    Sent once per 'record tests' request so the server can resolve naive suite timestamps. Parseable
+    by the server's ZoneOffset.of(...).
+    """
+    offset = datetime.datetime.now().astimezone().strftime("%z")  # e.g. '+0900', '-0700', '+0000'
+    if not offset:
+        return "+00:00"
+    return offset[:3] + ":" + offset[3:5]
+
+
 def _validate_group(value):
     if value is None:
         return ""
@@ -383,6 +395,9 @@ class RecordTests:
                 # testSuite and flavors are applied only when the no-build option is enabled
                 "testSuite": test_suite_name,
                 "flavors": flavors,
+                # The recording agent's UTC offset, sent once per request. Only the client knows it;
+                # the server needs it to resolve naive (offset-less) suite timestamps.
+                "agentUtcOffset": _agent_utc_offset(),
             }, exs
 
         def send(payload: Dict[str, Union[str, List]]) -> None:
