@@ -3,10 +3,23 @@ from unittest import mock
 
 import responses  # type: ignore
 
+from launchable.test_runners.robot import parse_func
 from tests.cli_test_case import CliTestCase
 
 
 class RobotTest(CliTestCase):
+    def test_suite_start_timestamp(self):
+        # Each leaf suite carries its own start as an ISO-8601 naive string for the server to
+        # resolve. RF < 7.0 'starttime' (naive, space-separated) is normalized to ISO.
+        legacy = parse_func(str(self.test_files_dir) + "/output_legacy.xml").getroot()
+        self.assertEqual(
+            [s.get("timestamp") for s in legacy.findall("testsuite")],
+            ["2021-03-19T11:34:50.080000", "2021-03-19T11:34:50.092000"],
+        )
+        # RF 7.0+ 'start' is already ISO and passes through; every suite must be tagged.
+        modern = parse_func(str(self.test_files_dir) + "/output.xml").getroot()
+        self.assertTrue(all(s.get("timestamp") for s in modern.findall("testsuite")))
+
     @responses.activate
     @mock.patch.dict(os.environ, {"LAUNCHABLE_TOKEN": CliTestCase.launchable_token})
     def test_subset(self):
