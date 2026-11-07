@@ -212,6 +212,10 @@ class CaseEvent:
                     stdout=attempt_stdout,
                     stderr=attempt_stderr,
                     timestamp=suite.timestamp,
+                    # Raw attribute, not suite.time: junitparser coerces an absent <testsuite time>
+                    # to 0.0, which the server would treat as a zero-length suite instead of
+                    # falling back to the sum of case durations. The raw attrib is None when absent.
+                    suite_time=suite._elem.attrib.get("time"),
                     data=data,
                 ),
                 BATCH_ID_KEY: batch_id,
@@ -222,15 +226,18 @@ class CaseEvent:
     @classmethod
     def create(cls, test_path: TestPath, duration_secs: float, status,
                stdout: Optional[str] = None, stderr: Optional[str] = None,
-               timestamp: Optional[str] = None, data: Optional[Dict] = None) -> Dict:
+               timestamp: Optional[str] = None, data: Optional[Dict] = None,
+               suite_time: Optional[str] = None) -> Dict:
         """
         Builds a JSON representation of CaseEvent from arbitrary set of values
 
-        status:    TEST_FAILED or TEST_PASSED
-        timestamp: the raw <testsuite timestamp> string, sent unresolved. The server owns timezone
-                   resolution (see mothership TestTimestampResolver); the CLI holds no framework-TZ
-                   knowledge. None when the runner emits no suite timestamp.
-        data:      arbitrary data to be submitted to the server. reserved for future enhancement.
+        status:     TEST_FAILED or TEST_PASSED
+        timestamp:  the raw <testsuite timestamp> string, sent unresolved. The server owns timezone
+                    resolution (see mothership TestTimestampResolver); the CLI holds no framework-TZ
+                    knowledge. None when the runner emits no suite timestamp.
+        suite_time: the raw <testsuite time> (seconds) of the owning suite. The server folds it into
+                    the session's wall-clock span. None when the runner emits no suite time.
+        data:       arbitrary data to be submitted to the server. reserved for future enhancement.
         """
         return {
             "type": cls.EVENT_TYPE,
@@ -240,6 +247,7 @@ class CaseEvent:
             "stdout": stdout or "",
             "stderr": stderr or "",
             "junitSuiteTimestamp": timestamp,
+            "junitSuiteTime": suite_time,
             "data": data
         }
 
