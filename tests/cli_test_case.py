@@ -269,6 +269,7 @@ class CliTestCase(unittest.TestCase):
         for c in payload['events']:
             c.pop('createdAt', None)
             c.pop('junitSuiteTimestamp', None)
+            c.pop('junitSuiteTime', None)
         # metadata and the agent offset include machine/clock-dependent data
         del payload['metadata']
         payload.pop('agentUtcOffset', None)
