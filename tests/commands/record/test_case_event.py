@@ -21,3 +21,15 @@ class TestCaseEventTimestamp(unittest.TestCase):
             test_path=[], duration_secs=1.0, status=CaseEvent.TEST_PASSED, timestamp=None
         )
         self.assertIsNone(result["junitSuiteTimestamp"])
+
+    def test_suite_time_is_sent_raw(self):
+        result = CaseEvent.create(
+            test_path=[], duration_secs=1.0, status=CaseEvent.TEST_PASSED, suite_time="12.5"
+        )
+        self.assertEqual(result["junitSuiteTime"], "12.5")
+
+    def test_absent_suite_time_is_none(self):
+        result = CaseEvent.create(
+            test_path=[], duration_secs=1.0, status=CaseEvent.TEST_PASSED
+        )
+        self.assertIsNone(result["junitSuiteTime"])
