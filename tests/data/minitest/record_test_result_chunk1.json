@@ -3,87 +3,122 @@
     {
       "type": "case",
       "testPath": [
-        { "type": "file", "name": "test/models/user_copy_test.rb" },
+        {
+          "type": "file",
+          "name": "test/models/user_copy_test.rb"
+        },
         {
           "type": "testcase",
           "name": "test_should_save_user_with_name"
         },
-        { "type": "class", "name": "UserCopyTest" }
+        {
+          "type": "class",
+          "name": "UserCopyTest"
+        }
       ],
       "duration": 1.602778,
       "status": 1,
       "stdout": "",
       "stderr": "",
       "junitSuiteTimestamp": "2020-12-23T13:10:01+09:00",
-      "data": null
+      "data": null,
+      "junitSuiteTime": "3.209021"
     },
     {
       "type": "case",
       "testPath": [
-        { "type": "file", "name": "test/models/user_copy_test.rb" },
+        {
+          "type": "file",
+          "name": "test/models/user_copy_test.rb"
+        },
         {
           "type": "testcase",
           "name": "test_should_not_save_user_without_name"
         },
-        { "type": "class", "name": "UserCopyTest" }
+        {
+          "type": "class",
+          "name": "UserCopyTest"
+        }
       ],
       "duration": 1.606243,
       "status": 1,
       "stdout": "",
       "stderr": "",
       "junitSuiteTimestamp": "2020-12-23T13:10:01+09:00",
-      "data": null
+      "data": null,
+      "junitSuiteTime": "3.209021"
     },
     {
       "type": "case",
       "testPath": [
-        { "type": "file", "name": "test/models/admin/user_test.rb" },
+        {
+          "type": "file",
+          "name": "test/models/admin/user_test.rb"
+        },
         {
           "type": "testcase",
           "name": "test_should_not_save_user_without_name"
         },
-        { "type": "class", "name": "Admin::UserTest" }
+        {
+          "type": "class",
+          "name": "Admin::UserTest"
+        }
       ],
       "duration": 1.611738,
       "status": 1,
       "stdout": "",
       "stderr": "",
       "junitSuiteTimestamp": "2020-12-23T13:10:01+09:00",
-      "data": null
+      "data": null,
+      "junitSuiteTime": "3.218767"
     },
     {
       "type": "case",
       "testPath": [
-        { "type": "file", "name": "test/models/admin/user_test.rb" },
+        {
+          "type": "file",
+          "name": "test/models/admin/user_test.rb"
+        },
         {
           "type": "testcase",
           "name": "test_should_save_user_with_name"
         },
-        { "type": "class", "name": "Admin::UserTest" }
+        {
+          "type": "class",
+          "name": "Admin::UserTest"
+        }
       ],
       "duration": 1.607029,
       "status": 1,
       "stdout": "",
       "stderr": "",
       "junitSuiteTimestamp": "2020-12-23T13:10:01+09:00",
-      "data": null
+      "data": null,
+      "junitSuiteTime": "3.218767"
     },
     {
       "type": "case",
       "testPath": [
-        { "type": "file", "name": "test/models/open_class_user_test.rb" },
+        {
+          "type": "file",
+          "name": "test/models/open_class_user_test.rb"
+        },
         {
           "type": "testcase",
           "name": "test_should_not_save_user_without_name_2"
         },
-        { "type": "class", "name": "UserTest" }
+        {
+          "type": "class",
+          "name": "UserTest"
+        }
       ],
       "duration": 1.614255,
       "status": 1,
       "stdout": "",
       "stderr": "",
       "junitSuiteTimestamp": "2020-12-23T13:10:01+09:00",
-      "data": null
+      "data": null,
+      "junitSuiteTime": "1.614255"
     }
   ],
   "testRunner": "minitest"
