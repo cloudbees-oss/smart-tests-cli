@@ -3,50 +3,74 @@
     {
       "type": "case",
       "testPath": [
-        { "type": "file", "name": "test/controllers/user_test.rb" },
+        {
+          "type": "file",
+          "name": "test/controllers/user_test.rb"
+        },
         {
           "type": "testcase",
           "name": "test_should_save_user_with_name"
         },
-        { "type": "class", "name": "UserControllerTest" }
+        {
+          "type": "class",
+          "name": "UserControllerTest"
+        }
       ],
       "duration": 1.617726,
       "status": 1,
       "stdout": "",
       "stderr": "",
       "junitSuiteTimestamp": "2020-12-23T13:10:01+09:00",
-      "data": null
+      "data": null,
+      "junitSuiteTime": "3.229711"
     },
     {
       "type": "case",
       "testPath": [
-        { "type": "file", "name": "test/controllers/user_test.rb" },
+        {
+          "type": "file",
+          "name": "test/controllers/user_test.rb"
+        },
         {
           "type": "testcase",
           "name": "test_should_not_save_user_without_name"
         },
-        { "type": "class", "name": "UserControllerTest" }
+        {
+          "type": "class",
+          "name": "UserControllerTest"
+        }
       ],
       "duration": 1.611985,
       "status": 1,
       "stdout": "",
       "stderr": "",
       "junitSuiteTimestamp": "2020-12-23T13:10:01+09:00",
-      "data": null
+      "data": null,
+      "junitSuiteTime": "3.229711"
     },
     {
       "type": "case",
       "testPath": [
-        { "type": "file", "name": "test/models/admin/user_test.rb" },
-        { "type": "testcase", "name": "test_child" },
-        { "type": "class", "name": "Admin::UserTest::ChildlenTest" }
+        {
+          "type": "file",
+          "name": "test/models/admin/user_test.rb"
+        },
+        {
+          "type": "testcase",
+          "name": "test_child"
+        },
+        {
+          "type": "class",
+          "name": "Admin::UserTest::ChildlenTest"
+        }
       ],
       "duration": 1.599567,
       "status": 1,
       "stdout": "",
       "stderr": "",
       "junitSuiteTimestamp": "2020-12-23T13:10:01+09:00",
-      "data": null
+      "data": null,
+      "junitSuiteTime": "1.599567"
     }
   ],
   "testRunner": "minitest"

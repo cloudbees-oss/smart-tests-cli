@@ -148,6 +148,12 @@ def record_tests(
                 "type": "string",
                 "format": "date-time"
               },
+              "junitSuiteTime": {
+                "description": "Wall-clock duration (seconds) of the suite this test belongs to, from the JUnit
+                <testsuite time> attribute. Used to compute session elapsed time. If unspecified, the server falls
+                back to the sum of case durations.",
+                "type": "string"
+              },
               "data": {
                 "description": "Metadata of the test, e.g. line number.",
                 "type": "object",
@@ -223,6 +229,9 @@ def record_tests(
                 fail(f"The duration of {test_path_components} should be positive (was {duration_secs})")
             dateutil.parser.parse(created_at)
             metadata = case.get('data', None)
+            suite_time = case.get('junitSuiteTime', None)
+            if suite_time is not None:
+                suite_time = str(suite_time)
 
             yield CaseEvent.create(
                 test_path=test_path_components,
@@ -231,7 +240,8 @@ def record_tests(
                 stdout=case.get('stdout', ''),
                 stderr=case.get('stderr', ''),
                 timestamp=created_at,
-                data=metadata)
+                data=metadata,
+                suite_time=suite_time)
 
     for test_result_file in test_result_files:
         if not test_result_file.endswith('.xml'):
