@@ -1,50 +1,114 @@
 include::ROOT:partial$abbr.adoc[]
 :slug: migration-to-github-oidc-auth
-= Update tokenless authentication to use GitHub OIDC
+= Migrate from the legacy GitHub Actions OIDC flow
 
-Authentication between the {PRODUCT} CLI and {PRODUCT} API typically requires an API key. As an alternative, {PRODUCT} supports _tokenless authentication_ using GitHub's OpenID Connect (OIDC) tokens. Instead of a static API key, GitHub Actions issues a short-lived signed token for each workflow run, which {PRODUCT} verifies directly — no key rotation or secrets management required.
+If your GitHub Actions workflow sets `EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH=1`, it is using the *legacy* GitHub Actions OIDC flow. That flow still works with the *latest* CLI but is deprecated: new pipelines should use the generic OIDC flow instead, and existing pipelines should migrate.
 
-This method works for any GitHub repository (public or private) that uses GitHub Actions for CI.
+For the recommended, non-deprecated setup, refer to xref:send-data-to-smart-tests:set-up-smart-tests/oidc-pipeline-authentication.adoc[Authenticate a pipeline with OIDC].
+
+[NOTE]
+--
+*Migrate at your own pace.* {PRODUCT} automatically falls back to the legacy `repository`-claim verification when a GitHub Actions token has no matching *Trusted OIDC subject* registered yet, so pipelines that still rely on a legacy repository-to-workspace association keep authenticating, whether they run the latest CLI or an older release. Upgrade the CLI to the latest version anyway: it sends an explicit signal that keeps routing deterministic and requests the correct audience for the generic flow.
+--
+
+[#compare]
+== The two flows compared
+
+[cols="1,2,2",options="header"]
+|===
+| Aspect | Legacy (deprecated) | Generic (recommended)
+
+| CLI env var
+| `EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH=1`
+| `SMART_TESTS_GITHUB_OIDC_TOKEN_AUTH=1`
+
+| What {PRODUCT} matches
+| The `repository` claim on the GitHub id-token, against a repository-to-workspace association in an internal table.
+| The normalized `sub` claim (`repo:OWNER/REPO`) against a *Trusted OIDC subject* in your workspace.
+
+| How the mapping is created
+| CloudBees Support must associate your GitHub repository with your workspace. You cannot self-serve.
+| Self-service in the web app under *Settings → Trusted OIDC subjects*.
+
+| Workflow YAML
+| Requires `SMART_TESTS_ORGANIZATION` and `SMART_TESTS_WORKSPACE` (as UUIDs) in the workflow.
+| `SMART_TESTS_ORGANIZATION` and `SMART_TESTS_WORKSPACE` are exported by `smart-tests verify --oidc`, so the workflow does not hardcode them.
+
+| Audience check
+| Not enforced.
+| Enforced: the id-token must carry `\https://app.cloudbees.io/smart-tests` in its `aud` claim. The CLI requests this automatically.
+
+| Status
+| Deprecated. Kept working for backward compatibility; will be removed in a future release.
+| Recommended for all new and existing pipelines.
+|===
+
+[#migrate]
+== Migrate an existing workflow to the generic flow
+
+. *Upgrade the {PRODUCT} CLI* in your workflow to the latest version (`pip install --upgrade smart-tests`).
+. Run the pipeline once with `smart-tests verify --oidc` under the generic flow to obtain your repository's normalized subject. You can do this in a temporary branch by replacing the legacy env var with the generic one and letting the first run fail:
++
+[source,yaml]
+----
+env:
+  SMART_TESTS_GITHUB_OIDC_TOKEN_AUTH: '1'
+  # Remove the legacy env var:
+  # EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH: '1'
+  # Remove the hard-coded org/workspace, `verify --oidc` exports them:
+  # SMART_TESTS_ORGANIZATION: "..."
+  # SMART_TESTS_WORKSPACE: "..."
+
+permissions:
+  id-token: write
+  contents: read
+
+# ...
+steps:
+  - run: pip install --upgrade smart-tests
+  - run: |
+      eval "$(smart-tests verify --oidc)"
+      smart-tests record build --name "gh-${GITHUB_RUN_ID}"
+----
+. Copy the `normalized-sub` block from the pipeline log (it looks like `repo:OWNER/REPO`) and register it in the {PRODUCT} web app under *Settings → Trusted OIDC subjects*. For more information, refer to xref:send-data-to-smart-tests:set-up-smart-tests/oidc-pipeline-authentication.adoc#register-subject[Register the pipeline] for the exact steps.
+. Re-run the pipeline. It now succeeds under the generic flow.
+. Once verified, remove the legacy `EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH` env var and any hardcoded `SMART_TESTS_ORGANIZATION` / `SMART_TESTS_WORKSPACE` from the workflow permanently.
+
+[NOTE]
+--
+The legacy repository-to-workspace association in {PRODUCT}'s internal database is left in place after migration, it is simply no longer consulted. You do not need to contact Support to remove it. If you want to fall back to the legacy path temporarily, put `EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH=1` back and the CLI will route through the legacy code path.
+--
+
+[#legacy-reference]
+== Legacy flow reference
+
+Keep this section for existing workflows that have not yet migrated. New setups should use xref:send-data-to-smart-tests:set-up-smart-tests/oidc-pipeline-authentication.adoc[the generic flow] instead.
+
+=== Prerequisites
+
+* Your repository is hosted on GitHub (public or private).
+* Your CI pipeline uses GitHub Actions.
+* The *latest* {PRODUCT} CLI is installed in your workflow. Older releases still authenticate through the automatic legacy fallback; use the latest release so routing stays explicit.
+* CloudBees Support has associated your GitHub repository with your {PRODUCT} workspace. If you have not yet done so, contact link:https://support.cloudbees.com[CloudBees Support] with your {PRODUCT} organization, workspace, and GitHub `owner/repo`.
 
 [NOTE]
 --
 Tokenless authentication does not work for workflows triggered by pull requests from *forked* repositories. GitHub does not issue OIDC tokens in that context.
 --
 
-[#setup-tokenless-authentication]
-== Set up tokenless authentication
-
-=== Prerequisites
-
-* Your repository is hosted on GitHub (public or private).
-* Your CI pipeline uses GitHub Actions.
-
-=== Preparation
-
-. Navigate to link:https://cloudbees.io[https://cloudbees.io] and xref:cloudbees-unify:teams-users:users.adoc#signup[sign up].
-. Create an xref:concepts:organization.adoc[Organization] and a xref:concepts:workspace.adoc[Workspace] for your test suite.
-. Contact link:https://support.cloudbees.com[CloudBees Support] to enable tokenless authentication for your project. We need to know your {PRODUCT} organization, {PRODUCT} workspace, and GitHub repository (`owner/repo`).
-. Update your GitHub Actions YAML.
-. Start using {PRODUCT} in your project.
-
-[WARNING]
---
-Tokenless authentication only works after we have associated your GitHub repository with your {PRODUCT} workspace in our internal database. Contact link:https://support.cloudbees.com[CloudBees Support] and share your Git repository (`owner/repo`) if using GitHub OIDC, so that we can enable tokenless authentication for it.
---
-
 [#find-organization-and-workspace]
-==== Find your organization and workspace IDs in {UNIFY}
+=== Find your organization and workspace IDs in {UNIFY}
 
 [IMPORTANT]
 --
-Organization and workspace display names are not unique and should not be used. For now, you must set the *IDs* (UUIDs) in the `SMART_TESTS_ORGANIZATION` and `SMART_TESTS_WORKSPACE` environment variables. Using display names can resolve to the wrong workspace and cause authentication to fail.
+Organization and workspace display names are not unique and should not be used. In the legacy flow you must set the *IDs* (UUIDs) in the `SMART_TESTS_ORGANIZATION` and `SMART_TESTS_WORKSPACE` environment variables. Using display names can resolve to the wrong workspace and cause authentication to fail. (The generic flow avoids this entirely, `verify --oidc` derives the correct IDs from the registered subject.)
 --
 
 {PRODUCT} is integrated with the {UNIFY}, where organizations can be nested. {PRODUCT} flattens this hierarchy: the *top-level (root) organization* maps to your {PRODUCT} *organization*, and every sub-organization (at any nesting depth) maps to a {PRODUCT} *workspace* under that same organization.
 
 This means:
 
-* `SMART_TESTS_ORGANIZATION` is the *top-level (root parent) organization ID* in {UNIFY}
+* `SMART_TESTS_ORGANIZATION` is the *top-level (root parent) organization ID* in {UNIFY}.
 * `SMART_TESTS_WORKSPACE` is the ID of the *sub-organization* whose data you want to send to {PRODUCT}.
 
 For example, given the following {UNIFY} org hierarchy:
@@ -76,15 +140,15 @@ Find the *sub-organization ID* by selecting that sub-organization in the CloudBe
 
 If you need help finding the correct IDs, contact link:https://support.cloudbees.com[CloudBees Support].
 
-==== GitHub Actions YAML configuration
+=== GitHub Actions YAML configuration (legacy)
 
-Once tokenless authentication is enabled for your project, do the following:
+Once tokenless authentication is enabled for your project by Support, do the following:
 
 . Configure environment variables in your CI pipeline:
 
 .. `SMART_TESTS_ORGANIZATION`: top-level (root) organization ID (UUID)
 .. `SMART_TESTS_WORKSPACE`: sub-organization ID (UUID) whose data you want to send
-.. `EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH`: Set this to 1
+.. `EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH`: set this to `1`
 
 . Add the `permissions` section of your GitHub Actions YAML file.
 
@@ -92,9 +156,9 @@ Tokenless authentication relies on OpenID Connect (OIDC) tokens. To use an OIDC 
 
 This permission can be added for one job or to the entire workflow:
 
-[source,role="default=expand"]
+[source,yaml,role="default=expand"]
 ----
-name: Verify Smart Tests tokenless authentication
+name: Verify Smart Tests tokenless authentication (legacy)
 
 on:
   pull_request:
@@ -105,7 +169,7 @@ env:
   # Use your organization and workspace IDs (UUIDs), not their display names.
   SMART_TESTS_ORGANIZATION: "00000000-0000-0000-0000-000000000000"
   SMART_TESTS_WORKSPACE: "11111111-1111-1111-1111-111111111111"
-  EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH: 1
+  EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH: '1'
 
 permissions:
   id-token: write
@@ -116,18 +180,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v2
-      - name: Set up JDK 1.8
-        uses: actions/setup-java@v1
+      - uses: actions/setup-python@v5
         with:
-          java-version: 1.8
+          python-version: '3.13'
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 8
 
       - name: {PRODUCT}
         run: |
-          pip3 install --user smart-tests~=1.0
+          pip install --user --upgrade smart-tests
           export PATH=~/.local/bin:$PATH
           smart-tests verify
         working-directory: ./gradle
@@ -141,13 +208,17 @@ GitHub provides a detailed explanation and example of the OIDC token. For more i
 
 === How does {PRODUCT} verify the OIDC token?
 
-When you apply for tokenless authentication, we associate your GitHub repository with your {PRODUCT} workspace in our internal database.
+In the *generic* flow (recommended), the CLI presents a GitHub id-token that has `\https://app.cloudbees.io/smart-tests` as its `aud`. {PRODUCT} verifies the signature against GitHub's public JWKS and checks that the normalized `sub` (`repo:OWNER/REPO`) is registered as a *Trusted OIDC subject* in your workspace.
 
-When you run the CLI, the {PRODUCT} API server verifies the OIDC token and checks that the `repository` claim in it matches the stored association.
+In the *legacy* flow, when you apply for tokenless authentication we associate your GitHub repository with your {PRODUCT} workspace in an internal database. When you run the CLI, the {PRODUCT} API server verifies the OIDC token and checks that the `repository` claim in it matches the stored association.
 
-=== Can I see how the CLI handles the OIDC token?
+=== Why is the legacy flow being deprecated?
 
-Yes. Review these commits in the public CLI repository:
+Two reasons:
 
-* https://github.com/launchableinc/cli/commit/945597f3fffeb49cd5968ba29054de78505aab61[https://github.com/launchableinc/cli/commit/945597f3fffeb49cd5968ba29054de78505aab61]
-* https://github.com/launchableinc/cli/commit/68b06c01607b43bed33b2f774f424f7a8c220af6[https://github.com/launchableinc/cli/commit/68b06c01607b43bed33b2f774f424f7a8c220af6]
+* The generic flow is fully self-service, no Support ticket is required to onboard a new repository.
+* One authentication code path covers every CI provider, which reduces the surface for bugs and makes it easier to reason about audit trails and revocation.
+
+=== I have an older CLI in my workflow. What happens?
+
+The pipeline keeps authenticating. An older CLI does not send the `GitHub-OIDC-Legacy` header, so its token takes the generic path on the server, but {PRODUCT} automatically falls back to the legacy `repository`-claim verification for a workspace that still has a legacy repository association and no registered *Trusted OIDC subject*. Upgrade to the latest CLI anyway so routing is explicit and the correct audience is requested, then migrate to the generic flow as described above.

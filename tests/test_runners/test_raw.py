@@ -6,7 +6,6 @@ from unittest import mock
 
 import dateutil.parser
 import responses  # type: ignore
-from dateutil.tz import tzlocal
 
 from smart_tests.test_runners.raw import _needs_test_path_file
 from smart_tests.utils.http_client import get_base_url
@@ -170,6 +169,7 @@ class RawTest(CliTestCase):
                     '       "stdout": "This is stdout",',
                     '       "stderr": "This is stderr",',
                     f'       "createdAt": "{test_python_timestamp}",',
+                    '       "junitSuiteTime": "12.5",',
                     '       "data": {',
                     '         "lineNumber": 5',
                     '       }',
@@ -229,6 +229,7 @@ class RawTest(CliTestCase):
             # Check request body
             payload = json.loads(gzip.decompress(self.find_request('/events').request.body).decode())
             del payload['metadata']
+            payload.pop('agentUtcOffset', None)
             self.assert_json_orderless_equal(payload, {
                 'events': [
                     {
@@ -240,7 +241,8 @@ class RawTest(CliTestCase):
                         'status': 1,
                         'stdout': 'This is stdout',
                         'stderr': 'This is stderr',
-                        'createdAt': test_ruby_timestamp.replace(tzinfo=tzlocal()).isoformat(),
+                        'junitSuiteTimestamp': str(test_ruby_timestamp),
+                        'junitSuiteTime': None,
                         'data': None,
                         'type': 'case',
                     },
@@ -253,7 +255,8 @@ class RawTest(CliTestCase):
                         'status': 1,
                         'stdout': 'This is stdout',
                         'stderr': 'This is stderr',
-                        'createdAt': test_go_timestamp.replace(tzinfo=tzlocal()).isoformat(),
+                        'junitSuiteTimestamp': str(test_go_timestamp),
+                        'junitSuiteTime': None,
                         'data': None,
                         'type': 'case',
                     },
@@ -267,7 +270,8 @@ class RawTest(CliTestCase):
                         'status': 1,
                         'stdout': 'This is stdout',
                         'stderr': 'This is stderr',
-                        'createdAt': test_java_timestamp.replace(tzinfo=tzlocal()).isoformat(),
+                        'junitSuiteTimestamp': str(test_java_timestamp),
+                        'junitSuiteTime': None,
                         'data': None,
                         'type': 'case',
                     },
@@ -280,7 +284,8 @@ class RawTest(CliTestCase):
                         'status': 1,
                         'stdout': 'This is stdout',
                         'stderr': 'This is stderr',
-                        'createdAt': test_python_timestamp.replace(tzinfo=tzlocal()).isoformat(),
+                        'junitSuiteTimestamp': str(test_python_timestamp),
+                        'junitSuiteTime': '12.5',
                         'data': {"lineNumber": 5},
                         'type': 'case',
                     },
@@ -333,6 +338,7 @@ class RawTest(CliTestCase):
             # Check request body
             payload = json.loads(gzip.decompress(self.find_request('/events').request.body).decode())
             del payload['metadata']
+            payload.pop('agentUtcOffset', None)
             self.assert_json_orderless_equal(payload, {
                 'events': [
                     {
@@ -344,7 +350,8 @@ class RawTest(CliTestCase):
                         'status': 1,
                         'stdout': '',
                         'stderr': '',
-                        'createdAt': timestamp1.replace(tzinfo=tzlocal()).isoformat(),
+                        'junitSuiteTimestamp': str(timestamp1),
+                        'junitSuiteTime': '10.123',
                         'data': None,
                         'type': 'case',
                     },
@@ -357,7 +364,8 @@ class RawTest(CliTestCase):
                         'status': 1,
                         'stdout': '',
                         'stderr': '',
-                        'createdAt': timestamp2.replace(tzinfo=tzlocal()).isoformat(),
+                        'junitSuiteTimestamp': str(timestamp2),
+                        'junitSuiteTime': '12.345',
                         'data': None,
                         'type': 'case',
                     },

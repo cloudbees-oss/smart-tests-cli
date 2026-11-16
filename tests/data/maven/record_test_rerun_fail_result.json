@@ -1,0 +1,99 @@
+{
+    "events": [
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.cloudbees.app.AlwaysFailingTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "neverPasses"
+                }
+            ],
+            "duration": 0.001,
+            "status": 0,
+            "stdout": "",
+            "stderr": "org.opentest4j.AssertionFailedError: This test always fails, even after every Surefire rerun attempt\n    at org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:38)\n    at org.junit.jupiter.api.Assertions.fail(Assertions.java:138)\n    at com.cloudbees.app.AlwaysFailingTest.neverPasses(AlwaysFailingTest.java:11)\n    at java.base/java.lang.reflect.Method.invoke(Method.java:583)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n",
+            "data": null
+        },
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.cloudbees.app.AlwaysFailingTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "neverPasses"
+                }
+            ],
+            "duration": 0.0,
+            "status": 0,
+            "stdout": "",
+            "stderr": "org.opentest4j.AssertionFailedError: This test always fails, even after every Surefire rerun attempt\n    at org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:38)\n    at org.junit.jupiter.api.Assertions.fail(Assertions.java:138)\n    at com.cloudbees.app.AlwaysFailingTest.neverPasses(AlwaysFailingTest.java:11)\n    at java.base/java.lang.reflect.Method.invoke(Method.java:583)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n",
+            "data": null
+        },
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.cloudbees.app.AlwaysFailingTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "neverPasses"
+                }
+            ],
+            "duration": 0.0,
+            "status": 0,
+            "stdout": "",
+            "stderr": "org.opentest4j.AssertionFailedError: This test always fails, even after every Surefire rerun attempt\n    at org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:38)\n    at org.junit.jupiter.api.Assertions.fail(Assertions.java:138)\n    at com.cloudbees.app.AlwaysFailingTest.neverPasses(AlwaysFailingTest.java:11)\n    at java.base/java.lang.reflect.Method.invoke(Method.java:583)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n",
+            "data": null
+        },
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.cloudbees.app.AlwaysFailingTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "neverPasses"
+                }
+            ],
+            "duration": 0.0,
+            "status": 0,
+            "stdout": "",
+            "stderr": "org.opentest4j.AssertionFailedError: This test always fails, even after every Surefire rerun attempt\n    at org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:38)\n    at org.junit.jupiter.api.Assertions.fail(Assertions.java:138)\n    at com.cloudbees.app.AlwaysFailingTest.neverPasses(AlwaysFailingTest.java:11)\n    at java.base/java.lang.reflect.Method.invoke(Method.java:583)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n",
+            "data": null
+        },
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.cloudbees.app.AlwaysFailingTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "neverPasses"
+                }
+            ],
+            "duration": 0.0,
+            "status": 0,
+            "stdout": "",
+            "stderr": "org.opentest4j.AssertionFailedError: This test always fails, even after every Surefire rerun attempt\n    at org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:38)\n    at org.junit.jupiter.api.Assertions.fail(Assertions.java:138)\n    at com.cloudbees.app.AlwaysFailingTest.neverPasses(AlwaysFailingTest.java:11)\n    at java.base/java.lang.reflect.Method.invoke(Method.java:583)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n",
+            "data": null
+        }
+    ],
+    "testRunner": "maven",
+    "group": "",
+    "noBuild": false,
+    "flavors": [],
+    "testSuite": ""
+}

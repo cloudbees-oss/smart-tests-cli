@@ -502,6 +502,16 @@ The `--session` parameter is required and must use the session name that was reg
 |No
 
 // GENERATED. MODIFY IN CLI SOURCE CODE
+|`--fallback-mode` FALLBACKMODE
+|Behavior when the subset API is unavailable or the model is untrained. 'run-all' (default) runs all tests as usual; 'stop' exits with a non-zero status so CI halts; 'random-sample' picks a random subset locally based on thecount derived from --fallback-sampling-target (no duration estimates are available in this path). Exception: if the model is untrained (brainless mode), theserver has already split the tests, so 'random-sample' keeps that server-provided split as-is instead of sampling locally; the local random sample only applies when the subset API request itself fails.
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--fallback-sampling-target` PERCENTAGE
+|Sampling ratio (0%–100%) used when --fallback-mode=random-sample. Required when --fallback-mode=random-sample is specified.
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
 |`--from-github-actions`
 |Required to identify GitHub App mode. Cannot be used with --session.
 |No

@@ -1,0 +1,99 @@
+{
+    "events": [
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.cloudbees.app.FlakyPassesOnFinalRerunTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "passesOnlyOnTheLastAllowedRerun"
+                }
+            ],
+            "duration": 0.0,
+            "status": 0,
+            "stdout": "",
+            "stderr": "org.opentest4j.AssertionFailedError: Fails on the original run and all 4 reruns except the last one ==> expected: <true> but was: <false>\n    at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)\n    at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)\n    at org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)\n    at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)\n    at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)\n    at com.cloudbees.app.FlakyPassesOnFinalRerunTest.passesOnlyOnTheLastAllowedRerun(FlakyPassesOnFinalRerunTest.java:16)\n    at java.base/java.lang.reflect.Method.invoke(Method.java:583)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n",
+            "data": null
+        },
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.cloudbees.app.FlakyPassesOnFinalRerunTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "passesOnlyOnTheLastAllowedRerun"
+                }
+            ],
+            "duration": 0.0,
+            "status": 0,
+            "stdout": "",
+            "stderr": "org.opentest4j.AssertionFailedError: Fails on the original run and all 4 reruns except the last one ==> expected: <true> but was: <false>\n    at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)\n    at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)\n    at org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)\n    at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)\n    at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)\n    at com.cloudbees.app.FlakyPassesOnFinalRerunTest.passesOnlyOnTheLastAllowedRerun(FlakyPassesOnFinalRerunTest.java:16)\n    at java.base/java.lang.reflect.Method.invoke(Method.java:583)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n",
+            "data": null
+        },
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.cloudbees.app.FlakyPassesOnFinalRerunTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "passesOnlyOnTheLastAllowedRerun"
+                }
+            ],
+            "duration": 0.0,
+            "status": 0,
+            "stdout": "",
+            "stderr": "org.opentest4j.AssertionFailedError: Fails on the original run and all 4 reruns except the last one ==> expected: <true> but was: <false>\n    at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)\n    at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)\n    at org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)\n    at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)\n    at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)\n    at com.cloudbees.app.FlakyPassesOnFinalRerunTest.passesOnlyOnTheLastAllowedRerun(FlakyPassesOnFinalRerunTest.java:16)\n    at java.base/java.lang.reflect.Method.invoke(Method.java:583)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n",
+            "data": null
+        },
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.cloudbees.app.FlakyPassesOnFinalRerunTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "passesOnlyOnTheLastAllowedRerun"
+                }
+            ],
+            "duration": 0.0,
+            "status": 0,
+            "stdout": "",
+            "stderr": "org.opentest4j.AssertionFailedError: Fails on the original run and all 4 reruns except the last one ==> expected: <true> but was: <false>\n    at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)\n    at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)\n    at org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)\n    at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)\n    at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)\n    at com.cloudbees.app.FlakyPassesOnFinalRerunTest.passesOnlyOnTheLastAllowedRerun(FlakyPassesOnFinalRerunTest.java:16)\n    at java.base/java.lang.reflect.Method.invoke(Method.java:583)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n",
+            "data": null
+        },
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.cloudbees.app.FlakyPassesOnFinalRerunTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "passesOnlyOnTheLastAllowedRerun"
+                }
+            ],
+            "duration": 0.05,
+            "status": 1,
+            "stdout": "",
+            "stderr": "",
+            "data": null
+        }
+    ],
+    "testRunner": "maven",
+    "group": "",
+    "noBuild": false,
+    "flavors": [],
+    "testSuite": ""
+}

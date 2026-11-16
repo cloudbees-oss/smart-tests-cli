@@ -1,26 +1,181 @@
 include::ROOT:partial$abbr.adoc[]
 :slug: integrations
-= Integrations
+= Supported test frameworks and integrations
 
-The {PRODUCT} CLI includes pre-built integrations that interface with popular test runners and build tools to send data to {PRODUCT} without needing to write custom scripts.
+The {PRODUCT} CLI includes built-in integrations for test runners and build tools that execute tests built using various frameworks. {PRODUCT} works with any test framework, as long as a supported test runner or build tool is used to run tests. The integrations interface with popular test runners and build tools to send data to {PRODUCT} without needing to write custom scripts.
 
-The following list describes how to use the CLI with each of these integrations. If your test runner or build tool is not listed, consider the <<other-integrations>> options.
+The following list describes how to use the CLI with each of these frameworks and integrations. If your test runner or build tool is not listed, consider the <<other-integrations>> options.
+
+[#supported-test-frameworks]
+== Supported test frameworks
+
+The following list identifies the supported test frameworks and their corresponding test runners or build tools that integrate with {PRODUCT}.
+
+.Supported test framework and integrations
+[cols="1,1", options="header"]
+|===
+| Test framework | Integrations
+| Appium | <<adb>>, <<gradle>>, <<maven>>, <<pytest>>
+| Cucumber | <<cucumber>>
+| GoogleTest | <<googletest>>
+| Jest | <<jest>>
+| JUnit | <<gradle>>, <<maven>>
+| minitest | <<minitest>>
+| nose | <<pytest>>
+| NUnit | <<dotnet-test>>
+| prove | <<prove-for-perl>>
+| pytest | <<pytest>>
+| Robot | <<robot>>
+| RSpec | <<rspec>>
+| Selenium | <<ant>>, <<gradle>>, <<maven>>, <<pytest>>
+| TestNG | <<gradle>>, <<maven>>
+|===
+
+[#android-cts]
+== Android Compatibility Test Suite (CTS)
+
+{PRODUCT} interfaces with Android-CTS via the {PRODUCT} CLI.
+
+=== Android-CTS recording test results
+
+After running tests, point the CLI to your test report file(s):
+
+`smart-tests record tests cts --no-build android-cts/results/**/*.xml`
+
+=== Android-CTS subsetting
+
+This profile only supports xref:send-data-to-smart-tests:subset/zero-input-subsetting.adoc[].
 
 [#adb]
 == Android Debug Bridge (adb)
 
+{PRODUCT} interfaces with ADB via the {PRODUCT} CLI.
+
+=== ADB recording test results
+
 Currently, the CLI doesn't have a `record tests` command for ADB. Use the command for <<gradle>> instead.
 
-For more information on subsetting with ADB, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#android-adb-subset[Subset with the {PRODUCT} CLI for Android Debug Bridge (adb)].
+=== ADB subsetting
+
+First, request a subset of tests from your entire test suite. Then, pass this list to `adb` to run.
+
+==== Request a subset of tests
+
+Find the `adb` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Duplicate the `adb` command you normally use to run tests and add the `-e log true` option.
+. Then, output the result to a text file. For example:
++
+`adb shell am instrument <OPTIONS> -e log true com.yourdomain.test/androidx.test.runner.AndroidJUnitRunner > test_list.txt`
++
+This command outputs the full list of tests that would normally run (without actually running them) to a file called `test_list.txt`.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset adb --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of test classes formatted for passing into your normal `adb` command, shown next.
+
+==== Run a subset of tests
+
+Now the subset of tests can only be run by adding the `-e class $(cat smart-tests-subset.txt)` option to your standard `adb` command, like this:
+
+`adb shell am instrument <OPTIONS> -e class $(cat smart-tests-subset.txt) com.yourdomain.test/androidx.test.runner.AndroidJUnitRunner`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+adb shell am instrument <OPTIONS> com.yourdomain.test/androidx.test.runner.AndroidJUnitRunner
+----
+
+And the flow after:
+
+[source]
+----
+# generate the complete list of tests in your suite
+adb shell am instrument <OPTIONS> -e log true com.yourdomain.test/androidx.test.runner.AndroidJUnitRunner > test_list.txt
+# request a subset from the full list
+cat test_list.txt | smart-tests subset adb --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+adb shell am instrument <OPTIONS> -e class $(cat smart-tests-subset.txt) com.yourdomain.test/androidx.test.runner.AndroidJUnitRunner
+----
 
 [#ant]
 == Ant
 
 {PRODUCT} interfaces with Ant via the {PRODUCT} CLI.
 
-For more information on recording test results with Ant, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#ant[Record test results with the {PRODUCT} CLI for Ant].
+[#ant-recording]
+=== Ant recording test results
 
-For more information on subsetting with Ant, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#ant-subset[Subset with the {PRODUCT} CLI for Ant].
+. After running tests, point the CLI to your test report file(s):
++
+`smart-tests record tests ant --no-build <PATH(S) TO JUNIT XML FILE(S)>`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[ensure record tests always runs].
+
+[#ant-subsetting]
+=== Ant subsetting
+
+First, request a subset of tests from your complete suite. Then, pass this list into your `build.xml` file to limit what Ant runs.
+
+==== Request a subset of tests
+
+. Find the `ant` command used to run tests in your CI script.
+
+. Before that command, add the `smart-tests subset` command to request a subset of tests from your full test suite:
++
+`smart-tests subset ant --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> <PATH TO SOURCE> > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* Set `<PATH TO SOURCE>` to the path(s) containing your test files. The CLI will look in those path(s) and generate the full list of tests that would normally run. The subset service divides this whole list into a subset and a remainder.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of test classes formatted for passing into your `build.xml` file, shown next.
+
+==== Run a subset of tests
+
+Separately, update your `build.xml` file to use `smart-tests-subset.txt`:
+
+[source]
+----
+<project>
+  …
+  <target name="check-launchable">
+    <available file="smart-tests-subset.txt" property="smart-tests"/>
+  </target>
+
+  <target name="junit" depends="jar,check-launchable">
+    <mkdir dir="${report.dir}"/>
+    <junit printsummary="yes">
+      <classpath>
+          <path refid="classpath"/>
+          <path refid="application"/>
+      </classpath>
+
+      <formatter type="xml"/>
+
+      <batchtest fork="yes" todir="${report.dir}">
+        <fileset dir="${src.dir}" >
+          <includesfile name="smart-tests-subset.txt" if="${smart-tests}" />
+          <include name="**/*Test.java" unless="${smart-tests}" />
+        </fileset>
+      </batchtest>
+    </junit>
+  </target>
+  …
+</project>
+----
+
+Run your tests as normal, such as:
+
+`ant junit <OPTIONS>`
 
 
 [#bazel]
@@ -28,193 +183,1765 @@ For more information on subsetting with Ant, refer to xref:send-data-to-smart-te
 
 {PRODUCT} interfaces with Bazel via the {PRODUCT} CLI.
 
-For more information on recording test results with Bazel, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#bazel[Record test results with the {PRODUCT} CLI for Bazel].
+=== Bazel recording test results
 
-For more information on subsetting with Bazel, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#bazel-subset[Subset with the {PRODUCT} CLI for Bazel].
+. After running tests, point the CLI to your test report files to record test results:
++
+`smart-tests record tests bazel --no-build`
 
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+=== Bazel subsetting
+
+First, request a subset of tests from your entire test suite. Then, pass this list to Bazel to run.
+
+==== Request a subset of tests
+
+Find the `bazel` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Run `bazel query` and output the result to a text file. For example:
++
+`bazel query 'tests(//...)' > test_list.txt`
++
+This command outputs the complete list of test targets that typically run (without running them) to a file called `test_list.txt`. The subset service will divide this list into a subset and a remainder.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset bazel --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into Bazel.
+
+==== Run a subset of tests
+
+Append the list of tests to run to your existing command, such as:
+
+`bazel test $(cat smart-tests-subset.txt)`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# your standard command to run tests looks something like this
+bazel test
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list
+bazel query 'tests(//...)' > test_list.txt
+# request a subset
+cat test_list.txt | smart-tests subset bazel --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+bazel test $(cat smart-tests-subset.txt)
+----
 
 [#behave]
 == Behave
 
 {PRODUCT} interfaces with Behave via the {PRODUCT} CLI.
 
-For more information on recording test results with Behave, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#behave[Record test results with the {PRODUCT} CLI for Behave].
+=== Behave recording test results
 
-For more information on subsetting with Behave, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#behave-subset[Subset with the {PRODUCT} CLI for Behave].
+. Generate reports that {PRODUCT} can consume, add the `--junit` option to your existing `behave` command:
++
+[source]
+----
+# run the tests however you usually do
+behave --junit
+----
+
+. After running tests, point the CLI to your test report files to record test results:
++
+`smart-tests record tests behave --no-build ./reports/*.xml`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+=== Behave subsetting
+
+First, request a subset of tests from your entire test suite. Then, pass this list to Behave to run.
+
+==== Request a subset of tests
+
+Find the `behave` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Run `find ./features/` (or a similar command for your environment) and output the result to a text file. For example:
++
+`find ./features/ > test_list.txt`
++
+This command writes the list of test files that typically run (without actually running them) to `test_list.txt`. The subset service will divide this list into a subset and a remainder.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset behave --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into Behave.
+
+==== Run a subset of tests
+
+To run a subset, run `behave` with the `-i` option and pass in the subset list. For example:
+
+`behave <OPTIONS> -i "$(cat smart-tests-subset.txt)"`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+behave <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list
+find ./features/ > test_list.txt
+# request a subset
+cat test_list.txt | smart-tests subset behave --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+behave <OPTIONS> -i "$(cat smart-tests-subset.txt)"
+----
 
 [#ctest]
 == CTest
 
 {PRODUCT} interfaces with CTest via the {PRODUCT} CLI.
 
-For more information on recording test results with CTest, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#ctest[Record test results with the {PRODUCT} CLI for CTest].
+=== CTest recording test results
 
-For more information on subsetting with CTest, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#ctest-subset[Subset with the {PRODUCT} CLI for CTest].
+. Run your tests with `ctest -T test --no-compress-output` . These options ensure test results are written to the `Testing` directory.
+
+. After running tests, point the CLI to your test report files to record test results:
++
+`smart-tests record tests ctest --no-build "Testing/**/Test.xml"`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+=== CTest subsetting
+
+First, request a subset of tests from your entire test suite. Then, pass this list into CTest to run.
+
+==== Request a subset of tests
+
+Find the `ctest` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Run `ctest` with the `--show-only` option and output the result to a JSON file. For example:
++
+`ctest <OPTIONS> --show-only=json-v1 > test_list.json`
++
+This command creates the complete list of test files that typically run (without actually running them) to a file called `test_list.json`. The subset service will divide this list into a subset and a remainder list.
+
+. Pass the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`smart-tests subset ctest --session <SESSION_NAME> --confidence <TARGET> --output-regex-files --output-regex-files-dir=subsets test_list.json`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* The `--output-regex-files` instructs CLI to write the regular expression for the subset tests into the directory specified in `--output-regex-files-dir`.
++
+This creates files under the `subsets` directory. `subset_N` are the files that contain regular expressions of the chosen subset of tests. If you use the `--rest` option, `rest_N` will contain the non-chosen tests.
+
+==== Run a subset of tests
+
+Run `ctest` for each subset output file:
+
+[source]
+----
+for file in subset/subset_*; do
+  ctest <OPTIONS> -T test --no-compress-output -R "$(cat "$file")"
+done
+----
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+ctest <OPTIONS> -T test --no-compress-output
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list that would normally run
+ctest --show-only=json-v1 > test_list.json
+# request a subset
+smart-tests subset ctest --session <SESSION_NAME> --confidence <TARGET> --output-regex-files --output-regex-files-dir=subsets test_list.json
+# run the results of the subset request
+for file in subset/subset_*; do
+  ctest <OPTIONS> -T test --no-compress-output -R "$(cat "$file")"
+done
+----
 
 [#cucumber]
 == cucumber
 
 {PRODUCT} interfaces with cucumber via the {PRODUCT} CLI.
 
-For more information on recording test results with cucumber, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#cucumber[Record test results with the {PRODUCT} CLI for cucumber].
+=== cucumber recording test results
 
-For more information on subsetting with cucumber, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#cucumber-subset[Subset with the {PRODUCT} CLI for cucumber].
+{PRODUCT} supports JSON and JUnit XML reports generated by cucumber (using `-f junit` or `-f json` . Follow the instructions for whichever one being used. JUnit XML is the default.
 
+[.multilanguage-custom-table, options="header", cols="2"]
+|===
+| JUnit XML
+| JSON
+
+a| If you run cucumber with the `-f junit` option, like this:
+
+`bundle exec cucumber -f junit -o reports`
+
+. After running tests, point the CLI to your test report files to record test results:
++
+`smart-tests record tests cucumber --no-build "./reports/**/*.xml"`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+a| If you run cucumber with the `-f json` option, like this:
+
+`bundle exec cucumber -f json -o reports`
+
+. After running tests, point the CLI to your test report files to record test results (note the `--json` option):
++
+`smart-tests record tests cucumber --no-build --json "./reports/**/*.json"`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+|===
+
+[NOTE]
+--
+If you receive a warning message such as `Cannot find test file Test-feature-example.xml` set the project's root directory path with the `--base` option:
+
+`smart-tests record tests cucumber --no-build --base /example/project "/example/project/reports/**/*.xml"`
+--
+
+=== cucumber subsetting
+
+First, request a subset of tests from your entire test suite. Then, pass this list to cucumber to run.
+
+==== Request a subset of tests
+
+. Find the `bundle exec cucumber` command used to run tests in your CI script.
+
+. Before that command, add the `smart-tests subset` command to request a subset of tests from your full test suite:
++
+`smart-tests subset cucumber --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --base $(pwd) <PATH TO .feature FILES> > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* Include the `--base $(pwd)` option (or equivalent) before `cucumber`.
+
+* Set `<PATH TO .feature FILES>` to the glob expression representing your `.feature` files, for example, `features/**/*.feature`. The CLI will look in those path(s) and generate the complete list of tests that would typically run. The subset service divides this list into a subset and a remainder list.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of test files formatted for passing into cucumber, shown next.
+
+==== Run a subset of tests
+
+Append the subset list to your `bundle exec cucumber` command to run a subset. For example:
+
+`bundle exec cucumber -f junit -o reports <OPTIONS> $(cat smart-tests-subset.txt)`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+bundle exec cucumber -f junit -o reports <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# request a subset from all features that would typically run
+smart-tests subset cucumber --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> <PATH TO .feature FILES> > smart-tests-subset.txt
+# run the results of the subset request
+bundle exec cucumber -f junit -o reports <OPTIONS> $(cat smart-tests-subset.txt)
+----
 
 [#cypress]
 == Cypress
 
 {PRODUCT} interfaces with Cypress via the {PRODUCT} CLI.
 
-For more information on recording test results with Cypress, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#cypress[Record test results with the {PRODUCT} CLI for Cypress].
+=== Cypress recording test results
 
-For more information on subsetting with Cypress, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#cypress-subset[Subset with the {PRODUCT} CLI for Cypress].
+. After running tests, point the CLI to your test report files to record test results:
++
+`smart-tests record tests cypress --no-build ./report/*.xml`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+=== Cypress subsetting
+
+Find the `cypress run` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Run `find ./cypress/integration -type f` (or a similar command for your platform) and output the result to a text file. For example:
++
+`find ./cypress/integration -type f > test_list.txt`
++
+This command writes the complete list of test files that typically run (without actually running them) to `test_list.txt`. The subset service will divide this list into a subset and a remainder list.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset cypress --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into Cypress.
+
+==== Run a subset of tests
+
+To run a subset, use the `--spec` option with the subset list text file. For example:
+
+`cypress run --reporter junit <OPTIONS> --spec "$(cat smart-tests-subset.txt)"`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+cypress run --reporter junit <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# generate the complete list that would typically run
+find ./cypress/integration -type f > test_list.txt
+# request a subset from all features that would typically run
+cat test_list.txt | smart-tests subset cypress --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+cypress run --reporter junit <OPTIONS> --spec "$(cat smart-tests-subset.txt)"
+----
 
 [#dotnet-test]
 == dotnet test
+
 {PRODUCT} interfaces with dotnet test via the {PRODUCT} CLI.
 
-For more information on recording test results with dotnet test, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#dotnet[Record test results with the {PRODUCT} CLI for dotnet test].
+=== dotnet test recording test results
 
-For more information on subsetting with dotnet test, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#dotnet-test-subset[Subset with the {PRODUCT} CLI for dotnet test].
+. Configure `dotnet test` to produce NUnit report files. Install the link+https://www.nuget.org/packages/NUnitXml.TestLogger+[NunitXml.TestLogger] package from NuGet via your preferred method, then add the `-l` option to your `dotnet test` command to enable the logger:
++
+`dotnet test ... -l nunit`
 
+. After running tests, point the CLI to your test report files to record test results:
++
+`smart-tests record tests dotnet --no-build "**/*.xml"`
 
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+=== dotnet test subsetting
+
+This profile only supports xref:send-data-to-smart-tests:subset/zero-input-subsetting.adoc[Zero input subsetting].
 
 [#flutter]
 == flutter
 
 {PRODUCT} interfaces with flutter via the {PRODUCT} CLI.
 
-For more information on recording test results with flutter, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#flutter-test-results[Record test results with the {PRODUCT} CLI for flutter].
+=== flutter recording test results
 
-For more information on subsetting with flutter, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#flutter-subset[Subset with the {PRODUCT} CLI for flutter].
+. Run tests with the `--machine` option and produce a test report as JSON (NDJSON) format.
++
+[source,bash]
+----
+flutter test --machine > report.json
+----
+
+. After running tests, point the CLI to your test report file to record test results:
++
+[source,bash]
+----
+smart-tests record tests \
+  --session $(cat smart-tests-session.txt) \
+  flutter \
+  report.json
+----
+
+=== flutter subsetting
+
+First, request a subset of tests from your full test suite. Then, pass this list into Flutter to run.
+
+==== Request a subset of tests
+
+First, find the `flutter test` command used to run tests in your CI script.
+
+[source,bash]
+----
+smart-tests subset --session <SESSION NAME> <OPTIMIZATION TARGET OPTION> flutter <PATH TO SOURCE>
+----
+
+==== Run a subset of tests
+
+[source,bash]
+----
+flutter test $(cat smart-tests-subset.txt) --machine > report.json
+----
+
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source,bash]
+----
+flutter test --machine > report.json
+----
+
+And the flow after:
+
+[source,bash]
+----
+# request a subset
+smart-tests subset --session <SESSION NAME> <OPTIMIZATION TARGET OPTION> flutter test/**/*.dart
+
+# run the results of the subset request
+flutter test $(cat smart-tests-subset.txt) --machine > report.json
+----
 
 [#googletest]
 == GoogleTest
 
 {PRODUCT} interfaces with GoogleTest via the {PRODUCT} CLI.
 
-For more information on recording test results with GoogleTest, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#googletest[Record test results with the {PRODUCT} CLI for GoogleTest].
+=== GoogleTest recording test results
 
-For more information on subsetting with GoogleTest, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#googletest-subset[Subset with the {PRODUCT} CLI for GoogleTest].
+. Configure GoogleTest to produce JUnit-compatible report files. For more information, refer to  link:https://github.com/google/googletest/blob/main/docs/advanced.md#generating-an-xml-report[the GoogleTest documentation]. You end up with a command something like this:
++
+[source]
+----
+# run the tests however you normally do
+./my-test --gtest_output=xml:./report/my-test.xml
+----
+
+. After running tests, point the CLI to your test report files to record test results:
++
+`smart-tests record tests googletest --no-build ./report`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+=== GoogleTest subsetting
+
+Find the GoogleTest command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Invoke GoogleTest with the `--gtest_list_tests` option and output the result to a text file. For example:
++
+`./my-test <OPTIONS> --gtest_list_tests > test_list.txt`
++
+This command outputs the complete list of tests that normally run (without running them) to a file called `test_list.txt`. The subset service will divide this list into a subset and a remainder list.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset googletest --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into GoogleTest.
+
+==== Run a subset of tests
+
+Add the `--gtest_filter` option to your existing command, such as:
+
+`./my-test <OPTIONS> --gtest_filter="$(cat smart-tests-subset.txt)"`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+./my-test <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list
+./my-test <OPTIONS> --gtest_list_tests > test_list.txt
+# request a subset
+cat test_list.txt | smart-tests subset googletest --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+./my-test <OPTIONS> --gtest_filter="$(cat smart-tests-subset.txt)"
+----
 
 [#go-test]
 == Go Test
 
 {PRODUCT} interfaces with Go Test via the {PRODUCT} CLI.
 
-For more information on recording test results with Go Test, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#go-test[Record test results with the {PRODUCT} CLI for Go Test].
+=== Go Test recording test results
 
-For more information on subsetting with Go Test, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#go-test-subset[Subset with the {PRODUCT} CLI for Go Test].
+. Generate reports that {PRODUCT} can consume, use link:https://github.com/jstemmer/go-junit-report[go-junit-report] to generate a JUnit XML file after you run tests:
++
+[source]
+----
+# install JUnit report formatter
+go get -u github.com/jstemmer/go-junit-report
+
+# run the tests however you usually do, then produce a JUnit XML file
+go test -v ./... | go-junit-report -set-exit-code > report.xml
+----
+
+. Then point the CLI to your test report file to record test results:
++
+`smart-tests record tests go-test --no-build report.xml`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+=== Go Test subsetting
+
+Find the `go test` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Duplicate the `go test` command you normally use to run tests and add the `-list` option. Then, output the result to a text file. For example:
++
+`go test <OPTIONS> -list="Test|Example" ./... > test_list.txt`
++
+This command outputs the complete list of tests that normally run (without running them) to a file called `test_list.txt`. The subset service will divide this full list into a subset and a remainder.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset go-test --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into `go test`.
+
+==== Run a subset of tests
+
+Add the `-run` option to your existing command, such as:
+
+`go test <OPTIONS> -run $(cat smart-tests-subset.txt) ./... | go-junit-report > report.xml`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+go test <OPTIONS> ./...
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list
+go test <OPTIONS> -list="Test|Example" ./... > test_list.txt
+# request a subset
+cat test_list.txt | smart-tests subset go-test --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+go test <OPTIONS> -run $(cat smart-tests-subset.txt) ./... | go-junit-report > report.xml
+----
+
 
 [#gradle]
 == Gradle
 
 {PRODUCT} interfaces with Gradle via the {PRODUCT} CLI.
 
-For more information on recording test results with Gradle, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#gradle[Record test results with the {PRODUCT} CLI for Gradle].
+=== Gradle recording test results
 
-For more information on subsetting with Gradle, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#gradle-subset[Subset with the {PRODUCT} CLI for Gradle].
+. After running tests, point the CLI to your test report files to record test results:
++
+`smart-tests record tests gradle --no-build ./build/test-results/test/`
 
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+[NOTE]
+--
+* By default, Gradle's report files are saved to `build/test-results/test/` , but that might differ depending on how your Gradle project is configured.
+* You can specify multiple directories if you do a multi-project build.
+* A dedicated Gradle task to list all report directories might be convenient for a large project. For more information, refer to link:https://docs.gradle.org/current/userguide/java_testing.html#test_reporting[the Gradle documentation].
+* Alternatively, you can specify a glob pattern for directories or individual test report files (this pattern might already be set in your pipeline script for easy copy-pasting). For example, `gradle **/build/**/TEST-*.xml` .
+--
+
+[#gradle-subsetting]
+=== Gradle subsetting
+
+First, request a subset of tests from your full test suite. Then, pass this list to Gradle.
+
+==== Request a subset of tests
+
+. Find the `gradle` command used to run tests in your CI script.
+
+. Before that command, add the `smart-tests subset` command to request a subset of tests from your full test suite:
++
+`smart-tests subset gradle --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> <PATH TO SOURCE> > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* Set `<PATH TO SOURCE>` to the path(s) containing your test files, for example, `project1/src/test/java project2/src/test/java`. The CLI will look in those path(s) and generate the full list of tests that would normally run. The subset service divides this full list into a subset and a remainder.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of test classes formatted for passing into Gradle, like this:
++
+`--tests MyTestClass1 --tests MyTestClass2 ...`
+
+==== Run a subset of tests
+
+Pass this file into your existing command, as shown below:
+
+[.multilanguage-custom-table, options="header", cols="2"]
+|===
+| Gradle
+| Gradle plugin for Android
+
+a| [source]
+----
+gradle test <OPTIONS> $(cat smart-tests-subset.txt)
+# equivalent to gradle test <OPTIONS> --tests MyTestClass1 --tests MyTestClass2 ...
+----
+
+a| The *Gradle plugin for Android* requires a different command, because the built-in `test` task does not support the `--tests` option. Use `testDebugUnitTest` or `testReleaseUnitTest` instead:
+
+[source]
+----
+./gradlew testDebugUnitTest <OPTIONS> $(cat smart-tests-subset.txt)
+# or
+./gradlew testReleaseUnitTest <OPTIONS> $(cat smart-tests-subset.txt)
+----
+
+|===
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+gradle test <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# request a subset from all tests
+smart-tests subset gradle --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> <PATH TO SOURCE> > smart-tests-subset.txt
+# run the results of the subset request
+gradle test <OPTIONS> $(cat smart-tests-subset.txt)
+----
+
+[#gradle-testng-subset]
+== Gradle + TestNG
+
+{PRODUCT} interfaces with Gradle + TestNG via the {PRODUCT} CLI.
+
+=== Gradle + TestNG recording test results
+
+Currently, the CLI doesn't have a `record tests` command for Gradle + TestNG. Use the command for <<gradle>> instead.
+
+=== Gradle + TestNG subsetting
+
+First, request a subset of tests from your full test suite. Then, pass this list to Gradle.
+
+==== Request a subset of tests
+
+. Find the `gradle` command used to run tests in your CI script.
+
+. Before that command, add the `smart-tests subset` command to request a subset of tests from your full test suite:
++
+`smart-tests subset gradle --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --bare <PATH TO SOURCE> > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* Set `<PATH TO SOURCE>` to the path(s) containing your test files, for example, `project1/src/test/java project2/src/test/java`. The CLI will look in those path(s) and generate the full list of tests that would normally run. The subset service divides this full list into a subset and a remainder.
+
+* Include the `--bare` option after `gradle`.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of test classes formatted for passing into Gradle, like this:
++
+[source]
+----
+com.example.FooTest
+com.example.BarTest
+...
+----
+
+==== Run a subset of tests
+
+. Add a dependency declaration to `build.gradle` so that the right subset of tests is executed when TestNG runs:
++
+[source]
+----
+dependencies {
+    ...
+    testRuntime 'com.launchableinc:launchable-testng:1.2.1'
+}
+----
++
+. Export the subset file path as an environment variable before you run `gradle test`, like shown below.
++
+[.multilanguage-custom-table, options="header", cols="2"]
+|===
+| Gradle
+| Gradle plugin for Android
+
+a| [source]
+----
+export SMART_TESTS_SUBSET_FILE_PATH=$PWD/smart-tests-subset.txt
+gradle test <OPTIONS>
+----
+
+a| The *Gradle plugin for Android* requires a different command, because the built-in `test` task does not support the `--tests` option. Use `testDebugUnitTest` or `testReleaseUnitTest` instead:
+
+[source]
+----
+export SMART_TESTS_SUBSET_FILE_PATH=$PWD/smart-tests-subset.txt
+./gradlew testDebugUnitTest <OPTIONS> $(cat smart-tests-subset.txt)
+# or
+export SMART_TESTS_SUBSET_FILE_PATH=$PWD/smart-tests-subset.txt
+./gradlew testReleaseUnitTest <OPTIONS> $(cat smart-tests-subset.txt)
+----
+
+|===
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+gradle test <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# request a subset from all tests
+smart-tests subset gradle --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --bare <PATH TO SOURCE> > smart-tests-subset.txt
+# run the results of the subset request using the `launchable-testng` plugin
+export SMART_TESTS_SUBSET_FILE_PATH=$PWD/smart-tests-subset.txt
+gradle test <OPTIONS>
+----
 
 [#jest]
 == Jest
 
 {PRODUCT} interfaces with Jest via the {PRODUCT} CLI.
 
-For more information on recording test results with Jest, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#jest[Record test results with the {PRODUCT} CLI for Jest].
+=== Jest recording test results
 
-For more information on subsetting with Jest, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#jest-subset[Subset with the {PRODUCT} CLI for Jest].
+. Generate reports that {PRODUCT} can consume, use link:https://www.npmjs.com/package/jest-junit[jest-junit] to generate a JUnit XML file after you run tests.
++
+[source]
+----
+# install jest-junit reporter
+npm install jest-junit --save-dev
+# or
+yarn add --dev jest-junit
+----
++
+Configure jest-junit to include file paths in reports.
++
+You can do this using environment variables:
++
+[.multilanguage-custom-table, options="header", cols="2"]
+|===
+| Using environment variables
+| Using package.json
+
+a| Recommended config:
+
+[source]
+----
+export JEST_JUNIT_CLASSNAME="{classname}"
+export JEST_JUNIT_TITLE="{title}"
+export JEST_JUNIT_SUITE_NAME="{filepath}"
+----
+
+Minimum config:
+
+`export JEST_JUNIT_SUITE_NAME="+{filepath}+"`
+
+a| Add the following lines to your `package.json` . The detail is the link:https://www.npmjs.com/package/jest-junit[jest-junit] section.
+
+Recommended config:
+
+[source]
+----
+// package.json
+"jest-junit": {
+  "suiteNameTemplate": "{filepath}",
+  "classNameTemplate": "{classname}",
+  "titleTemplate": "{title}"
+}
+----
+
+Minimum config:
+
+[source]
+----
+// package.json
+"jest-junit": {
+  "suiteNameTemplate": "{filepath}"
+}
+----
+
+|===
+
+. Run `jest` using jest-junit:
++
+[source]
+----
+# run tests with jest-junit
+jest --ci --reporters=default --reporters=jest-junit
+----
+
+. After running tests, point the CLI to your test report files to record test results:
++
+[source]
+----
+# send test results to {PRODUCT}
+smart-tests record tests jest --no-build your-junit.xml
+----
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+=== Jest subsetting
+
+Find the `jest` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Duplicate the `jest` command you normally use to run tests and add the `--listTests` option. Then, output the result to a text file. For example:
++
+`jest <OPTIONS> --listTests > test_list.txt`
++
+This command creates the full list of test files that would normally run (without actually running them) to a file called `test_list.txt`. The subset service will divide this full list into a subset and a remainder.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset jest --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --base $(pwd) > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* Include the `--base $(pwd)` option before `jest`.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into Jest.
+
+==== Run a subset of tests
+
+To run the subset, include the subset list after `jest`. For example:
+
+`jest <OPTIONS> $(cat smart-tests-subset.txt)`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+jest <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list that would normally run
+jest <OPTIONS> --listTests > test_list.txt
+# request a subset from all features that would normally run
+cat test_list.txt | smart-tests subset jest --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --base $(pwd) > smart-tests-subset.txt
+# run the results of the subset request
+jest <OPTIONS> $(cat smart-tests-subset.txt)
+----
 
 [#karma]
 == Karma
 
 {PRODUCT} interfaces with Karma via the {PRODUCT} CLI.
 
-For more information on recording test results with Karma, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#karma[Record test results with the {PRODUCT} CLI for Karma].
+=== Karma recording test results
 
-For more information on subsetting with Karma, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#karma-subset[Subset with the {PRODUCT} CLI for Karma].
+. Generate reports that {PRODUCT} can consume, use link:https://www.npmjs.com/package/karma-json-reporter.com/[karma-json-reporter] to generate JSON test reports. Refer to the linked page for more details, but your `karma.conf.js` change should look something like this:
++
+[source,javascript,role="default=expand"]
+----
+module.exports = function (config) {
+  config.set({
+    ...
+    plugins: [
+      ...
+      require('karma-json-reporter')
+    ],
+    jsonReporter: {
+      outputFile: require('path').join(__dirname, 'test-results.json'),
+      stdout: false
+    },
+    reporters: [..., 'json']
+  });
+};
+----
+
+. After running tests, point the CLI to your test report file to record test results:
++
+[source,bash]
+----
+smart-tests record tests karma --session $(cat session.txt) test-results.json
+----
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+=== Karma subsetting
+
+Before invoking your tests with Karma, run the `subset karma` command, which expects a list of test files as input, for example:
+
+[source,bash]
+----
+find src -name "*.spec.ts" -o -name "*.spec.js" | \
+smart-tests subset --session <SESSIONID> <OPTIMIZATION TARGET OPTION> karma > subset.txt
+----
+
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSIONID>` and `<OPTIMIZATION TARGET OPTION>`.
++
+`subset.txt` will contain a list of test files that are selected as a subset, which you then pass to the test runner invocation. If you run Karma via `ng test`, you can use the `--with` ng option so that the output will be in the form of `--include path/to/some.spec.ts`, which is expected by `ng test`.
+
+[source,bash]
+----
+find ... | smart-tests ... karma --with ng > subset.txt
+ng test $(cat subset.txt)
+----
 
 [#maven]
 == Maven
 
 {PRODUCT} interfaces with Maven via the {PRODUCT} CLI.
 
-For more information on recording test results with Maven, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#maven[Record test results with the {PRODUCT} CLI for Maven].
+=== Maven recording test results
 
-For more information on subsetting with Maven, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#maven-subset[Subset with the {PRODUCT} CLI for Maven].
+[NOTE]
+--
+{PRODUCT} supports test reports generated using link:https://maven.apache.org/surefire/maven-surefire-plugin/[Surefire] , the default report plugin for https://maven.apache.org/[Maven].
+--
+
+. After running tests, point the CLI to your test report files to record test results:
++
+`smart-tests record tests maven --no-build "./**/target/surefire-reports"`
++
+_You can pass multiple directories/patterns, e.g. _ `smart-tests record tests maven --no-build '<pattern/directory 1>' '<pattern/directory 2>'` _._
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+=== Maven subsetting
+
+Find the `mvn test` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Duplicate the `mvn test` command you normally use to run tests, but change `test` to `test-compile`. For example:
++
+`mvn test-compile <OPTIONS>`
++
+This command creates `.lst` files that list the test classes that would normally run (without running them). The subset service combines these and divides the full list into a subset and a remainder.
+
+. Run `smart-tests subset` to request a subset from the full list.
++
+`smart-tests subset maven --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --test-compile-created-file <(find . -path '*/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/createdFiles.lst' -exec cat {} \;) > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for how to set `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* The `<(find...` section combines the `.lst` files across your projects into a single file for processing. You might need to change this for your platform.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into Maven.
+
+==== Run a subset of tests
+
+To run the subset, use the `-Dsurefire.includesFile` option. For example:
+
+`mvn test <OPTIONS> -Dsurefire.includesFile=$PWD/smart-tests-subset.txt`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# your normal command to run tests looks something like this
+mvn test <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list(s) that would normally run
+mvn test-compile <OPTIONS>
+# request a subset from all features that would normally run
+smart-tests subset maven --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --test-compile-created-file <(find . -path '*/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/createdFiles.lst' -exec cat {} \;) > smart-tests-subset.txt
+# run the results of the subset request
+mvn test <OPTIONS> -Dsurefire.includesFile=$PWD/smart-tests-subset.txt
+----
+
+[#maven-testng]
+== Maven + TestNG
+
+{PRODUCT} interfaces with Maven via the {PRODUCT} CLI.
+
+=== Maven + TestNG recording test results
+
+Currently, the CLI doesn't have a `record tests` command for Maven + TestNG. Use the command for <<maven>> instead.
+
+=== Maven + TestNG subsetting
+
+Find the `mvn test` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Duplicate the `mvn test` command you normally use to run tests, but change `test` to `test-compile`. For example:
++
+`mvn test-compile <OPTIONS>`
++
+This command creates `.lst` files that list the test classes that would normally run (without running them). The subset service combines these and divides the full list into a subset and a remainder.
+
+. Run `smart-tests subset` to request a subset from the full list.
++
+`smart-tests subset maven --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --test-compile-created-file <(find . -path '*/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/createdFiles.lst' -exec cat {} \;) > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for how to set `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* The `<(find...` section combines the `.lst` files across your projects into a single file for processing.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into Maven.
+
+==== Run a subset of tests
+
+. Modify your `pom.xml` so that it includes {PRODUCT} TestNG integration as a test scope dependency:
++
+[source]
+----
+<dependency>
+  <groupId>com.launchableinc</groupId>
+  <artifactId>launchable-testng</artifactId>
+  <version>1.2.1</version>
+  <scope>test</scope>
+</dependency>
+----
++
+. Export the subset file path as an environment variable before you run `mvn test`, like shown below.
++
+[source]
+----
+export SMART_TESTS_SUBSET_FILE_PATH=$PWD/smart-tests-subset.txt
+mvn test <OPTIONS>
+----
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# your normal command to run tests looks something like this
+mvn test <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list of tests
+mvn test-compile <OPTIONS>
+# request a subset from all tests
+smart-tests subset maven --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> --test-compile-created-file <(find . -path '*/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/createdFiles.lst' -exec cat {} \;) > smart-tests-subset.txt
+# run the results of the subset request using the `launchable-testng` plugin
+export SMART_TESTS_SUBSET_FILE_PATH=$PWD/smart-tests-subset.txt
+mvn test <OPTIONS>
+----
 
 [#minitest]
 == minitest
 
 {PRODUCT} interfaces with minitest via the {PRODUCT} CLI.
 
-For more information on recording test results with minitest, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#minitest[Record test results with the {PRODUCT} CLI for minitest].
+=== minitest recording test results
 
-For more information on subsetting with minitest, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#minitest-subset[Subset with the {PRODUCT} CLI for minitest].
+. Use link:https://github.com/circleci/minitest-ci[minitest-ci] to output test results to a file. It may already be installed if you store your test results on your CI server.
+
+. After running tests, point the CLI to your test report files to record test results:
++
+`smart-tests record tests minitest --no-build "$CIRCLE_TEST_REPORTS/reports"`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+=== minitest subsetting
+
+First, request a subset of tests from your full test suite. Then, pass this list into minitest to run.
+
+==== Request a subset of tests
+
+. Find the `bundle exec rails test` command used to run tests in your CI script.
+
+. Before that command, add the `smart-tests subset` command to request a subset of tests from your full test suite:
++
+`smart-tests subset minitest --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> <PATH TO .rb FILES> > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for how to set `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* Set `<PATH TO .rb FILES>` to the glob expression representing your `.rb` test files (for example, `test/**/*.rb`). The CLI will look in those path(s) and generate the full list of tests that would normally run. The subset service divides this full list into a subset and a remainder.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of tests formatted for passing into minitest.
+
+==== Run a subset of tests
+
+To run a subset, pass the subset list into `bundle exec rails test` . For example:
+
+`bundle exec rails test <OPTIONS> $(cat smart-tests-subset.txt)`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# your normal command to run tests looks something like this
+bundle exec rails test <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# request a subset of your existing test suite
+smart-tests subset minitest --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> <PATH TO .rb FILES> > smart-tests-subset.txt
+# run the results of the subset request
+bundle exec rails test <OPTIONS> $(cat smart-tests-subset.txt)
+----
+
+[#nunit]
+== NUnit Console Runner
+
+{PRODUCT} interfaces with NUnit Console Runner via the {PRODUCT} CLI.
+
+=== NUnit Console Runner recording test results
+
+[NOTE]
+--
+{PRODUCT} CLI accepts https://docs.nunit.org/articles/nunit/technical-notes/usage/XML-Formats.html[NUnit3 style test report XML files] produced by NUnit.
+--
+
+. After running tests, point the CLI to your test report file(s) to record test results:
++
+`smart-tests record tests nunit --no-build path/to/TestResult.xml`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+=== NUnit Console Runner subsetting
+
+First, request a subset of tests from your full test suite. Then, pass this list into `nunit3-console` to run.
+
+==== Request a subset of tests
+
+Find the `nunit3-console` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Duplicate the `nunit3-console` command you normally use to run tests, and add the `--explore` option. For example:
++
+`nunit3-console <OPTIONS> --explore=test_list.xml path/to/myassembly.dll`
++
+This command writes the full list of tests that normally run (without running them) to `test_list.xml`.
+
+. Pass the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`smart-tests subset nunit --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> test_list.xml > smart-tests-subset.txt`
+
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of test classes formatted for passing into your normal `adb` command, shown next.
+
+If you want to subset tests across multiple DLLs (for example, if multiple DLLs are combined into a logical 'suite'), run `nunit3-console --explore...` once for each DLL, then pass all the files into `smart-tests subset`, such as:
+
+[source]
+----
+nunit3-console <OPTIONS> --explore=myassembly1.xml path/to/myassembly1.dll
+nunit3-console <OPTIONS> --explore=myassembly2.xml path/to/myassembly2.dll
+nunit3-console <OPTIONS> --explore=myassembly3.xml path/to/myassembly3.dll
+
+smart-tests subset nunit --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> myassembly1.xml myassembly2.xml myassembly3.xml > smart-tests-subset.txt
+----
+
+==== Run a subset of tests
+
+Now you can run the subset of tests by adding the `--testlist` option to your normal `nunit3-console` command, like this:
+
+`nunit3-console <OPTIONS> --testlist=smart-tests-subset.txt path/to/myassembly.dll [path/to/myassembly2.dll] [path/to/myassembly3.dll]`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+nunit3-console <OPTIONS> path/to/myassembly.dll
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list of tests in your suite
+nunit3-console <OPTIONS> --explore=test_list.xml path/to/myassembly.dll
+# request a subset from the full list
+smart-tests subset nunit --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> test_list.xml > smart-tests-subset.txt
+# run the results of the subset request
+nunit3-console <OPTIONS> --testlist=smart-tests-subset.txt path/to/myassembly.dll [path/to/myassembly2.dll] [path/to/myassembly3.dll]
+----
+
 
 [#playwright]
 == Playwright
 
 {PRODUCT} interfaces with Playwright via the {PRODUCT} CLI.
 
-For more information on recording test results with Playwright, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#playwright[Record test results with the {PRODUCT} CLI for Playwright].
+=== Playwright recording test results
 
-For more information on subsetting with Playwright, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#playwright-subset[Subset with the {PRODUCT} CLI for Playwright].
+{PRODUCT} supports JSON and JUnit XML reports generated by Playwright official link:https://playwright.dev/docs/test-reporters[reporters] (using `--json`).
+
+Follow the instructions for whichever one being used. JUnit XML is the default but {PRODUCT} recommends to use JSON reports and option. Because JUnit XML reports will consolidate multiple same test case results into one.
+
+[.multilanguage-custom-table, options="header", cols="2"]
+|===
+| JSON
+| JUnit XML
+
+a| First, run tests with the `--reporter=json` option:
+
+`PLAYWRIGHT_JSON_OUTPUT_NAME=results.json npx playwright test --reporter=json`
+
+or pass options to the configuration file directly:
+
+[source]
+----
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+reporter: [['json', { outputFile: 'results.json' }]],
+});
+----
+
+For more information, refer to link:https://playwright.dev/docs/test-reporters#json-reporter[Playwright JSON reporter documentation].
+
+. After running tests, point the CLI to your test report file(s) to record tests results
++
+`smart-tests record tests playwright --no-build --json results.json`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+a| If you use link:https://playwright.dev/docs/test-reporters#junit-reporter[JUnit Reporter] to generate reports, like this:
+
+`PLAYWRIGHT_JUNIT_OUTPUT_NAME=results.xml npx playwright test --reporter=junit`
+
+or pass options to the configuration file directly
+
+[source]
+----
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  reporter: [['junit', { outputFile: 'results.xml' }]],
+});
+----
+
+. After running tests, point the CLI to your test report files(s) to record test results:
++
+`smart-tests record tests playwright --no-build results.xml`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+|===
+
+=== Playwright subsetting
+
+First, request a subset of tests from your entire test suite. Then, pass this list to Playwright to run.
+
+==== Request a subset of tests
+
+Find the `playwright test` command used to run tests in your CI script.
+
+. List the result in a text file. For example:
++
+`find tests/*.spec.ts > test_list.txt`
++
+This command outputs the complete list of test targets that typically run (without running them) to a file called `test_list.txt`. The subset service will divide this list into a subset and a remainder.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset playwright --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+==== Run a subset of tests
+
+Append the list of tests to run on your existing command, such as:
+
+`playwright test $(cat smart-tests-subset.txt)`
+
+==== Summary
+
+In summary, here's the flow before:
+
+`playwright test ./tests`
+
+And the flow after:
+
+[source]
+----
+# generate the test list
+find ./tests/*.spec.ts > test_list.txt
+# request a subset
+cat test_list.txt | smart-tests subset playwright --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+playwright test $(cat smart-tests-subset.txt)
+----
 
 [#prove-for-perl]
 == prove for Perl
 
 {PRODUCT} interfaces with prove for Perl via the {PRODUCT} CLI.
 
-For more information on recording test results with prove for Perl, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#perl[Record test results with the {PRODUCT} CLI for prove for Perl].
+=== prove for Perl recording test results
 
-For more information on subsetting with prove for Perl, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#perl-prove-subset[Subset with the {PRODUCT} CLI for prove for Perl].
+{PRODUCT} supports JUnit XML report generated by https://github.com/bleargh45/TAP-Formatter-JUnit[TAP::Formatter::JUnit].
+
+. Follow the instructions for generating a report.
++
+`prove -Ilib --formatter TAP::Formatter::JUnit-r t`
++
+The command will generate a JUnit XML report with the name `junit_output.xml` .
+
+. After running tests, point the CLI to your test report file to record test results:
++
+`smart-tests record tests prove --no-build junit_output.xml`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+=== prove for Perl subsetting
+
+Find the `prove` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Pipe the test files you have into `smart-tests subset` to request a subset from the full list.
++
+[source]
+----
+# Assuming your test directory is `./t`.
+find ./t -name '*.t' | smart-tests subset prove --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+----
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of tests formatted for passing into your normal `prove` command, shown next.
+
+==== Run a subset of tests
+
+Now you can run the subset of tests by passing the `smart-tests-subset.txt` file into `prove`, like this:
+
+[source]
+----
+# You must pass the environment variable JUNIT_NAME_MANGLE=none to generate the JUnit XML report in {PRODUCT}'s supported format.
+export JUNIT_NAME_MANGLE=none
+prove <OPTIONS> -Ilib --harness TAP::Harness::JUnit -r $(cat smart-tests-subset.txt)
+----
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+prove <OPTIONS> -Ilib --harness TAP::Harness::JUnit -r t
+----
+
+And the flow after:
+
+[source]
+----
+# request a subset from the full list
+find ./t -name '*.t' | smart-tests subset prove --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+export JUNIT_NAME_MANGLE=none
+prove <OPTIONS> -Ilib --harness TAP::Harness::JUnit -r $(cat smart-tests-subset.txt)
+----
 
 [#pytest]
 == pytest
 
 {PRODUCT} interfaces with pytest via the {PRODUCT} CLI.
 
-For more information on recording test results with pytest, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#pytest[Record test results with the {PRODUCT} CLI for pytest].
+=== pytest recording test results
 
-For more information on subsetting with pytest, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#pytest-subset[Subset with the {PRODUCT} CLI for pytest].
+{PRODUCT} supports JSON and JUnit XML reports generated by pytest (using `--junit-xml` or `--report-log` ).
+
+Follow the instructions for whichever one being used. JUnit XML is the default.
+
+[.multilanguage-custom-table, options="header", cols="2"]
+|===
+| JUnit XML
+| JSON
+
+a| First, run tests with the `--junit-xml` option:
+
+`pytest --junit-xml=test-results/results.xml`
+
+[WARNING]
+--
+pytest changed its default test report format from `xunit1` to `xunit2` in version 6. Unfortunately, the new `xunit2` format does not include file paths, which {PRODUCT} needs.
+
+Therefore, if using pytest 6 or newer, you must also specify `junit_family=legacy` as the report format. For more information, refer to link:https://docs.pytest.org/en/latest/deprecations.html#junit-family-default-value-change-to-xunit2[Deprecations and Removals — pytest documentation].
+--
+
+. After running tests, point the CLI to your test report file(s) to record test results (note the `--json` option):
++
+`smart-tests record tests pytest --no-build ./test-results/`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+a| If you use the link:https://github.com/pytest-dev/pytest-reportlog[pytest-dev/pytest-reportlog] plugin to generate reports, like this:
+
+`pytest --report-log=test-results/results.json`
+
+. After running tests, point the CLI to your test report file(s) to record test results:
++
+`smart-tests record tests pytest --no-build --json ./test-results/`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+|===
+
+=== pytest subsetting
+
+Find the `pytest` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Duplicate the `pytest` command you normally use to run tests and add the `--collect-only` and `-q` options. Then output that to a file. For example:
++
+`pytest <OPTIONS> --collect-only -q > test_list.txt`
++
+This command writes the full list of tests that normally run (without running them) to `test_list.txt`.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`cat test_list.txt | smart-tests subset pytest --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of tests formatted for passing into your normal `pytest` command, shown next.
+
+==== Run a subset of tests
+
+Now you can run the subset of tests by passing the `smart-tests-subset.txt` file into `pytest`, like this:
+
+`pytest <OPTIONS> --junit-xml=test-results/subset.xml $(cat smart-tests-subset.txt)`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+pytest <OPTIONS> --junit-xml=test-results/subset.xml
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list of tests in your suite
+pytest <OPTIONS> --collect-only -q > test_list.txt
+# request a subset from the full list
+cat test_list.txt | smart-tests subset pytest --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> > smart-tests-subset.txt
+# run the results of the subset request
+pytest <OPTIONS> --junit-xml=test-results/subset.xml $(cat smart-tests-subset.txt)
+----
 
 [#robot]
 == Robot
 
 {PRODUCT} interfaces with Robot via the {PRODUCT} CLI.
 
-For more information on recording test results with Robot, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#robot[Record test results with the {PRODUCT} CLI for Robot].
+=== Robot recording test results
 
-For more information on subsetting with Robot, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#robot-subset[Subset with the {PRODUCT} CLI for Robot].
+. After running tests with `robot` , point the CLI to your test report files to record test results:
++
+`smart-tests record tests robot --no-build output.xml`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+=== Robot subsetting
+
+Find the `robot` command used to run tests in your CI script. These commands will go _before_ that command.
+
+. Duplicate the `robot` command you normally use to run tests, and add the `--dryrun` and `-o` options. For example:
++
+`robot <OPTIONS> --dryrun -o test_list.xml`
++
+This command writes the full list of tests that normally run (without running them) to `test_list.xml`.
+
+. Pass the file you just created into `smart-tests subset` to request a subset from the full list.
++
+`smart-tests subset robot --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> test_list.xml > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of tests formatted for passing into your normal `robot` command, shown next.
+
+==== Run a subset of tests
+
+Now you can run just the subset of tests by passing the `smart-tests-subset.txt` file into `robot`, like this:
+
+`robot <OPTIONS> $(cat smart-tests-subset.txt) .`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+robot <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# generate the full list of tests in your suite
+robot <OPTIONS> --dryrun -o test_list.xml
+# request a subset from the full list
+smart-tests subset robot --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> test_list.xml > smart-tests-subset.txt
+# run the results of the subset request
+robot <OPTIONS> $(cat smart-tests-subset.txt) .
+----
 
 [#rspec]
 == RSpec
 
 {PRODUCT} interfaces with RSpec via the {PRODUCT} CLI.
 
-For more information on recording test results with RSpec, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#rspec[Record test results with the {PRODUCT} CLI for RSpec].
+=== RSpec recording test results
 
-For more information on subsetting with RSpec, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#rspec-subset[Subset with the {PRODUCT} CLI for RSpec].
+. Use link:https://github.com/sj26/rspec_junit_formatter[rspec_junit_formatter] to output test results to a file in RSpec. If you already have a CI server storing your test results, it may already be installed:
++
+`bundle exec rspec --format RspecJunitFormatter --out report/rspec.xml`
+
+. After running tests, point the CLI to your test report files to record test results:
++
+`smart-tests record tests rspec --no-build ./report`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+=== RSpec subsetting
+
+First, request a subset of tests from your full test suite. Then, pass this list to RSpec to run.
+
+==== Request a subset of tests
+
+. Find the `bundle exec rspec` command used to run tests in your CI script.
+
+. Before that command, add the `smart-tests subset` command to request a subset of tests from your full test suite:
++
+`smart-tests subset rspec --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> <PATH(S) TO .rb FILES> > smart-tests-subset.txt`
++
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
+
+* Set `<PATH TO .rb FILES>` to the glob expression representing your `.rb` test files. For example, `spec/**/*_spec.rb`. The CLI will look in those path(s) and generate the full list of tests that would normally run. The subset service divides this full list into a subset and a remainder.
++
+This creates a file called `smart-tests-subset.txt`. This file contains a list of tests formatted for passing into RSpec.
+
+==== Run a subset of tests
+
+To run a subset, pass the subset list into `bundle exec rspec`. For example:
+
+`bundle exec rspec $(cat smart-tests-subset.txt) --format d --format RspecJunitFormatter --out rspec.xml <OPTIONS>`
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source]
+----
+# Your normal command to run tests looks something like this
+bundle exec rspec --format RspecJunitFormatter --out report/rspec.xml <OPTIONS>
+----
+
+And the flow after:
+
+[source]
+----
+# request a subset of your existing test suite
+smart-tests subset rspec --session <SESSION_NAME> <OPTIMIZATION TARGET OPTION> <PATH TO .rb FILES> > smart-tests-subset.txt
+# run the results of the subset request
+bundle exec rspec $(cat smart-tests-subset.txt) --format d --format RspecJunitFormatter --out rspec.xml <OPTIONS>
+----
+
+[#ruby-test-unit]
+== Ruby test-unit
+
+{PRODUCT} interfaces with Ruby test-unit via the {PRODUCT} CLI.
+
+=== Ruby test-unit recording test results
+. Use link:https://github.com/launchableinc/test-unit-launchable[test-unit-launchable] to output test results to a file in test-unit.
++
+[source]
+----
+ruby test/example_test.rb --runner=launchable --launchable-test-report-json=report.json
+----
+
+. After running tests, point the CLI to your test report files to record test results:
++
+`smart-tests record tests raw --no-build report.json`
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+=== Ruby test-unit subsetting
+
+Currently, the CLI does not have a `subset` command for Ruby test-unit. Use the `raw` profile instead.
+
+[#testng]
+== TestNG
+
+If using the TestNG framework, check whether the tests are run with <<gradle>> or <<maven>>. Then, use the appropriate command for the corresponding tool.
+
 
 [#vitest]
 == vitest
 
 {PRODUCT} interfaces with vitest via the {PRODUCT} CLI.
 
-For more information on recording test results with vitest, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#vitest-record-tests[Record test results with the {PRODUCT} CLI for vitest].
+=== vitest recording test results
 
-For more information on subsetting with vitest, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#vitest-subset[Subset with the {PRODUCT} CLI for vitest].
+. Run tests with the `--reporter junit` option and the `--outputFile` option to produce a test report in JUnit format.
++
+[source,bash]
+----
+vitest run --reporter junit --outputFile report.xml
+----
+
+. After running tests, point the CLI to your test report file to record test results:
++
+[source,bash]
+----
+smart-tests record tests \
+  --session $(cat smart-tests-session.txt) \
+  vitest \
+  report.json
+----
+
+=== vitest subsetting
+
+First, request a subset of tests from your entire test suite. Then, pass this list to Vitest to run.
+
+==== Request a subset of tests
+
+Find the `vitest run test` command used to run tests in your CI script.
+
+. Duplicate the `vitest` command you normally use to run `list` command and add the `--filesOnly` option. Then, output the result to a text file. For example:
++
+[source,bash]
+----
+vitest list --filesOnly > test_list.txt
+----
++
+This command outputs the complete list of test targets that would normally run (without actually running them) to a file called `test_list.txt`. The subset service will divide this full list into a subset and a remainder.
+
+. Pipe the file you just created into `smart-tests subset` to request a subset from the full list:
++
+[source,bash]
+----
+cat test_list.txt | smart-tests subset vitest --session <SESSION NAME> <OPTIMIZATION TARGET OPTION>
+----
+* Refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#options[Options] for setting `<SESSION NAME>` and `<OPTIMIZATION TARGET OPTION>`.
++
+This creates a file called `smart-tests-subset.txt` that you can pass into Vitest.
+
+==== Run a subset of tests
+
+To run the subset, include the subset list after `vitest`. For example:
+
+[source,bash]
+----
+vitest run <OPTIONS> $(cat smart-tests-subset.txt)
+----
+
+==== Summary
+
+In summary, here's the flow before:
+
+[source,bash]
+----
+# Your normal command to run tests looks something like this
+vitest run test <OPTIONS>
+----
+
+And the flow after:
+
+[source,bash]
+----
+# generate the full list that would normally run
+vitest list --filesOnly > test_list.txt
+
+# request a subset from all features that would normally run
+cat test_list.txt | smart-tests subset vitest --session <SESSION NAME> <OPTIMIZATION TARGET OPTION>
+
+# run the results of the subset request
+vitest run <OPTIONS> $(cat smart-tests-subset.txt)
+----
 
 [#xctest]
 == xctest
 
 {PRODUCT} interfaces with xctest via the {PRODUCT} CLI.
 
-For more information on recording test results with xctest, refer to xref:send-data-to-smart-tests:record-test-results/record-test-results.adoc#xctest-recording-tests[Record test results with the {PRODUCT} CLI for xctest].
+=== xctest recording test results
 
-For more information on subsetting with xctest, refer to xref:send-data-to-smart-tests:subset/subset-with-the-smart-tests-cli.adoc#xctest-subsetting[Subset with the {PRODUCT} CLI for xctest].
+. Generate reports that {PRODUCT} can consume, use link:https://github.com/supermarin/xcpretty[xcpretty] to generate a JUnit XML file after you run tests:
++
+[source,bash]
+----
+# install xcpretty
+gem install xcpretty
+
+# run the tests however you usually do, then produce a JUnit XML file
+xcodebuild test -scheme <SCHEMA> -destination '<DESTINATION>' -parallel-testing-enabled | xcpretty -r junit
+----
+
+. Point the CLI to your test report file to record test results:
++
+[source,bash]
+----
+smart-tests record tests \
+  --session $(cat smart-tests-session.txt) \
+  xctest \
+  build/reports/junit.xml
+----
+
+. Then, follow the instructions to xref:send-data-to-smart-tests:record-test-results/ensure-record-tests-always-runs.adoc[Ensure record tests always runs].
+
+=== xctest subsetting
+
+This profile only supports xref:send-data-to-smart-tests:subset/zero-input-subsetting.adoc[].
 
 [#other-integrations]
 == Other integrations

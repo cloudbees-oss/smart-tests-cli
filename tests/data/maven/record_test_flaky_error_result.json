@@ -1,0 +1,45 @@
+{
+    "events": [
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.cloudbees.app.FlakyErrorDemoTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "throwsUnexpectedExceptionThenSucceeds"
+                }
+            ],
+            "duration": 0.0,
+            "status": 0,
+            "stdout": "",
+            "stderr": "java.lang.NullPointerException: Cannot invoke \"String.length()\" because \"value\" is null\n    at com.cloudbees.app.FlakyErrorDemoTest.throwsUnexpectedExceptionThenSucceeds(FlakyErrorDemoTest.java:16)\n    at java.base/java.lang.reflect.Method.invoke(Method.java:583)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n",
+            "data": null
+        },
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.cloudbees.app.FlakyErrorDemoTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "throwsUnexpectedExceptionThenSucceeds"
+                }
+            ],
+            "duration": 0.001,
+            "status": 1,
+            "stdout": "",
+            "stderr": "",
+            "data": null
+        }
+    ],
+    "testRunner": "maven",
+    "group": "",
+    "noBuild": false,
+    "flavors": [],
+    "testSuite": ""
+}

@@ -1,0 +1,99 @@
+{
+    "events": [
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.cloudbees.app.ErrorTagDemoTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "throwsAnUnexpectedException"
+                }
+            ],
+            "duration": 0.009,
+            "status": 0,
+            "stdout": "",
+            "stderr": "java.lang.NullPointerException: Cannot invoke \"String.length()\" because \"value\" is null\n    at com.cloudbees.app.ErrorTagDemoTest.throwsAnUnexpectedException(ErrorTagDemoTest.java:10)\n    at java.base/java.lang.reflect.Method.invoke(Method.java:583)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n",
+            "data": null
+        },
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.cloudbees.app.ErrorTagDemoTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "throwsAnUnexpectedException"
+                }
+            ],
+            "duration": 0.0,
+            "status": 0,
+            "stdout": "",
+            "stderr": "java.lang.NullPointerException: Cannot invoke \"String.length()\" because \"value\" is null\n    at com.cloudbees.app.ErrorTagDemoTest.throwsAnUnexpectedException(ErrorTagDemoTest.java:10)\n    at java.base/java.lang.reflect.Method.invoke(Method.java:583)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n",
+            "data": null
+        },
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.cloudbees.app.ErrorTagDemoTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "throwsAnUnexpectedException"
+                }
+            ],
+            "duration": 0.0,
+            "status": 0,
+            "stdout": "",
+            "stderr": "java.lang.NullPointerException: Cannot invoke \"String.length()\" because \"value\" is null\n    at com.cloudbees.app.ErrorTagDemoTest.throwsAnUnexpectedException(ErrorTagDemoTest.java:10)\n    at java.base/java.lang.reflect.Method.invoke(Method.java:583)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n",
+            "data": null
+        },
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.cloudbees.app.ErrorTagDemoTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "throwsAnUnexpectedException"
+                }
+            ],
+            "duration": 0.0,
+            "status": 0,
+            "stdout": "",
+            "stderr": "java.lang.NullPointerException: Cannot invoke \"String.length()\" because \"value\" is null\n    at com.cloudbees.app.ErrorTagDemoTest.throwsAnUnexpectedException(ErrorTagDemoTest.java:10)\n    at java.base/java.lang.reflect.Method.invoke(Method.java:583)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n",
+            "data": null
+        },
+        {
+            "type": "case",
+            "testPath": [
+                {
+                    "type": "class",
+                    "name": "com.cloudbees.app.ErrorTagDemoTest"
+                },
+                {
+                    "type": "testcase",
+                    "name": "throwsAnUnexpectedException"
+                }
+            ],
+            "duration": 0.0,
+            "status": 0,
+            "stdout": "",
+            "stderr": "java.lang.NullPointerException: Cannot invoke \"String.length()\" because \"value\" is null\n    at com.cloudbees.app.ErrorTagDemoTest.throwsAnUnexpectedException(ErrorTagDemoTest.java:10)\n    at java.base/java.lang.reflect.Method.invoke(Method.java:583)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)\n",
+            "data": null
+        }
+    ],
+    "testRunner": "maven",
+    "group": "",
+    "noBuild": false,
+    "flavors": [],
+    "testSuite": ""
+}

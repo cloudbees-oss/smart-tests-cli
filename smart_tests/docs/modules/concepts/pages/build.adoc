@@ -37,6 +37,6 @@ This command collects the details of the changes in each commit in your reposito
 By default, `smart-tests record build` runs `smart-tests record commit` , but these operations can be separated.
 --
 
-== More complex build/test pipelines
+== Build from multiple repositories
 
 However, in many other cases, the software being tested might be a single binary built from several repositories. Furthermore, the tested software might combine several services deployed to a single testing environment. The xref:send-data-to-smart-tests:record-builds/record-builds-from-multiple-repositories.adoc[record builds from multiple repositories] page outlines how to instrument your pipeline in these situations.

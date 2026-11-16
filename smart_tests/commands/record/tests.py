@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from time import time_ns
-from typing import Annotated, Callable, Dict, Generator, List, Tuple, Union
+from typing import Annotated, Any, Callable, Dict, Generator, Iterable, List, Tuple, Union
 
 import click
 from dateutil.parser import ParserError, parse
@@ -32,7 +32,7 @@ from ...utils.fail_fast_mode import (FailFastModeValidateParams, fail_fast_mode_
                                      set_fail_fast_mode, warn_and_exit_if_fail_fast_mode)
 from ...utils.logger import Logger
 from ...utils.smart_tests_client import SmartTestsClient
-from .case_event import CaseEvent, CaseEventGenerator, CaseEventType, DataBuilder, TestPathBuilder
+from .case_event import BATCH_ID_KEY, CaseEvent, CaseEventGenerator, CaseEventType, DataBuilder, TestPathBuilder
 
 # Together with the workers sending events, this stays within urllib3's default pool size (10 connections per host)
 MAX_RAW_FILE_UPLOAD_WORKERS = 5
@@ -43,6 +43,18 @@ RAW_FILE_UPLOAD_TIMEOUT = (30, 300)
 
 GROUP_NAME_RULE = re.compile("^[a-zA-Z0-9][a-zA-Z0-9_-]*$")
 RESERVED_GROUP_NAMES = ["group", "groups", "nogroup", "nogroups"]
+
+
+def _agent_utc_offset() -> str:
+    """The recording agent's current UTC offset as an ISO string (e.g. '+09:00', '+00:00').
+
+    Sent once per 'record tests' request so the server can resolve naive suite timestamps. Parseable
+    by the server's ZoneOffset.of(...).
+    """
+    offset = datetime.datetime.now().astimezone().strftime("%z")  # e.g. '+0900', '-0700', '+0000'
+    if not offset:
+        return "+00:00"
+    return offset[:3] + ":" + offset[3:5]
 
 
 def _validate_group(value):
@@ -118,7 +130,8 @@ class RecordTests:
             try:
                 for suite in testsuites:
                     for case in suite:
-                        yield CaseEvent.from_case_and_suite(self.path_builder, case, suite, report, self.metadata_builder)
+                        yield from CaseEvent.from_case_and_suite(
+                            self.path_builder, case, suite, report, self.metadata_builder)
             except Exception as e:
                 warn_and_exit_if_fail_fast_mode(
                     "Warning: error parsing JUnitXml file {filename}: {error}".format(
@@ -351,7 +364,7 @@ class RecordTests:
 
         # generator that creates the payload incrementally
         def payload(
-                cases: Generator[TestCase, None, None],
+                cases: Generator[CaseEventType, None, None],
                 test_runner, group: str,
                 test_suite_name: str,
                 flavors: Dict[str, str]) -> Tuple[Dict[str, Union[str, List, dict, bool]], List[Exception]]:
@@ -361,11 +374,15 @@ class RecordTests:
 
             while True:
                 try:
-                    cs.append(next(cases))
+                    tc = next(cases)
                 except StopIteration:
                     break
                 except Exception as ex:
                     exs.append(ex)
+                    continue
+                # internal-only; never leaves the process
+                tc.pop(BATCH_ID_KEY, None)
+                cs.append(tc)
 
             count += len(cs)
             return {
@@ -378,6 +395,9 @@ class RecordTests:
                 # testSuite and flavors are applied only when the no-build option is enabled
                 "testSuite": test_suite_name,
                 "flavors": flavors,
+                # The recording agent's UTC offset, sent once per request. Only the client knows it;
+                # the server needs it to resolve naive (offset-less) suite timestamps.
+                "agentUtcOffset": _agent_utc_offset(),
             }, exs
 
         def send(payload: Dict[str, Union[str, List]]) -> None:
@@ -387,23 +407,6 @@ class RecordTests:
 
             nonlocal is_observation
             is_observation = res.json().get("testSession", {}).get("isObservation", False)
-
-        def recorded_result() -> Tuple[int, int, int, float]:
-            test_count = 0
-            success_count = 0
-            fail_count = 0
-            duration = float(0)
-
-            for tc in testcases(self.reports):
-                test_count += 1
-                status = tc.get("status")
-                if status == 0:
-                    fail_count += 1
-                elif status == 1:
-                    success_count += 1
-                duration += float(tc.get("duration") or 0)  # sec
-
-            return test_count, success_count, fail_count, duration / 60   # sec to min
 
         try:
             start = time_ns()
@@ -478,7 +481,7 @@ class RecordTests:
                 return
 
         file_count = len(self.reports)
-        test_count, success_count, fail_count, duration = recorded_result()
+        test_count, success_count, fail_count, duration = summarize_case_events(testcases(self.reports))
 
         click.echo(
             f"Smart Tests recorded tests for build "
@@ -514,6 +517,47 @@ class RecordTests:
 
 
 tests = Group(name="tests", callback=RecordTests, help="Record test results")
+
+
+def summarize_case_events(events: Iterable[CaseEventType]) -> Tuple[int, int, int, float]:
+    """
+    Summarizes a stream of case events into (test_count, success_count, fail_count, duration_minutes),
+    for the "Tests found / Tests passed / Tests failed" table printed after `record tests` runs.
+
+    Grouped by which original testcase an event came from, not counted per event: a flaky/rerun
+    testcase produces multiple events (see CaseEvent.from_case_and_suite), but it's still a
+    single test. A test that ever passed counts as passed (even if it also failed on earlier
+    attempts); a test that only ever failed counts as failed.
+
+    JUnit-based events carry BATCH_ID_KEY (one id per original <testcase>, see
+    from_case_and_suite), which is used as the grouping key directly. Other runners (e.g. raw)
+    build events without going through from_case_and_suite, so they never have that key; for
+    those, fall back to grouping by testPath's complete attribute set. This fallback never
+    assumes a component has "type"/"name" specifically -- TestPathComponent is an arbitrary
+    bag of string attributes (see raw's free-form testPath/testPathComponents) -- and keeps
+    every attribute, not just type/name, so two components differing only in some other
+    attribute are never treated as the same path.
+    """
+    tests: Dict[Any, Dict[str, bool]] = {}
+    duration = float(0)
+
+    for tc in events:
+        key = tc.get(BATCH_ID_KEY)
+        if key is None:
+            key = tuple(tuple(sorted(p.items())) for p in tc.get("testPath", []))
+        entry = tests.setdefault(key, {"passed": False, "failed": False})
+        status = tc.get("status")
+        if status == 1:
+            entry["passed"] = True
+        elif status == 0:
+            entry["failed"] = True
+        duration += float(tc.get("duration") or 0)  # sec
+
+    test_count = len(tests)
+    success_count = sum(1 for e in tests.values() if e["passed"])
+    fail_count = sum(1 for e in tests.values() if e["failed"] and not e["passed"])
+
+    return test_count, success_count, fail_count, duration / 60   # sec to min
 
 
 # if we fail to determine the timestamp of the build, we err on the side of collecting more test reports

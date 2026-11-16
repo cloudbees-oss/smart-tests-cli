@@ -43,7 +43,7 @@ In many cases, builds and test sessions map 1:1. For example, a developer pushes
 
 The CLI handles this default case without any extra steps. Just run `smart-tests record tests` at the end of your run to capture test results in a single session.
 
-. Test session definition 1
+.Test session definition 1
 image::ROOT:test-session-definition.png[Test session definition 1,role="screenshot"]
 
 === Run tests in different environments

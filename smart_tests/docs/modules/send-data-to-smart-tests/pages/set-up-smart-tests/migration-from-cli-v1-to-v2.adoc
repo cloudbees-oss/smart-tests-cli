@@ -1,0 +1,404 @@
+include::ROOT:partial$abbr.adoc[]
+:slug: migration-from-cli-v1-to-v2
+= Migrate from CLI v1 to v2
+
+This guide helps Launchable CLI users to migrate from CLI (v1) to {PRODUCT} CLI (v2). The migration is generally straightforward, but there are several breaking changes to be aware of.
+
+== Overview of changes
+
+[cols="1a,2a,2a", options="header"]
+|===
+| Area 
+| CLI v1 
+| CLI v2
+
+| Command name
+| `launchable`
+| `smart-tests`
+
+| Package name
+| `launchable` (PyPI)
+| `smart-tests-cli` (PyPI)
+
+| Installation
+| `pip install launchable`
+| `pip install smart-tests-cli` or `uv tool install smart-tests-cli~=2.0`
+
+| Python requirement
+| Python 3.6+
+| Python 3.13+
+
+| Environment variables
+| `LAUNCHABLE_*`
+| `SMART_TESTS_*`
+
+| Session state
+| File-based (`.launchable` file)
+| Explicit `--session` passing (no file state)
+|===
+
+== Step 1: Update the installation
+
+Replace the CLI installation command in your CI pipeline:
+
+.Before (v1)
+[source,bash]
+----
+pip install launchable
+----
+
+.After (v2, recommended)
+[source,bash]
+----
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uv tool install smart-tests-cli~=2.0
+----
+
+.After (v2, pip alternative)
+[source,bash]
+----
+pip3 install --user --upgrade smart-tests-cli
+----
+
+[NOTE]
+====
+CLI v2 requires Python 3.13 or later. Ensure your CI environment meets this requirement.
+====
+
+== Step 2: Rename environment variables
+
+All `LAUNCHABLE_*` environment variables have been renamed to `SMART_TESTS_*`.
+
+[cols="1a,1a,1a", options="header"]
+|===
+| v1 
+| v2 
+| Notes
+
+| `LAUNCHABLE_TOKEN`
+| `SMART_TESTS_TOKEN`
+| v2 still falls back to `LAUNCHABLE_TOKEN` for backward compatibility
+
+| `LAUNCHABLE_ORGANIZATION`
+| `SMART_TESTS_ORGANIZATION`
+| No backward compatibility
+
+| `LAUNCHABLE_WORKSPACE`
+| `SMART_TESTS_WORKSPACE`
+| No backward compatibility
+
+| `LAUNCHABLE_BASE_URL`
+| `SMART_TESTS_BASE_URL`
+| No backward compatibility
+
+| `LAUNCHABLE_SESSION_DIR`
+| `SMART_TESTS_SESSION_DIR`
+| No backward compatibility
+|===
+
+[TIP]
+====
+While `LAUNCHABLE_TOKEN` still works in v2 as a fallback, we recommend renaming it to `SMART_TESTS_TOKEN` for consistency.
+====
+
+== Step 3: Replace the command name
+
+Replace all occurrences of `launchable` with `smart-tests` in your CI scripts.
+
+.Before (v1)
+[source,bash]
+----
+launchable verify
+launchable record build --name mychange1
+launchable record session --build mychange1 --test-suite e2e > session.txt
+launchable subset ...
+launchable record tests ...
+----
+
+.After (v2)
+[source,bash]
+----
+smart-tests verify
+smart-tests record build --build mychange1
+smart-tests record session --build mychange1 --test-suite e2e > session.txt
+smart-tests subset ...
+smart-tests record tests ...
+----
+
+== Step 4: Update command options
+
+Several options are renamed or removed in CLI (v2).
+
+=== `record build`
+
+[cols="1a,1a", options="header"]
+|===
+| v1 
+| v2
+
+| `--name <build-name>`
+| `--build <build-name>`
+
+| `--branch <repo>=<branch>`
+| `--repo-branch-map <repo>=<branch>`
+
+| `--scrub-pii`
+| Removed
+|===
+
+.Before (v1)
+[source,bash]
+----
+launchable record build --name mychange1 --branch myrepo=feature-x
+----
+
+.After (v2)
+[source,bash]
+----
+smart-tests record build --build mychange1 --repo-branch-map myrepo=feature-x
+----
+
+=== `record session`
+
+[cols="1a,1a", options="header"]
+|===
+| v1 
+|v2
+
+| `--test-suite` (optional)
+| `--test-suite` (*required*)
+
+| `--save-file` / `--no-save-file`
+| Removed (no file-based state)
+
+| `--session-name`
+| Removed
+|===
+
+[IMPORTANT]
+--
+Both v1 and v2 print the session ID to stdout. The difference is that v1 also persisted it as local state, so subsequent commands could pick it up automatically. v2 has no such state, so you must capture the session ID yourself and pass it to subsequent commands via `--session`.
+--
+
+.Before (v1)
+[source,bash]
+----
+launchable record session --build mychange1 --test-suite e2e > session.txt
+----
+
+.After (v2)
+[source,bash]
+----
+smart-tests record session --build mychange1 --test-suite e2e > session.txt
+# pass session explicitly to subsequent commands
+----
+
+=== `subset`
+
+[cols="1a,1a", options="header"]
+|===
+| v1 
+| v2
+
+| `--session` (optional, read from file)
+| `--session` (*required*)
+
+| `--build`
+| Removed (derived from session)
+
+| `--no-build`
+| Removed
+
+| `--flavor`
+| Removed (set flavors via `record session` instead)
+
+| `--observation`
+| Removed
+
+| `--split`
+| Removed
+|===
+
+.Before (v1)
+[source,bash]
+----
+cat test_list.txt | launchable subset --confidence 90% --flavor os=linux file > subset.txt
+----
+
+.After (v2)
+[source,bash]
+----
+cat test_list.txt | smart-tests subset file --confidence 90% --session @session.txt > subset.txt
+----
+
+[NOTE]
+--
+In v2, the test runner profile (e.g., `file`) comes *after* the `subset` keyword, not at the end.
+--
+
+=== `record tests`
+
+[cols="1a,1a", options="header"]
+|===
+| v1 
+| v2
+
+| `--session` (optional, read from file)
+| `--session` (*required*)
+
+| `--build`
+| Removed (derived from session)
+
+| `--no-build`
+| Removed
+
+| `--flavor`
+| Removed (set flavors via `record session` instead)
+
+| `record test` (alias)
+| Removed (use `record tests`)
+|===
+
+.Before (v1)
+[source,bash]
+----
+launchable record tests file test-results/*.xml
+----
+
+.After (v2)
+[source,bash]
+----
+smart-tests record tests file --session @session.txt test-results/*.xml
+----
+
+== Step 5: Update session handling
+
+A xref:send-data-to-smart-tests:record-sessions/record-sessions.adoc[test session] groups the test results and subset requests that belong to a single build.
+
+In v1, running `record session` was optional. If you didn't run it, the CLI created a session implicitly when you executed `subset` or `record tests`. In v2, `record session` is a required, explicit step.
+
+[IMPORTANT]
+--
+Most v1 users never ran `record session` directly, since v1 created the session for them. In v2 you must add this command to your pipeline before requesting a subset or recording tests.
+--
+
+Aside from that, session handling works almost the same way: subsequent commands consume the output of `record session`. The recommended pattern is to write the session ID to a file (for example, `session.txt`) and reference it with the `@` syntax.
+
+[#recommended-patterns]
+=== Recommended pattern
+
+[source,bash]
+----
+# Record the build
+smart-tests record build --build $BUILD_NAME
+
+# Start a session and capture its ID
+smart-tests record session --build $BUILD_NAME --test-suite $TEST_SUITE > session.txt
+
+# Request a subset (pass session explicitly)
+cat test_list.txt | smart-tests subset file --confidence 90% --session @session.txt > subset.txt
+
+# Run tests
+run_your_tests $(cat subset.txt)
+
+# Record results (pass session explicitly)
+smart-tests record tests file --session @session.txt test-results/*.xml
+----
+
+The `@session.txt` syntax tells the CLI to read the session value from a file. Alternatively, you can capture the value in a shell variable:
+
+[source,bash]
+----
+SESSION=$(smart-tests record session --build $BUILD_NAME --test-suite $TEST_SUITE)
+cat test_list.txt | smart-tests subset file --confidence 90% --session "$SESSION" > subset.txt
+smart-tests record tests file --session "$SESSION" test-results/*.xml
+----
+
+== Step 6: Handle flavors differently
+
+In v1, `--flavor` could be passed to `subset` and `record tests`. In v2, flavors are set only when creating the session:
+
+.Before (v1)
+[source,bash]
+----
+launchable record session --build mychange1 --test-suite e2e > session.txt
+cat tests.txt | launchable subset --flavor os=linux file --session $(cat session.txt)
+launchable record tests --flavor os=linux --session $(cat session.txt) file results/*.xml
+----
+
+.After (v2)
+[source,bash]
+----
+smart-tests record session --build mychange1 --test-suite e2e --flavor os=linux > session.txt
+cat tests.txt | smart-tests subset file --session @session.txt > subset.txt
+smart-tests record tests file --session @session.txt results/*.xml
+----
+
+== Removed commands
+
+The following commands are no longer available in v2:
+
+[cols="1a,2a", options="header"]
+|===
+| Removed command 
+| Alternative
+
+| `split-subset`
+| Generate an input snapshot ID when requesting the subset (`--print-input-snapshot-id`), then pass it to each parallel worker with `--input-snapshot-id` and `--bin`. See xref:features:test-suite-parallelization.adoc#_what_parallelization_looks_like_in_practice[Test suite parallelization].
+
+| `inspect tests`
+| Use the {PRODUCT} webapp to inspect test data
+|===
+[#stricter-error-handling]
+== Stricter error handling
+
+In v2, some incorrect usages that were silently tolerated in v1 now produce explicit errors. If you encounter new errors after migration, check:
+
+* All required options are provided (especially `--session` and `--test-suite`)
+* Option names match the v2 syntax (e.g., `--build` not `--name`)
+* No removed options are still being passed
+[#complete-migration-example]
+== Complete migration example
+
+Below is a complete before-and-after comparison of a typical CI pipeline:
+
+.Before (v1)
+[source,bash]
+----
+pip install launchable
+export LAUNCHABLE_TOKEN=$SECRET_TOKEN
+
+launchable verify || true
+launchable record build --name $CI_COMMIT_SHA
+launchable record session --build $CI_COMMIT_SHA --test-suite unit > session.txt
+
+find tests/ -name 'test_*.py' | launchable subset --confidence 90% --session $(cat session.txt) file > subset.txt
+pytest $(cat subset.txt) --junitxml=results.xml
+
+launchable record tests --session $(cat session.txt) file results.xml
+----
+
+.After (v2)
+[source,bash]
+----
+uv tool install smart-tests-cli~=2.0
+export SMART_TESTS_TOKEN=$SECRET_TOKEN
+
+smart-tests verify || true
+smart-tests record build --build $CI_COMMIT_SHA
+smart-tests record session --build $CI_COMMIT_SHA --test-suite unit > session.txt
+
+find tests/ -name 'test_*.py' | smart-tests subset file --confidence 90% --session @session.txt > subset.txt
+pytest $(cat subset.txt) --junitxml=results.xml
+
+smart-tests record tests file --session @session.txt results.xml
+----
+[#getting-help]
+== Getting help
+
+If you encounter issues during migration:
+
+* Refer to xref:administration:troubleshooting.adoc[Troubleshooting] page.
+* Refer to the xref:references:cli-reference.adoc[CLI reference] for the full list of v2 commands and options.
+* Contact link:https://support.cloudbees.com[CloudBees Support] for assistance.

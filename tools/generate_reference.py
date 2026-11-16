@@ -47,7 +47,7 @@ def process_reference_file(reference_path: Path, cli_root: Group):
     Returns:
         The new content of the file
     """
-    content = reference_path.read_text()
+    content = reference_path.read_text(encoding="utf-8")
 
     # Pattern to match: // [generate:COMMAND_PATH]
     # Captures everything until // [/generate]
@@ -63,7 +63,7 @@ def process_reference_file(reference_path: Path, cli_root: Group):
     # Replace all marked sections
     new_content = re.sub(pattern, replace_section, content, flags=re.DOTALL)
 
-    reference_path.write_text(new_content)
+    reference_path.write_text(new_content, encoding="utf-8")
     print(f"Updated {reference_path}")
 
 

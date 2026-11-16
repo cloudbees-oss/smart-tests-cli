@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="com.cloudbees.app.FlakyPassesOnFinalRerunTest" time="0.001" tests="1" errors="0" skipped="0" failures="0">
+  <testcase name="passesOnlyOnTheLastAllowedRerun" classname="com.cloudbees.app.FlakyPassesOnFinalRerunTest" time="0.05">
+    <flakyFailure message="Fails on the original run and all 4 reruns except the last one ==&gt; expected: &lt;true&gt; but was: &lt;false&gt;" type="org.opentest4j.AssertionFailedError">
+      <stackTrace><![CDATA[org.opentest4j.AssertionFailedError: Fails on the original run and all 4 reruns except the last one ==> expected: <true> but was: <false>
+    at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+    at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+    at org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+    at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+    at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+    at com.cloudbees.app.FlakyPassesOnFinalRerunTest.passesOnlyOnTheLastAllowedRerun(FlakyPassesOnFinalRerunTest.java:16)
+    at java.base/java.lang.reflect.Method.invoke(Method.java:583)
+    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+]]></stackTrace>
+    </flakyFailure>
+    <flakyFailure message="Fails on the original run and all 4 reruns except the last one ==&gt; expected: &lt;true&gt; but was: &lt;false&gt;" type="org.opentest4j.AssertionFailedError">
+      <stackTrace><![CDATA[org.opentest4j.AssertionFailedError: Fails on the original run and all 4 reruns except the last one ==> expected: <true> but was: <false>
+    at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+    at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+    at org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+    at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+    at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+    at com.cloudbees.app.FlakyPassesOnFinalRerunTest.passesOnlyOnTheLastAllowedRerun(FlakyPassesOnFinalRerunTest.java:16)
+    at java.base/java.lang.reflect.Method.invoke(Method.java:583)
+    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+]]></stackTrace>
+    </flakyFailure>
+    <flakyFailure message="Fails on the original run and all 4 reruns except the last one ==&gt; expected: &lt;true&gt; but was: &lt;false&gt;" type="org.opentest4j.AssertionFailedError">
+      <stackTrace><![CDATA[org.opentest4j.AssertionFailedError: Fails on the original run and all 4 reruns except the last one ==> expected: <true> but was: <false>
+    at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+    at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+    at org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+    at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+    at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+    at com.cloudbees.app.FlakyPassesOnFinalRerunTest.passesOnlyOnTheLastAllowedRerun(FlakyPassesOnFinalRerunTest.java:16)
+    at java.base/java.lang.reflect.Method.invoke(Method.java:583)
+    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+]]></stackTrace>
+    </flakyFailure>
+    <flakyFailure message="Fails on the original run and all 4 reruns except the last one ==&gt; expected: &lt;true&gt; but was: &lt;false&gt;" type="org.opentest4j.AssertionFailedError">
+      <stackTrace><![CDATA[org.opentest4j.AssertionFailedError: Fails on the original run and all 4 reruns except the last one ==> expected: <true> but was: <false>
+    at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+    at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+    at org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+    at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+    at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+    at com.cloudbees.app.FlakyPassesOnFinalRerunTest.passesOnlyOnTheLastAllowedRerun(FlakyPassesOnFinalRerunTest.java:16)
+    at java.base/java.lang.reflect.Method.invoke(Method.java:583)
+    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+    at java.base/java.util.ArrayList.forEach(ArrayList.java:1612)
+]]></stackTrace>
+    </flakyFailure>
+  </testcase>
+</testsuite>

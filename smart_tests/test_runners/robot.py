@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 from xml.etree import ElementTree as ET
 
 from junitparser import JUnitXml  # type: ignore
@@ -13,10 +13,31 @@ from . import smart_tests
 
 
 def parse_func(p: str) -> ET.ElementTree:
+    DATETIME_FORMAT = '%Y%m%d %H:%M:%S.%f'
 
-    def parse_suite(suite: ET.Element):
-        DATETIME_FORMAT = '%Y%m%d %H:%M:%S.%f'
+    def suite_timestamp(suite: ET.Element) -> Optional[str]:
+        """The suite's start time as an ISO-8601 naive string, or None if absent.
 
+        Robot records a naive, local wall-clock start (e.g. '20210319 11:34:50.085',
+        no timezone). The server owns timezone resolution (naive -> agent-local);
+        the CLI only normalizes the shape to ISO-8601.
+        """
+        status = suite.find('status')
+        if status is None:
+            return None
+        # RF 7.0+: already-ISO 'start' attribute; hand it over untouched.
+        iso_start = status.get('start')
+        if iso_start:
+            return iso_start
+        raw = status.get('starttime')
+        if not raw:
+            return None
+        try:
+            return datetime.strptime(raw, DATETIME_FORMAT).isoformat()
+        except ValueError:
+            return None
+
+    def parse_suite(suite: ET.Element, testsuite: ET.Element):
         suite_name = suite.get('name')
         for test in suite.iter("test"):
             test_name = test.get('name')
@@ -72,14 +93,19 @@ def parse_func(p: str) -> ET.ElementTree:
         return leaves
 
     original_tree = ET.parse(p)
-    testsuite = ET.Element("testsuite", {"name": "robot"})
+    testsuites = ET.Element("testsuites")
 
     SUITE_TAG_NAME = "suite"
     for top_suite in original_tree.findall(SUITE_TAG_NAME):
         for leaf_suite in find_leaf_suites(top_suite):
-            parse_suite(leaf_suite)
+            attribs = {"name": str(leaf_suite.get('name'))}
+            timestamp = suite_timestamp(leaf_suite)
+            if timestamp:
+                attribs["timestamp"] = timestamp
+            testsuite = ET.SubElement(testsuites, "testsuite", attribs)
+            parse_suite(leaf_suite, testsuite)
 
-    return ET.ElementTree(testsuite)
+    return ET.ElementTree(testsuites)
 
 
 @smart_tests.record.tests

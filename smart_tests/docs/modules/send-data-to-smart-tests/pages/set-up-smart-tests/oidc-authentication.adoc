@@ -1,0 +1,34 @@
+include::ROOT:partial$abbr.adoc[]
+:slug: oidc-authentication
+= Authenticate without an API key (OIDC)
+
+Authentication between the {PRODUCT} CLI and {PRODUCT} API normally requires a static API key. As an alternative, {PRODUCT} supports _tokenless authentication_ using OpenID Connect (OIDC). Instead of a shared secret, the CI system issues a short-lived, signed OIDC id-token for each pipeline run, and {PRODUCT} verifies it cryptographically. There is no key to rotate or leak.
+
+A single _generic_ OIDC flow authenticates every supported CI provider, including GitHub Actions, Jenkins, GitLab, and any other OpenID Connect issuer. The CI mints an id-token for the pipeline, {PRODUCT} verifies it against that issuer, and matches the token's `sub` claim against a *Trusted OIDC subject* that you register once in the web app.
+
+To set up a pipeline, follow xref:send-data-to-smart-tests:set-up-smart-tests/oidc-pipeline-authentication.adoc[Authenticate a pipeline with OIDC]. That page includes GitHub Actions, Jenkins, and other providers as separate worked examples.
+
+[NOTE]
+--
+GitHub Actions previously used a legacy flow that matched the `repository` claim and required a manual repository-to-workspace association by CloudBees Support. That path is still supported for backward compatibility but is *deprecated*. Existing GitHub Actions pipelines keep working during migration: {PRODUCT} automatically falls back to the legacy `repository`-claim verification for a workspace that has not yet registered a matching *Trusted OIDC subject*. Refer to xref:send-data-to-smart-tests:set-up-smart-tests/migration-to-github-oidc-auth.adoc[Migrate from the legacy GitHub Actions OIDC flow] if you set `EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH` today.
+--
+
+[#oidc-concepts]
+== How OIDC verification works
+
+Both paths rely on the same underlying mechanism.
+
+An OIDC id-token is a signed JWT that the CI mints for a pipeline run. It carries three claims that matter here:
+
+* `iss` (issuer) - who minted the token, for example `\https://token.actions.githubusercontent.com` (GitHub) or `\https://jenkins.example.com/oidc` (Jenkins).
+* `sub` (subject) - the identity of the specific pipeline or job. {PRODUCT} matches this against the value you registered as a *Trusted OIDC subject*. For GitHub Actions, the token's raw `sub` is normalized to `repo:OWNER/REPO` before matching, so the registered value is the same regardless of branch or workflow.
+* `aud` (audience) - who the token is intended for. {PRODUCT} expects `\https://app.cloudbees.io/smart-tests`.
+
+To verify a token, {PRODUCT} needs the issuer's *public keys*, published as a JSON Web Key Set (JWKS). A JWKS contains only public keys: it allows {PRODUCT} to _verify_ a signature but cannot be used to mint tokens.
+
+The issuer signs each token with a private key, and {PRODUCT} checks the signature with the matching public key from the issuer's JWKS. This proves the token genuinely came from that issuer and was not tampered with, without any shared secret.
+
+[NOTE]
+--
+The `/.well-known/openid-configuration` and `/.well-known/jwks` paths are an OIDC Discovery convention: a standard location where any compliant issuer advertises its configuration and public keys.
+--

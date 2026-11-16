@@ -1,0 +1,346 @@
+include::ROOT:partial$abbr.adoc[]
+:slug: oidc-pipeline-authentication
+= Authenticate a pipeline with OIDC
+
+Use the _generic_ OIDC flow to authenticate a pipeline that runs on *GitHub Actions*, *Jenkins* (via the `oidc-provider` plugin), *GitLab*, or any other OpenID Connect (OIDC) identity provider that the CI system can act as. The CI issues a short-lived, signed OIDC id-token for each pipeline run, and {PRODUCT} verifies it against that issuer, with no API key to rotate or leak.
+
+This is the same flow for every CI system. The only provider-specific pieces are *how the id-token is obtained* and *what the `sub` claim looks like* (which you register once as a *Trusted OIDC subject* in the web app). For the shared verification mechanism (JWT claims and JWKS), refer to xref:send-data-to-smart-tests:set-up-smart-tests/oidc-authentication.adoc[Authenticate without an API key (OIDC)].
+
+[NOTE]
+--
+If your GitHub Actions workflow currently sets `EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH=1`, that is the deprecated legacy flow. It still works with the latest CLI, but migrate to the generic flow described here. For more information, refer to xref:send-data-to-smart-tests:set-up-smart-tests/migration-to-github-oidc-auth.adoc[Migrate from the legacy GitHub Actions OIDC flow].
+--
+
+[#how-it-works]
+== How key discovery works
+
+To verify a token, {PRODUCT} needs the issuer's *public keys* (its JWKS). There are two ways it obtains them, and which one applies depends only on whether {PRODUCT} can reach the issuer over the network:
+
+[cols="1,3,2",options="header"]
+|===
+| Mode | How {PRODUCT} gets the issuer's public keys | When to use
+
+| *AUTO*
+| {PRODUCT} fetches them live from the issuer's `+/.well-known/openid-configuration+` endpoint and follows `jwks_uri`. Key rotation is handled automatically.
+| Your issuer's OIDC discovery URL is reachable from the public internet (a cloud Jenkins, a public issuer, or a private issuer that exposes *only* its public JWKS path through a proxy).
+
+| *MANUAL*
+| An admin registers the issuer's JWKS once, ahead of time, in the {PRODUCT} web app. No outbound network call is made to your issuer.
+| Your issuer is on a private network that {PRODUCT} cannot reach, and its signing key is stable.
+|===
+
+[TIP]
+--
+A JWKS contains only *public* keys, no secret is exposed by registering or copying it. If a private issuer rotates its keys frequently, prefer exposing just its public JWKS path and using *AUTO* over re-pasting the JWKS for *MANUAL* mode.
+--
+
+Once the token is verified, {PRODUCT} checks that its normalized `sub` has been registered as a _trusted OIDC subject_ for your workspace. This registration is what authorizes a specific pipeline to send data and it is a one-time, self-service step described below.
+
+[#authorization-model]
+=== The two things you register
+
+[cols="1,2,2",options="header"]
+|===
+| What | Where (web app) | Scope
+
+| *Trusted OIDC subject* - authorizes one pipeline (`sub`) to a workspace
+| Settings → *Trusted OIDC subjects*
+| Per workspace. Always required.
+
+| *Trusted OIDC issuer* - pre-registered JWKS for an unreachable issuer
+| Settings → *Trusted OIDC issuers*
+| Platform-wide trust anchor. Only for *MANUAL* mode; must be done by an organization admin.
+|===
+
+[#prerequisites]
+== Prerequisites
+
+* A {PRODUCT} xref:concepts:organization.adoc[organization] and xref:concepts:workspace.adoc[workspace]. Navigate to link:https://cloudbees.io[https://cloudbees.io] and xref:cloudbees-unify:teams-users:users.adoc#signup[sign up] if you have not already.
+* A CI system that can issue OIDC id-tokens (GitHub Actions has this built in; for Jenkins, install the link:https://plugins.jenkins.io/oidc-provider/[OpenID Connect Provider plugin]).
+* The {PRODUCT} CLI installed in your pipeline. For more information, refer to xref:send-data-to-smart-tests:set-up-smart-tests/getting-started.adoc[Getting started]. Use the *latest* CLI, older releases do not support the generic flow for GitHub.
+
+[#step-1-issue-token]
+== Step 1: Issue an OIDC id-token
+
+Pick the section for your CI provider. Each one ends with an id-token available to the CLI in the `SMART_TESTS_OIDC_TOKEN` environment variable.
+
+[#github-issue-token]
+=== GitHub Actions
+
+GitHub Actions can mint an id-token per workflow run without any plugin. Enable it by:
+
+. Granting the workflow the `id-token: write` permission (link:https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#adding-permissions-settings[GitHub docs]).
+. Setting `SMART_TESTS_GITHUB_OIDC_TOKEN_AUTH=1`. The CLI then fetches the id-token from the runner (with the correct audience) and uses it as its credential.
+
+.GitHub Actions workflow (`.github/workflows/smart-tests.yml`)
+[source,yaml,role="default=expand"]
+----
+name: Smart Tests
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  id-token: write   # required so GitHub mints an OIDC id-token for the job
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # Enables the generic OIDC flow: the CLI fetches the id-token from the runner
+      # and presents it as its bearer.
+      SMART_TESTS_GITHUB_OIDC_TOKEN_AUTH: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install Smart Tests CLI
+        run: pip install --upgrade smart-tests
+      - name: Verify and record build
+        run: |
+          eval "$(smart-tests verify --oidc)"
+          smart-tests record build --name "gh-${GITHUB_RUN_ID}"
+          # ... record session / subset / record tests as usual ...
+----
+
+[NOTE]
+--
+Do *not* set `SMART_TESTS_ORGANIZATION` or `SMART_TESTS_WORKSPACE` in the workflow when using `verify --oidc`, they are exported by the `eval` step from the registered subject. This is the whole point of the bootstrap: one registration in the web app authorizes the pipeline, no per-workflow ID configuration.
+--
+
+[#jenkins-issue-token]
+=== Jenkins
+
+Configure Jenkins to act as an OIDC issuer and bind a per-build id-token into your pipeline.
+
+. Install the *OpenID Connect Provider* plugin (*Manage Jenkins → Plugins*).
+. Confirm your Jenkins root URL is set to a stable, correct value under *Manage Jenkins → System → Jenkins Location*. The issuer string is derived from this URL (`{root}/oidc`), and it must match for verification, so avoid `localhost` in anything other than local testing.
+. Create an *OpenID Connect id token* credential (*Manage Jenkins → Credentials*):
++
+* *Audience*: `\https://app.cloudbees.io/smart-tests`
+* Give it an ID you will reference in the pipeline, e.g. `smart-tests-oidc`.
+. In your pipeline, bind the credential to the `SMART_TESTS_OIDC_TOKEN` environment variable. The CLI reads the id-token from this variable.
+
+.Declarative pipeline (Jenkinsfile)
+[source,groovy]
+----
+pipeline {
+  agent any
+  stages {
+    stage('Smart Tests') {
+      steps {
+        // Bind the credential to a Jenkins-scoped variable (JENKINS_OIDC_TOKEN), then re-export it
+        // as SMART_TESTS_OIDC_TOKEN inside the shell. Binding directly to SMART_TESTS_OIDC_TOKEN
+        // does not always propagate into the CLI's environment (Jenkins masks/scopes the variable
+        // for Groovy, not necessarily for every child shell), so the explicit export is required.
+        withCredentials([string(credentialsId: 'smart-tests-oidc', variable: 'JENKINS_OIDC_TOKEN')]) {
+          sh '''
+            export SMART_TESTS_OIDC_TOKEN="$JENKINS_OIDC_TOKEN"
+
+            # Resolve the org/workspace this pipeline is registered to, and export the
+            # environment the rest of the commands need.
+            eval "$(smart-tests verify --oidc)"
+
+            smart-tests record build --build "$BUILD_TAG"
+            # ... record session / subset / record tests as usual ...
+          '''
+        }
+      }
+    }
+  }
+}
+----
+
+[NOTE]
+--
+`smart-tests verify --oidc` prints `export` lines for `SMART_TESTS_ORGANIZATION`, `SMART_TESTS_WORKSPACE`, and `SMART_TESTS_OIDC_TOKEN`. Wrapping the call in `eval "$(...)"` loads them into the shell so every later `smart-tests` command in the same step authenticates with the same token and no API key required.
+--
+
+[#register-subject]
+== Step 2: Register the pipeline (first run)
+
+The first time the pipeline runs, its identity is not yet registered, so `smart-tests verify --oidc` verifies the token but reports that the subject is unknown:
+
+.Example output for a Jenkins pipeline
+[source]
+----
+This pipeline's OIDC identity is not yet registered with Smart Tests.
+Please copy and paste the block below into your workspace settings
+(Trusted OIDC subjects) to authorize this pipeline:
+########## start ##########
+{
+    "issuer": "https://jenkins.example.com/oidc",
+    "normalized-sub": "https://jenkins.example.com/job/my-team/job/my-app/"
+}
+########## end ##########
+----
+
+.Example output for a GitHub Actions workflow
+[source]
+----
+This pipeline's OIDC identity is not yet registered with Smart Tests.
+Please copy and paste the block below into your workspace settings
+(Trusted OIDC subjects) to authorize this pipeline:
+########## start ##########
+{
+    "issuer": "https://token.actions.githubusercontent.com",
+    "normalized-sub": "repo:my-org/my-app"
+}
+########## end ##########
+----
+
+[NOTE]
+--
+The GitHub Actions raw `sub` claim is per-branch/per-workflow (for example, `repo:my-org/my-app:ref:refs/heads/main`). {PRODUCT} normalizes it to `repo:OWNER/REPO` before matching, so a single registration authorizes every branch and workflow in that repository.
+--
+
+This is expected on first setup. To authorize the pipeline:
+
+. Copy the block between the `start` / `end` markers from the pipeline log.
+. In the {PRODUCT} web app, open your workspace *Settings* and navigate to the *Trusted OIDC subjects* section.
+. Select *Add*, paste the block, and submit.
++
+.Trusted OIDC subjects
+image::ROOT:trusted-oidc-subjects.png[Trusted OIDC subjects,role="screenshot"]
+. Re-run the pipeline. `smart-tests verify --oidc` now succeeds:
++
+[source]
+----
+OIDC authentication verified for organization 'my-org', workspace 'my-workspace'
+----
+
+.Registered OIDC subject
+image::ROOT:registered-oidc-subject.png[Registered OIDC subject,role="screenshot"]
+
+After the subject is registered, every subsequent pipeline run authenticates automatically, no further manual steps.
+
+[#manual-mode]
+== Private / unreachable issuers (MANUAL mode)
+
+Use this only when {PRODUCT} *cannot* reach your issuer's OIDC discovery endpoint (for example, a Jenkins server on an isolated corporate network). Instead of {PRODUCT} fetching the keys, an admin registers the issuer's public keys (JWKS) once.
+
+. From a host *inside* the private network where the issuer _is_ reachable, run the CLI with the `--oidc-fetch-issuer` flag and the id-token available in `SMART_TESTS_OIDC_TOKEN`:
++
+[source,shell]
+----
+smart-tests verify --oidc-fetch-issuer
+----
++
+The CLI reads the issuer from the token, fetches that issuer's public JWKS via standard OIDC discovery, and prints an `{issuer, jwks}` block. This flag authenticates nothing and contacts only the issuer that never sends the JWKS to {PRODUCT}; registration is a separate, authenticated admin action.
++
+[source]
+----
+Copy the block below and paste it into the WebApp (Settings -> Trusted OIDC issuers).
+########## start ##########
+{
+    "issuer": "https://jenkins.internal/oidc",
+    "jwks": { "keys": [ ... ] }
+}
+########## end ##########
+----
+. An *organization admin* opens the {PRODUCT} web app *Settings → Trusted OIDC issuers*, selects *Add*, and pastes the block.
++
+.Trusted issuer
+image::ROOT:trusted-issuer.png[Trusted issuer,role="screenshot"]
+. Continue with <<register-subject,Step 2>> to register the pipeline's subject as usual.
+
+[WARNING]
+--
+Registering a trusted OIDC issuer establishes a *platform-wide* trust anchor: any pipeline whose token is signed by that issuer can then be verified. Only an organization admin who trusts the issuer's keys should do this.
+
+MANUAL mode does *not* survive key rotation. If the issuer rotates its signing key, tokens signed with the new key fail verification until an admin re-pastes the updated JWKS. If your issuer rotates keys often, expose only its public JWKS path and use *AUTO* mode instead.
+--
+
+[#other-providers]
+== Using other OIDC providers
+
+The generic flow works for any provider (GitLab, CircleCI, a custom IdP) as long as:
+
+. Your CI can mint an id-token for the pipeline with the audience set to `\https://app.cloudbees.io/smart-tests`.
+. The token is placed in the `SMART_TESTS_OIDC_TOKEN` environment variable before calling the CLI. (GitHub Actions is a shortcut for this: setting `SMART_TESTS_GITHUB_OIDC_TOKEN_AUTH=1` lets the CLI fetch the token from the runner itself.)
+. {PRODUCT} can obtain the issuer's public keys either automatically (*AUTO*, issuer reachable) or via a registered JWKS (*MANUAL*).
+
+The only provider-specific details are *how you obtain the token* (Step 1) and *what the `sub` claim looks like* (which you register verbatim in Step 2). To document a new provider, add a subsection here mirroring the Jenkins or GitHub Actions steps.
+
+[TIP]
+--
+To add a provider (for example, GitLab or a custom IdP):
+
+* Describe how that CI mints an id-token and how to route it into `SMART_TESTS_OIDC_TOKEN`.
+* Note the shape of its `sub` claim so users recognize what they are registering.
+* Everything from <<register-subject,Step 2>> onward is identical.
+--
+
+[#troubleshooting]
+== Troubleshooting
+
+[cols="1,2",options="header"]
+|===
+| Symptom | Cause and fix
+
+| `This pipeline's OIDC identity is not yet registered`
+| Expected on first run. Register the printed subject in *Settings → Trusted OIDC subjects* (<<register-subject,Step 2>>).
+
+| `OIDC authentication failed: the presented token was rejected`
+| The token is invalid, expired, from an unrecognized issuer, or the audience does not match. Confirm the credential's audience is `\https://app.cloudbees.io/smart-tests` and that the id-token is freshly minted for this run.
+
+| Verification fails only for a private Jenkins
+| {PRODUCT} cannot reach the issuer to fetch keys. Use <<manual-mode,MANUAL mode>> to register the JWKS, or expose the issuer's public JWKS path and use AUTO.
+
+| Worked before, now fails after a key change
+| A MANUAL-mode issuer rotated its signing key. Re-run `smart-tests verify --oidc-fetch-issuer` inside the network and have an admin re-paste the updated JWKS, or switch to AUTO.
+
+| `requires the SMART_TESTS_OIDC_TOKEN environment variable`
+| The id-token was not bound into the environment. In Jenkins, wrap the step in `withCredentials([...])` and export it as `SMART_TESTS_OIDC_TOKEN`. In GitHub Actions, set `SMART_TESTS_GITHUB_OIDC_TOKEN_AUTH=1` and grant the workflow the `id-token: write` permission so the runner exposes `ACTIONS_ID_TOKEN_REQUEST_URL`/`ACTIONS_ID_TOKEN_REQUEST_TOKEN` to the CLI.
+
+| GitHub Actions: `Token audience does not match ...`
+| The id-token was minted for the wrong audience. `SMART_TESTS_GITHUB_OIDC_TOKEN_AUTH=1` sets it correctly for the CLI. If you fetch the token yourself with `actions/github-script` or `curl`, request `audience=https://app.cloudbees.io/smart-tests`.
+|===
+
+=== Identify the sub claim
+
+For {PRODUCT} to authorize a pipeline, register its normalized `sub` claim. Common shapes:
+
+[cols="1,2",options="header"]
+|===
+| CI provider | `sub` shape you register
+
+| *GitHub Actions*
+| `repo:OWNER/REPO` (normalized from `repo:OWNER/REPO:ref:...`). A single registration covers all branches and workflows in that repo.
+
+| *Jenkins*
+| The job URL, e.g. `\https://jenkins.example.com/job/my-team/job/my-app/`. Register one entry per Jenkins job you want to authorize.
+
+| *GitLab and others*
+| Provider-specific. Run the pipeline once to see the `normalized-sub` value the CLI prints, then register it verbatim.
+|===
+
+== Frequently asked questions
+
+=== Do I still need an API key?
+
+No. Once a pipeline authenticates with `smart-tests verify --oidc`, its subsequent commands present the same short-lived OIDC token as their credential. There is no `SMART_TESTS_TOKEN` to manage.
+
+=== Is registering a JWKS a security risk?
+
+No. A JWKS contains only public keys. It lets {PRODUCT} _verify_ signatures; it cannot be used to mint tokens. The trust decision is that you vouch for the issuer which is why registering a trusted issuer is an admin action.
+
+=== What identifies my pipeline?
+
+The normalized `sub` claim. For Jenkins this is the job URL (used as-is); for GitHub Actions, `repo:OWNER/REPO` (normalized from the branch-specific raw sub); for other providers, whatever the CI mints. Whatever the value, `smart-tests verify --oidc` prints the exact `normalized-sub` on the first run, so register it verbatim.
+
+=== What is the difference between `SMART_TESTS_OIDC_TOKEN` and `SMART_TESTS_GITHUB_OIDC_TOKEN_AUTH`?
+
+They are two ways to supply the id-token to the CLI, and only use *one* of them, not both.
+
+* `SMART_TESTS_OIDC_TOKEN` is the raw token itself. Set it directly (Jenkins does this through `withCredentials`, other providers similarly bind a per-run credential to this variable).
+* `SMART_TESTS_GITHUB_OIDC_TOKEN_AUTH=1` is a GitHub-Actions-only shortcut: the CLI reads the runner's `ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN` and fetches the id-token itself, with the correct audience. You do not need to set `SMART_TESTS_OIDC_TOKEN` when this is on.
+
+=== I have GitHub Actions using `EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH`. What do I do?
+
+That is the deprecated legacy flow. It still works with the *latest* CLI, but you should migrate to the generic flow described on this page. For more information, refer to xref:send-data-to-smart-tests:set-up-smart-tests/migration-to-github-oidc-auth.adoc[Migrate from the legacy GitHub Actions OIDC flow].

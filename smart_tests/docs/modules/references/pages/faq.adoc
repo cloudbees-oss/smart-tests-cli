@@ -71,3 +71,14 @@ Larger teams have focused on improving developer productivity times and increasi
 
 *Key idea: Defensive runs* . We ask our customers to view {PRODUCT} as a way to speed up tests and ship code faster. The tests that are not run as part of the subset should be run as part of a *defensive* run. The defensive run captures any tests that escape through the subset. The defensive run is instrumented to send us the test rests, and thus {PRODUCT} uses this run (in addition to the subset) to train the model.
 
+=== Does a code change in one repository influence test selection from another?
+
+Yes, tests are selected based on changes from all repositories in that build, not just the repository that the test files belong to.
+
+For example, consider a setup with three repositories:
+
+* `api` — a Java REST API
+* `frontend` — a React web application
+* `e2e-tests` — a test suite that tests both `api` and `frontend`
+
+If you request a subset of tests from e2e-tests, {PRODUCT} would select tests considering changes from all the repos, regardless of the language or framework difference between the repositories.

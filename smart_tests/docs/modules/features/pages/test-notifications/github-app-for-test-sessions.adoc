@@ -1,22 +1,40 @@
+include::ROOT:partial$abbr.adoc[]
 = GitHub app for test sessions
 :slug: github-app-for-test-sessions
 
-Developers can get convenient and timely access to the details of the tests run in their GitHub pull requests, so that they can immediately start working on failures, even before the whole CI process finishes.  These are delivered as comments to pull requests.
+The GitHub app for test sessions gives developers convenient, timely access to test results from their GitHub pull requests. Developers can start investigating failures immediately, without waiting for the entire CI process to finish. Test results are delivered as comments on pull requests.
 
-They can also quickly access associated workflows and test files via links provided in the {PRODUCT} web app.
+Access to associated workflows and test files via links provided in the {PRODUCT} web app is also available.
 
-image::ROOT:github-comment.png[]
-
+[#configuration-and-features]
 == Configuration and features
+The following steps are required to enable the GitHub app for test sessions:
 
-First, link:https://github.com/apps/launchable-app/installations/new[install the {PRODUCT} GitHub app] . Your GitHub org admin might have to approve that process.
+. Install the link:https://github.com/apps/cloudbees-smart-tests/installations/new[{PRODUCT} GitHub app]. Your GitHub org admin might have to approve that process.
 
-Next, verify that your test session is associated with a GitHub pull request. From link:https://app.launchableinc.com/[the {PRODUCT} webapp] , find a test session that should be associated with a GitHub pull request.  If you see the dropdown as shown below, you are fully integrated. This association happens automatically when the {PRODUCT} CLI detects environment variables that are set by typical CI systems to indicate that the test is running for a GitHub pull request.
+. Verify that your test session is associated with a GitHub pull request.
 
-image::ROOT:screenshot-2024-04-29-at-2-14-11-pm.png[]
+. Use the link:https://cloudbees.io/[{PRODUCT} webapp] to find a test session associated with a GitHub pull request.
 
-Selecting "View workflow run" takes you to the workflow in GitHub Actions that this test session was triggered from. Clicking "View pull request" will take you directly to the pull request page for this session.
+. Once the dropdown appears, the app is fully integrated. This association happens automatically when the {PRODUCT} CLI detects environment variables that are set by typical CI systems to indicate that the test is running for a GitHub pull request.
 
-Additionally, once the sendGitHub app is integrated, you will also be able to jump directly to failing tests that are tied to files stored in sendGitHub repositories. To access this, navigate to any test session page with a failure. Once there, you will see a column at the bottom of the page that says "Failed tests". For each failed test, you will see an ellipses to the far right, as shown below. Once clicked, you will see an "Open in sendGitHub" link. This allows you to open this test file directly in sendGitHub.
+. Select *View workflow run* to get to the workflow in GitHub Actions where this test session was triggered.
+
+. Select *View pull request* to go directly to the pull request page for this session.
++
+Additionally, once the sendGitHub app is integrated, you can jump directly to failing tests associated with files stored in sendGitHub repositories.
+
+[#accessing-failing-tests]
+== Accessing failing tests in sendGitHub
+
+To access failing tests, follow these steps:
+
+. Navigate to a test session page with a failure.
+
+. Navigate to the *Failed tests* column at the bottom of the page.
+
+. Select the ellipses for the desired failed test.
+
+. Select the *Open in sendGitHub* link. This allows you to open this test file directly in sendGitHub.
 
 image::ROOT:screenshot-2024-04-29-at-1-48-30-pm.png[]

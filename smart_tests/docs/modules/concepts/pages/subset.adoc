@@ -32,6 +32,7 @@ When you request a subset of tests to run in your CI process, you pass in the na
 `smart-tests subset --session $SESSION_NAME [other options...]`
 
 This is important so that the Predictive Test Selection service can analyze the changes in the build and select tests appropriately.
+Changes from all repositories in the build are considered, regardless of which repository the tests belong to.
 
 === Optimization target
 
@@ -176,4 +177,46 @@ In general, don't worry about creating the input test list. However, understandi
 [NOTE]
 --
 With xref:send-data-to-smart-tests:subset/zero-input-subsetting.adoc[Zero input subsetting], {PRODUCT} generates the input test list automatically.
+--
+
+== Fallback mode on Smart Tests failures
+
+When the subset API is unavailable or the model is untrained, the CLI falls back according to the `--fallback-mode` option. By default, the CLI runs all tests so that CI is never disrupted.
+
+Fallback is triggered by either of the following conditions:
+
+* The subset API call fails (network error, HTTP error, timeout, etc.).
+* When the {PRODUCT} model is untrained and the service returns `isBrainless: true`, this means it is still learning from your recorded test data and cannot yet produce an optimized subset.
+
+Use the `--fallback-mode` option to choose the fallback behavior:
+
+|===
+|Mode |Behavior |When to use
+
+|`run-all` (default)
+|Returns all tests unchanged. CI continues normally.
+|Safest option; no disruption to CI when the service is unavailable.
+
+|`stop`
+|Exits with a non-zero status. CI halts immediately.
+|When running an unoptimized test suite on failure is unacceptable.
+
+|`random-sample`
+|Picks a random local subset at the ratio specified by `--fallback-sampling-target`. No ML duration estimates are used.
+|When you want partial test coverage even if the service is down.
+|===
+
+When using `--fallback-mode=random-sample`, you must also specify `--fallback-sampling-target` as a percentage (for example, `50%`). This option is not valid with any other fallback mode.
+
+[source]
+----
+smart-tests subset \
+    --fallback-mode random-sample \
+    --fallback-sampling-target 50% \
+    [other options...]
+----
+
+[NOTE]
+--
+When the model is untrained and `--fallback-mode=random-sample` is set, the server-side result is used as-is. In this state the server also splits tests, so the local random sample is not applied.
 --

@@ -47,7 +47,7 @@ The {PRODUCT} CLI includes built-in integrations for test runners and build tool
 
 The {PRODUCT} CLI includes built-in integrations for test runners and build tools that are popular in the JavaScript ecosystem. For instructions to add {PRODUCT} to your CI pipeline, refer to the following integrations:
 
-* link:integrations.adoc#cypress[Cypress]
+* xref:references:integrations.adoc#cypress[Cypress]
 * xref:references:integrations.adoc#jest[Jest]
 * xref:references:integrations.adoc#karma[Karma]
 

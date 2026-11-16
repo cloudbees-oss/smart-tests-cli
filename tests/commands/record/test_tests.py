@@ -8,7 +8,7 @@ from unittest import mock
 
 import responses  # type: ignore
 
-from smart_tests.commands.record.tests import INVALID_TIMESTAMP, parse_launchable_timeformat
+from smart_tests.commands.record.tests import INVALID_TIMESTAMP, parse_launchable_timeformat, summarize_case_events
 from smart_tests.utils.http_client import get_base_url
 from tests.cli_test_case import CliTestCase
 
@@ -106,6 +106,50 @@ class TestsTest(CliTestCase):
         self.assertEqual(parse_launchable_time2.timestamp(), 1621880944.285)
 
         self.assertEqual(INVALID_TIMESTAMP, parse_launchable_timeformat(t3))
+
+    def _case_event(self, test_path, status, duration=0.0):
+        return {"type": "case", "testPath": test_path, "status": status, "duration": duration,
+                "stdout": "", "stderr": "", "data": None}
+
+    def test_summarize_case_events_single_event_per_test(self):
+        """One event per test (the common case, unaffected by flaky/rerun expansion)."""
+        passing_path = [{"type": "class", "name": "AppTest"}, {"type": "testcase", "name": "shouldWork"}]
+        failing_path = [{"type": "class", "name": "BrokenTest"}, {"type": "testcase", "name": "neverWorks"}]
+        events = [
+            self._case_event(passing_path, status=1, duration=0.01),
+            self._case_event(failing_path, status=0, duration=0.02),
+        ]
+
+        test_count, success_count, fail_count, duration = summarize_case_events(events)
+
+        self.assertEqual((test_count, success_count, fail_count), (2, 1, 1))
+        self.assertAlmostEqual(duration, (0.01 + 0.02) / 60)
+
+    def test_summarize_case_events_rerun_counts_as_one_test(self):
+        """A flaky test (4 FAILED attempts + 1 final PASSED, same testPath) must count as ONE
+        test, not five -- this is exactly the bug the raw per-event counting had."""
+        flaky_path = [{"type": "class", "name": "FlakyTest"}, {"type": "testcase", "name": "passesEventually"}]
+        events = [self._case_event(flaky_path, status=0, duration=0.0) for _ in range(4)]
+        events.append(self._case_event(flaky_path, status=1, duration=0.045))
+
+        test_count, success_count, fail_count, duration = summarize_case_events(events)
+
+        self.assertEqual((test_count, success_count, fail_count), (1, 1, 0))
+        self.assertAlmostEqual(duration, 0.045 / 60)
+
+    def test_summarize_case_events_normal_and_rerun_mixed(self):
+        """A normal test (1 event, PASSED) plus a rerun-fail test (5 events, all FAILED, same
+        testPath) should report 2 tests found / 1 passed / 1 failed -- not 6 / 1 / 5."""
+        normal_path = [{"type": "class", "name": "AppTest"}, {"type": "testcase", "name": "shouldWork"}]
+        rerun_fail_path = [{"type": "class", "name": "AlwaysFailingTest"}, {"type": "testcase", "name": "neverPasses"}]
+        events = [self._case_event(normal_path, status=1, duration=0.002)]
+        events.append(self._case_event(rerun_fail_path, status=0, duration=0.001))
+        events.extend(self._case_event(rerun_fail_path, status=0, duration=0.0) for _ in range(4))
+
+        test_count, success_count, fail_count, duration = summarize_case_events(events)
+
+        self.assertEqual((test_count, success_count, fail_count), (2, 1, 1))
+        self.assertAlmostEqual(duration, (0.002 + 0.001) / 60)
 
     @responses.activate
     @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})

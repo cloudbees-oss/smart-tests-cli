@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.1",
+  "openapi": "3.1.0",
   "info": {
     "title": "Smart Tests Intake API",
     "description": "API for accessing test execution data, flaky test reports, and test results",
@@ -11,8 +11,8 @@
   },
   "servers": [
     {
-      "url": "hhttps://api.mercury.launchableinc.com/intake",
-      "description": "Cloudbees Smart Tests server url"
+      "url": "http://localhost:8081/intake",
+      "description": "Generated server url"
     }
   ],
   "security": [
@@ -21,6 +21,10 @@
     }
   ],
   "tags": [
+    {
+      "name": "Org Level Data View",
+      "description": "APIs for viewing data across workspaces using an org-level token"
+    },
     {
       "name": "Test Data View",
       "description": "APIs for viewing test execution data and flaky test reports"
@@ -34,6 +38,26 @@
         ],
         "operationId": "recordAlias",
         "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          },
           {
             "name": "aliasName",
             "in": "path",
@@ -112,6 +136,28 @@
           "subset-controller"
         ],
         "operationId": "subset",
+        "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -136,6 +182,26 @@
         ],
         "operationId": "splitByGroups",
         "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          },
           {
             "name": "subsettingId",
             "in": "path",
@@ -167,6 +233,26 @@
         ],
         "operationId": "split",
         "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          },
           {
             "name": "subsettingId",
             "in": "path",
@@ -207,6 +293,28 @@
           "subset-analyze-controller"
         ],
         "operationId": "suggestRelatedTests",
+        "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -241,10 +349,6 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "required": [
-                  "file",
-                  "metadata"
-                ],
                 "type": "object",
                 "properties": {
                   "file": {
@@ -254,7 +358,11 @@
                   "metadata": {
                     "$ref": "#/components/schemas/JSCustomJenkinsEventMetadata"
                   }
-                }
+                },
+                "required": [
+                  "file",
+                  "metadata"
+                ]
               }
             }
           }
@@ -279,6 +387,28 @@
           "commits-controller"
         ],
         "operationId": "collect",
+        "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -292,6 +422,28 @@
           "commits-controller"
         ],
         "operationId": "tree",
+        "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -305,6 +457,28 @@
           "commits-controller"
         ],
         "operationId": "files",
+        "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -325,6 +499,28 @@
           "build-controller"
         ],
         "operationId": "build",
+        "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -409,16 +605,16 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "required": [
-                  "file"
-                ],
                 "type": "object",
                 "properties": {
                   "file": {
                     "type": "string",
                     "format": "binary"
                   }
-                }
+                },
+                "required": [
+                  "file"
+                ]
               }
             }
           }
@@ -515,7 +711,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         ],
@@ -763,6 +962,26 @@
         "operationId": "getTestResults",
         "parameters": [
           {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          },
+          {
             "name": "test-path",
             "in": "query",
             "description": "Test path to filter results (required)",
@@ -793,7 +1012,10 @@
             "description": "Filter by lineage/branch name",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "example": "main"
           },
@@ -803,7 +1025,10 @@
             "description": "Filter by test suite name",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "example": "unit-tests"
           },
@@ -813,7 +1038,10 @@
             "description": "Start date for range query (ISO-8601: YYYY-MM-DD)",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "example": "2026-05-01"
           },
@@ -823,7 +1051,10 @@
             "description": "End date for range query (ISO-8601: YYYY-MM-DD)",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "example": "2026-05-11"
           },
@@ -833,7 +1064,8 @@
             "description": "Include test execution logs in response",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "default": "false"
             }
           },
           {
@@ -842,9 +1074,10 @@
             "description": "Maximum results per page (1-500)",
             "required": false,
             "schema": {
+              "type": "string",
+              "default": "50",
               "maximum": 500,
-              "minimum": 1,
-              "type": "string"
+              "minimum": 1
             }
           },
           {
@@ -853,8 +1086,9 @@
             "description": "Number of results to skip for pagination",
             "required": false,
             "schema": {
-              "minimum": 0,
-              "type": "string"
+              "type": "string",
+              "default": "0",
+              "minimum": 0
             }
           }
         ],
@@ -872,17 +1106,80 @@
           "400": {
             "description": "Invalid parameters (missing test-path, invalid limit/offset, branch/test-suite not found, invalid date range)",
             "content": {
+              "application/json": {}
+            }
+          },
+          "403": {
+            "description": "Missing read:workspace permission",
+            "content": {
+              "application/json": {}
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{DoNotUse1}/workspaces/{DoNotUse2}/view/subsets": {
+      "get": {
+        "tags": [
+          "Test Data View"
+        ],
+        "summary": "Get subsets of a test session",
+        "description": "List the subsets requested in a test session, in the order they were requested, with a summary of each. Use the subset detail API for the test list of a subset.",
+        "operationId": "getTestSessionSubsets",
+        "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          },
+          {
+            "name": "test-session-id",
+            "in": "query",
+            "description": "Test session ID (required)",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "example": 6909578
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful retrieval of subsets",
+            "content": {
               "application/json": {
-
+                "schema": {
+                  "$ref": "#/components/schemas/JSTestSessionSubsetResponse"
+                }
               }
             }
           },
           "403": {
             "description": "Missing read:workspace permission",
             "content": {
-              "application/json": {
-
-              }
+              "application/json": {}
+            }
+          },
+          "404": {
+            "description": "Test session not found in the workspace",
+            "content": {
+              "application/json": {}
             }
           }
         }
@@ -898,12 +1195,35 @@
         "operationId": "getNeverFailingTests",
         "parameters": [
           {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          },
+          {
             "name": "year-week",
             "in": "query",
             "description": "Specific ISO year-week to fetch (format: YYYY-Www, e.g., 2026-W15)",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "example": "2026-W15"
           },
@@ -913,9 +1233,10 @@
             "description": "Number of weeks to include (1-12)",
             "required": false,
             "schema": {
+              "type": "string",
+              "default": "1",
               "maximum": 12,
-              "minimum": 1,
-              "type": "string"
+              "minimum": 1
             }
           },
           {
@@ -924,9 +1245,10 @@
             "description": "Maximum tests per week (1-500)",
             "required": false,
             "schema": {
+              "type": "string",
+              "default": "50",
               "maximum": 500,
-              "minimum": 1,
-              "type": "string"
+              "minimum": 1
             }
           },
           {
@@ -935,7 +1257,10 @@
             "description": "Filter by specific test path",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "example": "com.example.MyTest"
           },
@@ -945,7 +1270,10 @@
             "description": "Start date for range query (ISO-8601: YYYY-MM-DD)",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "example": "2026-05-01"
           },
@@ -955,7 +1283,10 @@
             "description": "End date for range query (ISO-8601: YYYY-MM-DD)",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "example": "2026-05-11"
           }
@@ -974,17 +1305,13 @@
           "400": {
             "description": "Invalid parameters (weeks out of range 1-12, limit out of range 1-500, invalid date format)",
             "content": {
-              "application/json": {
-
-              }
+              "application/json": {}
             }
           },
           "403": {
             "description": "Missing read:workspace permission",
             "content": {
-              "application/json": {
-
-              }
+              "application/json": {}
             }
           }
         }
@@ -1000,12 +1327,35 @@
         "operationId": "getLongestTests",
         "parameters": [
           {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          },
+          {
             "name": "year-week",
             "in": "query",
             "description": "Specific ISO year-week to fetch (format: YYYY-Www, e.g., 2026-W15)",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "example": "2026-W15"
           },
@@ -1015,9 +1365,10 @@
             "description": "Number of weeks to include (1-12)",
             "required": false,
             "schema": {
+              "type": "string",
+              "default": "1",
               "maximum": 12,
-              "minimum": 1,
-              "type": "string"
+              "minimum": 1
             }
           },
           {
@@ -1026,9 +1377,10 @@
             "description": "Maximum tests per week (1-500)",
             "required": false,
             "schema": {
+              "type": "string",
+              "default": "50",
               "maximum": 500,
-              "minimum": 1,
-              "type": "string"
+              "minimum": 1
             }
           },
           {
@@ -1037,7 +1389,10 @@
             "description": "Filter by specific test path",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "example": "com.example.MyTest"
           },
@@ -1047,7 +1402,10 @@
             "description": "Start date for range query (ISO-8601: YYYY-MM-DD)",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "example": "2026-05-01"
           },
@@ -1057,7 +1415,10 @@
             "description": "End date for range query (ISO-8601: YYYY-MM-DD)",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "example": "2026-05-11"
           }
@@ -1076,17 +1437,13 @@
           "400": {
             "description": "Invalid parameters (weeks out of range 1-12, limit out of range 1-500, invalid date format)",
             "content": {
-              "application/json": {
-
-              }
+              "application/json": {}
             }
           },
           "403": {
             "description": "Missing read:workspace permission",
             "content": {
-              "application/json": {
-
-              }
+              "application/json": {}
             }
           }
         }
@@ -1102,12 +1459,35 @@
         "operationId": "getFlakyTests",
         "parameters": [
           {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          },
+          {
             "name": "year-week",
             "in": "query",
             "description": "Specific ISO year-week to fetch (format: YYYY-Www, e.g., 2026-W15)",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "example": "2026-W15"
           },
@@ -1117,9 +1497,10 @@
             "description": "Number of weeks to include (1-12)",
             "required": false,
             "schema": {
+              "type": "string",
+              "default": "1",
               "maximum": 12,
-              "minimum": 1,
-              "type": "string"
+              "minimum": 1
             }
           },
           {
@@ -1128,9 +1509,10 @@
             "description": "Maximum flaky tests per week (1-500)",
             "required": false,
             "schema": {
+              "type": "string",
+              "default": "50",
               "maximum": 500,
-              "minimum": 1,
-              "type": "string"
+              "minimum": 1
             }
           },
           {
@@ -1139,7 +1521,10 @@
             "description": "Filter by specific test path",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "example": "com.example.MyTest"
           },
@@ -1149,7 +1534,10 @@
             "description": "Start date for range query (ISO-8601: YYYY-MM-DD)",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "example": "2026-05-01"
           },
@@ -1159,7 +1547,10 @@
             "description": "End date for range query (ISO-8601: YYYY-MM-DD)",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "example": "2026-05-11"
           }
@@ -1178,17 +1569,13 @@
           "400": {
             "description": "Invalid parameters (weeks out of range 1-12, limit out of range 1-500, invalid date format)",
             "content": {
-              "application/json": {
-
-              }
+              "application/json": {}
             }
           },
           "403": {
             "description": "Missing read:workspace permission",
             "content": {
-              "application/json": {
-
-              }
+              "application/json": {}
             }
           }
         }
@@ -1200,6 +1587,28 @@
           "verification-controller"
         ],
         "operationId": "verify_1",
+        "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -1256,39 +1665,25 @@
         "operationId": "getDetails",
         "parameters": [
           {
-            "name": "subsettingId",
+            "name": "DoNotUse1",
             "in": "path",
+            "description": "Organization name (from your API token)",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "object"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/organizations/{DoNotUse1}/workspaces/{DoNotUse2}/subset-analyze/{subsettingId}/previous": {
-      "get": {
-        "tags": [
-          "subset-analyze-controller"
-        ],
-        "operationId": "getPreviousSubsetId",
-        "parameters": [
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          },
           {
             "name": "subsettingId",
             "in": "path",
@@ -1306,9 +1701,59 @@
               "*/*": {
                 "schema": {
                   "type": "object",
-                  "additionalProperties": {
-                    "type": "object"
-                  }
+                  "additionalProperties": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{DoNotUse1}/workspaces/{DoNotUse2}/subset-analyze/{subsettingId}/previous": {
+      "get": {
+        "tags": [
+          "subset-analyze-controller"
+        ],
+        "operationId": "getPreviousSubsetId",
+        "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          },
+          {
+            "name": "subsettingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
                 }
               }
             }
@@ -1323,6 +1768,26 @@
         ],
         "operationId": "testSessions",
         "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          },
           {
             "name": "days",
             "in": "query",
@@ -1384,6 +1849,28 @@
           "notification-controller"
         ],
         "operationId": "notificationKeyList",
+        "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -1417,6 +1904,28 @@
           "model-controller"
         ],
         "operationId": "getModelMetadata",
+        "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -1520,6 +2029,28 @@
           "commits-controller"
         ],
         "operationId": "latest",
+        "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -1543,6 +2074,28 @@
           "commits-controller"
         ],
         "operationId": "options",
+        "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -1564,6 +2117,26 @@
         ],
         "operationId": "filesStatus",
         "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          },
           {
             "name": "workId",
             "in": "path",
@@ -1615,6 +2188,26 @@
         ],
         "operationId": "getBuild",
         "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          },
           {
             "name": "buildNumber",
             "in": "path",
@@ -1684,6 +2277,26 @@
         "operationId": "listAliases",
         "parameters": [
           {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "DoNotUse2",
+            "in": "path",
+            "description": "Workspace name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "mothership"
+          },
+          {
             "name": "name",
             "in": "query",
             "required": true,
@@ -1704,6 +2317,528 @@
                   }
                 }
               }
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{DoNotUse1}/views/never-failing-tests": {
+      "get": {
+        "tags": [
+          "Org Level Data View"
+        ],
+        "summary": "Get never-failing tests",
+        "description": "Retrieve tests that have never failed for one or more workspaces using an org-level token. Returns weekly aggregated execution statistics per test. Results are grouped by workspace name.",
+        "operationId": "getNeverFailingTests_1",
+        "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "description": "Workspace name(s) to query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "year-week",
+            "in": "query",
+            "description": "Specific ISO year-week to fetch (format: YYYY-Www, e.g., 2026-W15)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "2026-W15"
+          },
+          {
+            "name": "weeks",
+            "in": "query",
+            "description": "Number of weeks to include (1-12)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "1",
+              "maximum": 12,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum tests per week (1-500)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "50",
+              "maximum": 500,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "test-path",
+            "in": "query",
+            "description": "Filter by specific test path",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "com.example.MyTest"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Start date for range query (ISO-8601: YYYY-MM-DD)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "2026-05-01"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "End date for range query (ISO-8601: YYYY-MM-DD)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "2026-05-11"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful retrieval of never-failing test data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JSNeverFailingTestsViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters (weeks out of range 1-12, limit out of range 1-500, invalid date format)",
+            "content": {
+              "application/json": {}
+            }
+          },
+          "404": {
+            "description": "One or more specified workspaces not found in this organization",
+            "content": {
+              "application/json": {}
+            }
+          },
+          "403": {
+            "description": "Missing read:organization permission",
+            "content": {
+              "application/json": {}
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{DoNotUse1}/views/monthly-time-savings": {
+      "get": {
+        "tags": [
+          "Org Level Data View"
+        ],
+        "summary": "Get monthly time savings",
+        "description": "Retrieve monthly time savings for one or more workspaces using an org-level token. Defaults to the most recent 1 month. Use 'months' to include more recent months, or 'from'/'to' (YYYY-MM) for an explicit closed range. 'from' and 'to' must be provided together. Results are grouped by workspace name.",
+        "operationId": "getMonthlyTimeSavings",
+        "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "description": "Workspace name(s) to query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "months",
+            "in": "query",
+            "description": "Number of recent months to include (1-24). Ignored when from/to are provided.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "1",
+              "maximum": 24,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Start year-month inclusive (YYYY-MM). Must be provided with 'to'.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "2025-01"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "End year-month inclusive (YYYY-MM). Must be provided with 'from'.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "2025-12"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful retrieval of monthly time savings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JSMonthlyTimeSaving"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid date format or from > to",
+            "content": {
+              "application/json": {}
+            }
+          },
+          "404": {
+            "description": "One or more specified workspaces not found in this organization",
+            "content": {
+              "application/json": {}
+            }
+          },
+          "403": {
+            "description": "Missing read:organization permission",
+            "content": {
+              "application/json": {}
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{DoNotUse1}/views/longest-tests": {
+      "get": {
+        "tags": [
+          "Org Level Data View"
+        ],
+        "summary": "Get longest tests",
+        "description": "Retrieve longest-running test data for one or more workspaces using an org-level token. Returns weekly aggregated duration statistics per test. Results are grouped by workspace name.",
+        "operationId": "getLongestTests_1",
+        "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "description": "Workspace name(s) to query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "year-week",
+            "in": "query",
+            "description": "Specific ISO year-week to fetch (format: YYYY-Www, e.g., 2026-W15)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "2026-W15"
+          },
+          {
+            "name": "weeks",
+            "in": "query",
+            "description": "Number of weeks to include (1-12)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "1",
+              "maximum": 12,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum tests per week (1-500)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "50",
+              "maximum": 500,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "test-path",
+            "in": "query",
+            "description": "Filter by specific test path",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "com.example.MyTest"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Start date for range query (ISO-8601: YYYY-MM-DD)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "2026-05-01"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "End date for range query (ISO-8601: YYYY-MM-DD)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "2026-05-11"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful retrieval of longest test data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JSLongestTestsViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters (weeks out of range 1-12, limit out of range 1-500, invalid date format)",
+            "content": {
+              "application/json": {}
+            }
+          },
+          "404": {
+            "description": "One or more specified workspaces not found in this organization",
+            "content": {
+              "application/json": {}
+            }
+          },
+          "403": {
+            "description": "Missing read:organization permission",
+            "content": {
+              "application/json": {}
+            }
+          }
+        }
+      }
+    },
+    "/organizations/{DoNotUse1}/views/flaky-tests": {
+      "get": {
+        "tags": [
+          "Org Level Data View"
+        ],
+        "summary": "Get flaky tests",
+        "description": "Retrieve flaky test data for one or more workspaces using an org-level token. Returns weekly aggregated flaky test scores. Results are grouped by workspace name.",
+        "operationId": "getFlakyTests_1",
+        "parameters": [
+          {
+            "name": "DoNotUse1",
+            "in": "path",
+            "description": "Organization name (from your API token)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "launchableinc"
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "description": "Workspace name(s) to query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "year-week",
+            "in": "query",
+            "description": "Specific ISO year-week to fetch (format: YYYY-Www, e.g., 2026-W15)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "2026-W15"
+          },
+          {
+            "name": "weeks",
+            "in": "query",
+            "description": "Number of weeks to include (1-12)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "1",
+              "maximum": 12,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum flaky tests per week (1-500)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "50",
+              "maximum": 500,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "test-path",
+            "in": "query",
+            "description": "Filter by specific test path",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "com.example.MyTest"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Start date for range query (ISO-8601: YYYY-MM-DD)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "2026-05-01"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "End date for range query (ISO-8601: YYYY-MM-DD)",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "example": "2026-05-11"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful retrieval of flaky test data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JSFlakyTestsViewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters (weeks out of range 1-12, limit out of range 1-500, invalid date format)",
+            "content": {
+              "application/json": {}
+            }
+          },
+          "404": {
+            "description": "One or more specified workspaces not found in this organization",
+            "content": {
+              "application/json": {}
+            }
+          },
+          "403": {
+            "description": "Missing read:organization permission",
+            "content": {
+              "application/json": {}
             }
           }
         }
@@ -1758,6 +2893,26 @@
         "responses": {
           "200": {
             "description": "OK"
+          }
+        }
+      }
+    },
+    "/.well-known/jwks.json": {
+      "get": {
+        "tags": [
+          "jwks-controller"
+        ],
+        "operationId": "get",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -1907,15 +3062,15 @@
   "components": {
     "schemas": {
       "JSUpdateAlias": {
-        "required": [
-          "build"
-        ],
         "type": "object",
         "properties": {
           "build": {
             "type": "string"
           }
-        }
+        },
+        "required": [
+          "build"
+        ]
       },
       "JSUpdateAliasResponse": {
         "type": "object",
@@ -1926,10 +3081,6 @@
         }
       },
       "JSExternalLink": {
-        "required": [
-          "kind",
-          "url"
-        ],
         "type": "object",
         "properties": {
           "kind": {
@@ -1948,9 +3099,14 @@
             "type": "string"
           },
           "url": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           }
-        }
+        },
+        "required": [
+          "kind",
+          "url"
+        ]
       },
       "JSLink": {
         "type": "object",
@@ -1976,37 +3132,32 @@
         }
       },
       "JSPrioritizedTestsByTestMapping": {
-        "required": [
-          "format"
-        ],
         "type": "object",
         "properties": {
           "format": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "mappings": {
             "$ref": "#/components/schemas/JsonNode"
           }
-        }
+        },
+        "required": [
+          "format"
+        ]
       },
       "JSSplitSubset": {
-        "required": [
-          "sliceCount",
-          "sliceIndex"
-        ],
         "type": "object",
         "properties": {
           "sliceIndex": {
-            "minimum": 1,
-            "exclusiveMinimum": false,
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "minimum": 1
           },
           "sliceCount": {
-            "minimum": 1,
-            "exclusiveMinimum": false,
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "minimum": 1
           },
           "sameBins": {
             "type": "array",
@@ -2017,16 +3168,20 @@
               }
             }
           }
-        }
+        },
+        "required": [
+          "sliceCount",
+          "sliceIndex"
+        ]
       },
       "JSSubset": {
-        "required": [
-          "session"
-        ],
         "type": "object",
         "properties": {
           "testPaths": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "$ref": "#/components/schemas/TestPath"
             }
@@ -2042,12 +3197,10 @@
             "$ref": "#/components/schemas/OptimizationTarget"
           },
           "target": {
-            "maximum": 1,
-            "exclusiveMaximum": false,
-            "minimum": 0,
-            "exclusiveMinimum": false,
             "type": "number",
-            "format": "float"
+            "format": "float",
+            "maximum": 1.0,
+            "minimum": 0
           },
           "ignoreNewTests": {
             "type": "boolean"
@@ -2077,7 +3230,10 @@
             "type": "string"
           },
           "changesUnderTest": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "enum": [
               "one-commit",
               "feature-branch",
@@ -2090,6 +3246,56 @@
           },
           "splitSubset": {
             "$ref": "#/components/schemas/JSSplitSubset"
+          },
+          "fromGithubActions": {
+            "type": "boolean"
+          },
+          "githubActionsRunId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "githubActionsRunAttempt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "repositoryOwner": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "repositoryName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "githubActionsJobName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "githubActionsRunnerName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "flavors": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "prioritizedTestsMapping": {
             "$ref": "#/components/schemas/JSPrioritizedTestsByTestMapping"
@@ -2113,7 +3319,8 @@
             }
           },
           "link": {
-            "$ref": "#/components/schemas/JSLink"
+            "$ref": "#/components/schemas/JSLink",
+            "deprecated": true
           },
           "noBuild": {
             "type": "boolean"
@@ -2125,7 +3332,10 @@
             "type": "string"
           },
           "timestamp": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time"
           },
           "isObservation": {
@@ -2140,7 +3350,93 @@
         }
       },
       "JsonNode": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "array": {
+            "type": "boolean"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "null": {
+            "type": "boolean"
+          },
+          "float": {
+            "type": "boolean"
+          },
+          "container": {
+            "type": "boolean"
+          },
+          "missingNode": {
+            "type": "boolean"
+          },
+          "nodeType": {
+            "type": "string",
+            "enum": [
+              "ARRAY",
+              "BINARY",
+              "BOOLEAN",
+              "MISSING",
+              "NULL",
+              "NUMBER",
+              "OBJECT",
+              "POJO",
+              "STRING"
+            ]
+          },
+          "integralNumber": {
+            "type": "boolean"
+          },
+          "floatingPointNumber": {
+            "type": "boolean"
+          },
+          "bigDecimal": {
+            "type": "boolean"
+          },
+          "bigInteger": {
+            "type": "boolean"
+          },
+          "valueNode": {
+            "type": "boolean"
+          },
+          "binary": {
+            "type": "boolean"
+          },
+          "pojo": {
+            "type": "boolean"
+          },
+          "number": {
+            "type": "boolean"
+          },
+          "short": {
+            "type": "boolean"
+          },
+          "int": {
+            "type": "boolean"
+          },
+          "long": {
+            "type": "boolean"
+          },
+          "double": {
+            "type": "boolean"
+          },
+          "textual": {
+            "type": "boolean",
+            "deprecated": true
+          },
+          "boolean": {
+            "type": "boolean"
+          },
+          "object": {
+            "type": "boolean"
+          },
+          "string": {
+            "type": "boolean"
+          },
+          "embeddedValue": {
+            "type": "boolean"
+          }
+        }
       },
       "OptimizationTarget": {
         "type": "object",
@@ -2181,19 +3477,26 @@
         "type": "object",
         "properties": {
           "type": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "name": {
-            "pattern": "^[^\\x00-\\x1F\\x7F]+$",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[^\\x00-\\x1F\\x7F]+$"
           }
         }
       },
       "JSSplitSubsetByGroupsResponse": {
         "type": "object",
         "properties": {
-          "isObservation": {
-            "type": "boolean"
+          "subsettingId": {
+            "type": "integer",
+            "format": "int32"
           },
           "splitGroups": {
             "type": "array",
@@ -2201,9 +3504,8 @@
               "$ref": "#/components/schemas/JSSplitSubsetSplitGroup"
             }
           },
-          "subsettingId": {
-            "type": "integer",
-            "format": "int32"
+          "isObservation": {
+            "type": "boolean"
           }
         }
       },
@@ -2227,44 +3529,44 @@
           }
         }
       },
+      "ImmutableListTestPath": {
+        "type": "object",
+        "items": {
+          "$ref": "#/components/schemas/TestPath"
+        },
+        "properties": {
+          "empty": {
+            "type": "boolean"
+          }
+        }
+      },
       "JSSplitSubsetResponse": {
         "type": "object",
         "properties": {
           "rest": {
-            "type": "array",
+            "type": "object",
+            "items": {
+              "$ref": "#/components/schemas/TestPath"
+            },
             "properties": {
               "empty": {
                 "type": "boolean"
               }
-            },
-            "items": {
-              "$ref": "#/components/schemas/TestPath"
             }
-          },
-          "isObservation": {
-            "type": "boolean"
           },
           "subsettingId": {
             "type": "integer",
             "format": "int32"
           },
+          "isObservation": {
+            "type": "boolean"
+          },
           "testPaths": {
-            "type": "array",
-            "properties": {
-              "empty": {
-                "type": "boolean"
-              }
-            },
-            "items": {
-              "$ref": "#/components/schemas/TestPath"
-            }
+            "$ref": "#/components/schemas/ImmutableListTestPath"
           }
         }
       },
       "JSPromotedTestData": {
-        "required": [
-          "testName"
-        ],
         "type": "object",
         "properties": {
           "testName": {
@@ -2278,14 +3580,12 @@
             "type": "number",
             "format": "double"
           }
-        }
+        },
+        "required": [
+          "testName"
+        ]
       },
       "JSSuggestRelatedTestsRequest": {
-        "required": [
-          "changedFiles",
-          "promotedTests",
-          "selectedTests"
-        ],
         "type": "object",
         "properties": {
           "changedFiles": {
@@ -2306,7 +3606,12 @@
               "$ref": "#/components/schemas/JSPromotedTestData"
             }
           }
-        }
+        },
+        "required": [
+          "changedFiles",
+          "promotedTests",
+          "selectedTests"
+        ]
       },
       "JSSuggestRelatedTestsResponse": {
         "type": "object",
@@ -2388,11 +3693,11 @@
       "JSJenkinsCustomEventsResponse": {
         "type": "object",
         "properties": {
-          "unhealthyTest": {
-            "$ref": "#/components/schemas/UnhealthyTest"
-          },
           "testSession": {
             "$ref": "#/components/schemas/TestSession"
+          },
+          "unhealthyTest": {
+            "$ref": "#/components/schemas/UnhealthyTest"
           },
           "build": {
             "$ref": "#/components/schemas/Build"
@@ -2426,11 +3731,6 @@
         }
       },
       "JSBuild": {
-        "required": [
-          "buildNumber",
-          "commitHashes",
-          "timestamp"
-        ],
         "type": "object",
         "properties": {
           "buildNumber": {
@@ -2440,7 +3740,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/JSBuildCommit"
-            }
+            },
+            "minItems": 1
           },
           "lineage": {
             "type": "string"
@@ -2461,7 +3762,12 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "required": [
+          "buildNumber",
+          "commitHashes",
+          "timestamp"
+        ]
       },
       "JSBuildCommit": {
         "type": "object",
@@ -2483,7 +3789,10 @@
             "type": "string"
           },
           "branchName": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "mode": {
             "type": "string",
@@ -2492,10 +3801,6 @@
         }
       },
       "JSBuildComponent": {
-        "required": [
-          "build",
-          "name"
-        ],
         "type": "object",
         "properties": {
           "name": {
@@ -2504,7 +3809,11 @@
           "build": {
             "type": "string"
           }
-        }
+        },
+        "required": [
+          "build",
+          "name"
+        ]
       },
       "JSBuildResponse": {
         "type": "object",
@@ -2536,12 +3845,12 @@
             "type": "integer",
             "format": "int32"
           },
+          "buildNumber": {
+            "type": "string"
+          },
           "organizationId": {
             "type": "integer",
             "format": "int32"
-          },
-          "buildNumber": {
-            "type": "string"
           },
           "isObservation": {
             "type": "boolean"
@@ -2555,13 +3864,6 @@
         }
       },
       "JSCaseEvent": {
-        "required": [
-          "duration",
-          "status",
-          "stderr",
-          "stdout",
-          "testPath"
-        ],
         "type": "object",
         "properties": {
           "testName": {
@@ -2577,7 +3879,8 @@
           },
           "duration": {
             "type": "number",
-            "format": "float"
+            "format": "float",
+            "minimum": 0
           },
           "stdout": {
             "type": "string"
@@ -2592,7 +3895,14 @@
           "data": {
             "$ref": "#/components/schemas/JsonNode"
           }
-        }
+        },
+        "required": [
+          "duration",
+          "status",
+          "stderr",
+          "stdout",
+          "testPath"
+        ]
       },
       "JSEvents": {
         "type": "object",
@@ -2651,11 +3961,6 @@
         }
       },
       "JSCliTracking": {
-        "required": [
-          "cliVersion",
-          "command",
-          "eventName"
-        ],
         "type": "object",
         "properties": {
           "command": {
@@ -2703,12 +4008,20 @@
             "type": "string"
           },
           "rawCommand": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "metadata": {
             "$ref": "#/components/schemas/JsonNode"
           }
-        }
+        },
+        "required": [
+          "cliVersion",
+          "command",
+          "eventName"
+        ]
       },
       "JSTestSessionPatch": {
         "type": "object",
@@ -2731,6 +4044,7 @@
       },
       "JSTestResult": {
         "type": "object",
+        "description": "Test execution result with detailed status and session information",
         "properties": {
           "id": {
             "type": "string",
@@ -2759,7 +4073,10 @@
             "format": "int32"
           },
           "logs": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "$ref": "#/components/schemas/JSTestResultLog"
             }
@@ -2771,11 +4088,11 @@
             "type": "string",
             "format": "date-time"
           }
-        },
-        "description": "Test execution result with detailed status and session information"
+        }
       },
       "JSTestResultLog": {
         "type": "object",
+        "description": "Test execution log entry",
         "properties": {
           "stdout": {
             "type": "string"
@@ -2790,11 +4107,11 @@
             "type": "string",
             "format": "date-time"
           }
-        },
-        "description": "Test execution log entry"
+        }
       },
       "JSTestResultSession": {
         "type": "object",
+        "description": "Test session information",
         "properties": {
           "id": {
             "type": "integer",
@@ -2805,7 +4122,10 @@
             "format": "int32"
           },
           "branch": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "links": {
             "type": "array",
@@ -2817,8 +4137,7 @@
             "type": "string",
             "format": "date-time"
           }
-        },
-        "description": "Test session information"
+        }
       },
       "JSTestResultsData": {
         "type": "object",
@@ -2850,13 +4169,17 @@
             "type": "boolean"
           },
           "nextOffset": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int32"
           }
         }
       },
       "JSTestResultsViewResponse": {
         "type": "object",
+        "description": "Paginated test results response with metadata",
         "properties": {
           "data": {
             "$ref": "#/components/schemas/JSTestResultsData"
@@ -2864,8 +4187,63 @@
           "metadata": {
             "$ref": "#/components/schemas/JSTestResultsMetadata"
           }
-        },
-        "description": "Paginated test results response with metadata"
+        }
+      },
+      "JSSubsetSummary": {
+        "type": "object",
+        "properties": {
+          "rest": {
+            "$ref": "#/components/schemas/Summary"
+          },
+          "subset": {
+            "$ref": "#/components/schemas/Summary"
+          }
+        }
+      },
+      "JSTestSessionSubsetResponse": {
+        "type": "object",
+        "properties": {
+          "subsetId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "testSessionId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "inputTestPathCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/JSSubsetSummary"
+          }
+        }
+      },
+      "Summary": {
+        "type": "object",
+        "properties": {
+          "candidates": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "duration": {
+            "type": "number",
+            "format": "double"
+          },
+          "rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "newTestCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
       },
       "JSNeverFailingTestItem": {
         "type": "object",
@@ -2943,7 +4321,10 @@
             "format": "int32"
           },
           "latestWeek": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -3042,7 +4423,10 @@
             "format": "int32"
           },
           "latestWeek": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -3071,15 +4455,24 @@
             "format": "double"
           },
           "weeklyScoreDelta": {
-            "type": "number",
+            "type": [
+              "number",
+              "null"
+            ],
             "format": "double"
           },
           "runtimeDuration": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int64"
           },
           "weeklyRuntimeDurationDelta": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int64"
           }
         }
@@ -3137,7 +4530,10 @@
             "format": "int32"
           },
           "latestWeek": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -3188,7 +4584,10 @@
             ]
           },
           "createdAt": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time"
           }
         }
@@ -3265,6 +4664,17 @@
           }
         }
       },
+      "FailedTest": {
+        "type": "object",
+        "properties": {
+          "testPath": {
+            "$ref": "#/components/schemas/TestPath"
+          },
+          "stderr": {
+            "type": "string"
+          }
+        }
+      },
       "JSGateResponse": {
         "type": "object",
         "properties": {
@@ -3282,6 +4692,12 @@
           "actionableFailures": {
             "type": "integer",
             "format": "int32"
+          },
+          "actionableFailedTests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FailedTest"
+            }
           }
         }
       },
@@ -3366,6 +4782,49 @@
           },
           "buildName": {
             "type": "string"
+          }
+        }
+      },
+      "JSMonthlyTimeSaving": {
+        "type": "object",
+        "properties": {
+          "yearMonth": {
+            "type": "string"
+          },
+          "isFinal": {
+            "type": "boolean"
+          },
+          "includedTestSessionCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "excludedTestSessionCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unfinishedTestSessionCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalDurationWithoutSmartTestsMin": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalDurationWithSmartTestsMin": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "timeSavingMin": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "optimizedTestSessionCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "optimizedTotalDurationWithoutSmartTestsMin": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

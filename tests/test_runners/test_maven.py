@@ -159,6 +159,42 @@ class MavenTest(CliTestCase):
 
     @responses.activate
     @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
+    def test_record_test_maven_with_flaky_failure(self):
+        """A <flakyFailure> testcase (passed on a rerun) expands into FAILED attempt(s) + a final PASSED."""
+        result = self.cli('record', 'tests', '--session', self.session,
+                          'maven', str(self.test_files_dir.joinpath('reports-flaky')))
+        self.assert_success(result)
+        self.assert_record_tests_payload("record_test_flaky_result.json")
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
+    def test_record_test_maven_with_rerun_failure(self):
+        """A <rerunFailure> testcase (failed on every rerun) expands into one FAILED event per attempt."""
+        result = self.cli('record', 'tests', '--session', self.session,
+                          'maven', str(self.test_files_dir.joinpath('reports-rerun-fail')))
+        self.assert_success(result)
+        self.assert_record_tests_payload("record_test_rerun_fail_result.json")
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
+    def test_record_test_maven_with_rerun_error(self):
+        """A <rerunError> testcase (unexpected exception on every rerun) expands into one FAILED event per attempt."""
+        result = self.cli('record', 'tests', '--session', self.session,
+                          'maven', str(self.test_files_dir.joinpath('reports-rerun-error')))
+        self.assert_success(result)
+        self.assert_record_tests_payload("record_test_rerun_error_result.json")
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
+    def test_record_test_maven_with_flaky_error(self):
+        """A <flakyError> testcase (unexpected exception, passed on a rerun) expands into FAILED + a final PASSED."""
+        result = self.cli('record', 'tests', '--session', self.session,
+                          'maven', str(self.test_files_dir.joinpath('reports-flaky-error')))
+        self.assert_success(result)
+        self.assert_record_tests_payload("record_test_flaky_error_result.json")
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
     def test_subset_with_exclude(self):
         # Invalid regexp case
         result = self.cli('subset', '--target', '10%', '--session',

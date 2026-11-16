@@ -229,8 +229,8 @@ class ViewFlakyTestsTest(CliTestCase):
                             "createdAt": "2025-07-01T07:50:22.322649Z"},
                         "createdAt": "2025-07-01T11:43:24.246347Z"}]},
             "metadata": {
-                        "totalCount": 3,
-                        "limit": 50,
+                "totalCount": 3,
+                "limit": 50,
                 "offset": 0}}
 
         responses.add(
