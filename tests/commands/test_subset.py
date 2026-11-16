@@ -1311,7 +1311,6 @@ class SubsetTest(CliTestCase):
         # SMART_TESTS_DEFAULT_BRANCH is unset in jenkins_env, so defaultBranch is omitted rather
         # than sent as some guessed value.
         self.assertNotIn("defaultBranch", payload)
-        self.assertNotIn("jenkinsBuildTimestampMillis", payload)
         self.assertIn("Smart Tests created subset", result.stderr)
         self.assertNotIn("None/None", result.stderr)
         # The build/session summary line is omitted when there is no client-side session.
@@ -1403,23 +1402,6 @@ class SubsetTest(CliTestCase):
         self.assert_exit_code(result, 1)
         self.assertIn("required environment variable(s) not set", result.stderr)
         self.assertIn("GIT_COMMIT", result.stderr)
-
-    def _jenkins_payload(self, **extra_env):
-        with mock.patch.dict(os.environ, {**self.jenkins_env, **extra_env}, clear=True):
-            result = self.cli("subset", "file", "--from-jenkins", "--target", "50%",
-                              mix_stderr=False, input="test_1.py\ntest_2.py\n")
-        self.assert_success(result)
-        return self.decode_request_body(self.find_request('/jenkins/subset').request.body)
-
-    @responses.activate
-    def test_subset_from_jenkins_sends_build_timestamp_millis_as_integer(self):
-        payload = self._jenkins_payload(SMART_TESTS_BUILD_TIMESTAMP_MILLIS="1700000000000")
-        self.assertEqual(payload.get("jenkinsBuildTimestampMillis"), 1700000000000)
-
-    @responses.activate
-    def test_subset_from_jenkins_omits_non_numeric_build_timestamp_millis(self):
-        payload = self._jenkins_payload(SMART_TESTS_BUILD_TIMESTAMP_MILLIS="not-a-number")
-        self.assertNotIn("jenkinsBuildTimestampMillis", payload)
 
     def _jenkins_head_branch(self, git_branch):
         with mock.patch.dict(os.environ, {**self.jenkins_env, "GIT_BRANCH": git_branch}, clear=True):

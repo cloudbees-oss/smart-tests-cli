@@ -33,8 +33,8 @@ from ..utils.fail_fast_mode import (FailFastModeValidateParams, fail_fast_mode_v
 from ..utils.input_snapshot import InputSnapshotId
 from ..utils.link import (GITHUB_ACTIONS_JOB_KEY, GITHUB_ACTIONS_KEY, GITHUB_ACTIONS_REPOSITORY_KEY,
                           GITHUB_ACTIONS_RUN_ATTEMPT_KEY, GITHUB_ACTIONS_RUN_ID_KEY, GITHUB_ACTIONS_RUNNER_NAME_KEY,
-                          JENKINS_BUILD_DISPLAY_NAME_KEY, JENKINS_BUILD_NUMBER_KEY, JENKINS_BUILD_TIMESTAMP_MILLIS_KEY,
-                          JENKINS_BUILD_URL_KEY, JENKINS_DEFAULT_BRANCH_KEY, JENKINS_GIT_BRANCH_KEY, JENKINS_GIT_COMMIT_KEY,
+                          JENKINS_BUILD_DISPLAY_NAME_KEY, JENKINS_BUILD_NUMBER_KEY, JENKINS_BUILD_URL_KEY,
+                          JENKINS_DEFAULT_BRANCH_KEY, JENKINS_GIT_BRANCH_KEY, JENKINS_GIT_COMMIT_KEY,
                           JENKINS_GIT_URL_KEY, JENKINS_JOB_NAME_KEY, JENKINS_URL_KEY)
 from ..utils.smart_tests_client import SmartTestsClient
 from ..utils.typer_types import Duration, Fraction, Percentage, parse_duration, parse_fraction, parse_percentage
@@ -187,11 +187,6 @@ def detect_jenkins_context(env: Mapping[str, str]) -> dict[str, str] | None:
     default_branch = env.get(JENKINS_DEFAULT_BRANCH_KEY)
     if default_branch:
         context["default_branch"] = default_branch
-    # Build start time in epoch milliseconds. Jenkins has no standard environment variable for it, so
-    # it has to be provided; when absent or not a number the server falls back to the request time.
-    build_timestamp_millis = env.get(JENKINS_BUILD_TIMESTAMP_MILLIS_KEY)
-    if build_timestamp_millis and build_timestamp_millis.isdigit():
-        context["build_timestamp_millis"] = build_timestamp_millis
     return context
 
 
@@ -730,8 +725,6 @@ class Subset(TestPathWriter):
                 payload["jenkinsBuildUrl"] = self.jenkins_context["build_url"]
             if "default_branch" in self.jenkins_context:
                 payload["defaultBranch"] = self.jenkins_context["default_branch"]
-            if "build_timestamp_millis" in self.jenkins_context:
-                payload["jenkinsBuildTimestampMillis"] = int(self.jenkins_context["build_timestamp_millis"])
         else:
             payload["session"] = {
                 # expecting just the last component, not the whole path
