@@ -95,6 +95,11 @@ Display the details of a *subset* request. See /docs/features/predictive-test-se
 |No
 
 // GENERATED. MODIFY IN CLI SOURCE CODE
+|`--new-tests-only`
+|Show only tests that have no duration history
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
 |`--subset-id` INT
 |Subset id
 |Yes
@@ -497,6 +502,16 @@ The `--session` parameter is required and must use the session name that was reg
 |No
 
 // GENERATED. MODIFY IN CLI SOURCE CODE
+|`--from-github-actions`
+|Required to identify GitHub App mode. Cannot be used with --session.
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--from-jenkins`
+|Required to identify Jenkins (GitHub App combination) mode. Cannot be used with --session.
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
 |`--goal-spec` GOAL_SPEC
 |Subsetting by programmatic goal definition
 |No
@@ -563,8 +578,8 @@ The `--session` parameter is required and must use the session name that was reg
 
 // GENERATED. MODIFY IN CLI SOURCE CODE
 |`--session` SESSION
-|Session ID obtained by calling 'smart-tests record session'. It also accepts '@path/to/file' if the session ID is stored in a file 
-|Yes
+|The session ID, or '@path/to/file' where it is stored. Cannot be used with --from-github-actions.
+|No
 
 // GENERATED. MODIFY IN CLI SOURCE CODE
 |`--similarity` CONVERT
@@ -593,8 +608,23 @@ When none of `--target` , `--time` , and `--confidence` is specified, {PRODUCT} 
 Verify that the CLI can communicate with the {PRODUCT} service and that you're authenticated properly.
 
 // [generate:verify]
-`Usage: smart-tests verify`
+`Usage: smart-tests verify [OPTIONS]`
 
+[cols="2,4,1"]
+|===
+|Option |Description |Required
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--oidc`
+|Authenticate this pipeline with its OIDC id-token (from SMART_TESTS_OIDC_TOKEN) instead of an API key, and resolve the org/workspace it is registered to (the credential-free bootstrap).
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
+|`--oidc-fetch-issuer`
+|Run this from INSIDE a private network to fetch the OIDC issuer's public JWKS (read from the id-token in SMART_TESTS_OIDC_TOKEN) and print a block an admin pastes into the WebApp (Trusted OIDC issuers). Use this when Intake cannot reach the issuer directly, so its keys must be registered for manual verification. This authenticates nothing and contacts only the issuer.
+|No
+
+|===
 // [/generate]
 
 To avoid disrupting your CI/test process, the {PRODUCT} CLI is designed to tolerate and recover from service disruptions and other recoverable error conditions by falling back to no-op. This is an intentional design, but the downside is that such transparent failures can make troubleshooting difficult.
