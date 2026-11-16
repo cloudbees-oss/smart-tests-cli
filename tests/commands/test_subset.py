@@ -1304,7 +1304,7 @@ class SubsetTest(CliTestCase):
         self.assertEqual(payload.get("jenkinsBuildDisplayName"), "#42")
         self.assertEqual(payload.get("jenkinsRunId"), "my-folder/my-job-42")
         self.assertEqual(payload.get("headSha"), "abc123")
-        self.assertEqual(payload.get("headBranch"), "origin/main")
+        self.assertEqual(payload.get("headBranch"), "main")
         self.assertEqual(payload.get("repositoryOwner"), "cloudbees-oss")
         self.assertEqual(payload.get("repositoryName"), "smart-tests-cli")
         self.assertEqual(payload.get("jenkinsBuildUrl"), "https://jenkins.example.com/job/my-job/42/")
@@ -1400,6 +1400,22 @@ class SubsetTest(CliTestCase):
         self.assert_exit_code(result, 1)
         self.assertIn("required environment variable(s) not set", result.stderr)
         self.assertIn("GIT_COMMIT", result.stderr)
+
+    def _jenkins_head_branch(self, git_branch):
+        with mock.patch.dict(os.environ, {**self.jenkins_env, "GIT_BRANCH": git_branch}, clear=True):
+            result = self.cli("subset", "file", "--from-jenkins", "--target", "50%",
+                              mix_stderr=False, input="test_1.py\ntest_2.py\n")
+        self.assert_success(result)
+        payload = self.decode_request_body(self.find_request('/jenkins/subset').request.body)
+        return payload.get("headBranch")
+
+    @responses.activate
+    def test_subset_from_jenkins_strips_origin_prefix_once_from_nested_branch(self):
+        self.assertEqual(self._jenkins_head_branch("origin/feature/x"), "feature/x")
+
+    @responses.activate
+    def test_subset_from_jenkins_keeps_branch_without_origin_prefix(self):
+        self.assertEqual(self._jenkins_head_branch("release-1"), "release-1")
 
     @responses.activate
     @mock.patch.dict(os.environ, {**jenkins_env, "BUILD_NUMBER": ""}, clear=True)

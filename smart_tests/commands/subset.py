@@ -175,7 +175,9 @@ def detect_jenkins_context(env: Mapping[str, str]) -> dict[str, str] | None:
     }
     head_branch = env.get(JENKINS_GIT_BRANCH_KEY)
     if head_branch:
-        context["head_branch"] = head_branch
+        # Jenkins' Git plugin reports '<remote>/<branch>' (e.g. 'origin/main'); the server compares this
+        # with plain branch names such as the default branch.
+        context["head_branch"] = head_branch.removeprefix("origin/")
     build_url = env.get(JENKINS_BUILD_URL_KEY)
     if build_url:
         context["build_url"] = build_url
