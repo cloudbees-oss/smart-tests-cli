@@ -1302,13 +1302,49 @@ class SubsetTest(CliTestCase):
         self.assertEqual(payload.get("fromJenkins"), True)
         self.assertEqual(payload.get("jenkinsJobFullName"), "my-folder/my-job")
         self.assertEqual(payload.get("jenkinsBuildDisplayName"), "#42")
+        self.assertEqual(payload.get("jenkinsRunId"), "my-folder/my-job-42")
         self.assertEqual(payload.get("headSha"), "abc123")
         self.assertEqual(payload.get("headBranch"), "origin/main")
         self.assertEqual(payload.get("repositoryOwner"), "cloudbees-oss")
         self.assertEqual(payload.get("repositoryName"), "smart-tests-cli")
         self.assertEqual(payload.get("jenkinsBuildUrl"), "https://jenkins.example.com/job/my-job/42/")
+        # SMART_TESTS_DEFAULT_BRANCH is unset in jenkins_env, so defaultBranch is omitted rather
+        # than sent as some guessed value.
+        self.assertNotIn("defaultBranch", payload)
         # The build/session summary line is omitted when there is no client-side session.
         self.assertNotIn("test session", result.stderr)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {**jenkins_env, "SMART_TESTS_DEFAULT_BRANCH": "main"}, clear=True)
+    def test_subset_from_jenkins_includes_default_branch_when_set(self):
+        pipe = "test_1.py\ntest_2.py\n"
+        mock_json_response = {
+            "testPaths": [[{"type": "file", "name": "test_1.py"}]],
+            "testRunner": "file",
+            "rest": [[{"type": "file", "name": "test_2.py"}]],
+            "subsettingId": 123,
+            "summary": {
+                "subset": {"duration": 10, "candidates": 1, "rate": 50},
+                "rest": {"duration": 10, "candidates": 1, "rate": 50},
+            },
+            "isObservation": False,
+        }
+        responses.replace(
+            responses.POST,
+            f"{get_base_url()}/intake/jenkins/subset",
+            json=mock_json_response,
+            status=200,
+        )
+
+        result = self.cli("subset", "file", "--from-jenkins", "--target", "50%",
+                          mix_stderr=False, input=pipe)
+        self.assert_success(result)
+
+        request = self.find_request('/jenkins/subset')
+        payload = self.decode_request_body(request.request.body)
+        # SMART_TESTS_DEFAULT_BRANCH is injected by the withSmartTests pipeline step when it can
+        # resolve the repository's default branch from Jenkins' own branch-source metadata.
+        self.assertEqual(payload.get("defaultBranch"), "main")
 
     # Jenkins env with only an OIDC token and no org/workspace: the plugin authenticates via the
     # signed JWT and the server resolves the workspace from its subject, so no SMART_TESTS_TOKEN or
@@ -1364,6 +1400,15 @@ class SubsetTest(CliTestCase):
         self.assert_exit_code(result, 1)
         self.assertIn("required environment variable(s) not set", result.stderr)
         self.assertIn("GIT_COMMIT", result.stderr)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {**jenkins_env, "BUILD_NUMBER": ""}, clear=True)
+    def test_subset_from_jenkins_missing_build_number_is_error(self):
+        result = self.cli("subset", "file", "--from-jenkins",
+                          mix_stderr=False, input="test_1.py\n")
+        self.assert_exit_code(result, 1)
+        self.assertIn("required environment variable(s) not set", result.stderr)
+        self.assertIn("BUILD_NUMBER", result.stderr)
 
     @responses.activate
     @mock.patch.dict(os.environ, {**jenkins_env, "GIT_URL": "no-slash"}, clear=True)

@@ -33,8 +33,9 @@ from ..utils.fail_fast_mode import (FailFastModeValidateParams, fail_fast_mode_v
 from ..utils.input_snapshot import InputSnapshotId
 from ..utils.link import (GITHUB_ACTIONS_JOB_KEY, GITHUB_ACTIONS_KEY, GITHUB_ACTIONS_REPOSITORY_KEY,
                           GITHUB_ACTIONS_RUN_ATTEMPT_KEY, GITHUB_ACTIONS_RUN_ID_KEY, GITHUB_ACTIONS_RUNNER_NAME_KEY,
-                          JENKINS_BUILD_DISPLAY_NAME_KEY, JENKINS_BUILD_NUMBER_KEY, JENKINS_BUILD_URL_KEY, JENKINS_GIT_BRANCH_KEY,
-                          JENKINS_GIT_COMMIT_KEY, JENKINS_GIT_URL_KEY, JENKINS_JOB_NAME_KEY, JENKINS_URL_KEY)
+                          JENKINS_BUILD_DISPLAY_NAME_KEY, JENKINS_BUILD_NUMBER_KEY, JENKINS_BUILD_URL_KEY,
+                          JENKINS_DEFAULT_BRANCH_KEY, JENKINS_GIT_BRANCH_KEY, JENKINS_GIT_COMMIT_KEY,
+                          JENKINS_GIT_URL_KEY, JENKINS_JOB_NAME_KEY, JENKINS_URL_KEY)
 from ..utils.smart_tests_client import SmartTestsClient
 from ..utils.typer_types import Duration, Fraction, Percentage, parse_duration, parse_fraction, parse_percentage
 from .test_path_writer import TestPathWriter
@@ -135,10 +136,13 @@ def detect_jenkins_context(env: Mapping[str, str]) -> dict[str, str] | None:
     job_name = env.get(JENKINS_JOB_NAME_KEY)
     git_commit = env.get(JENKINS_GIT_COMMIT_KEY)
     git_url = env.get(JENKINS_GIT_URL_KEY)
+    build_number = env.get(JENKINS_BUILD_NUMBER_KEY)
 
     missing = []
     if not job_name:
         missing.append(JENKINS_JOB_NAME_KEY)
+    if not build_number:
+        missing.append(JENKINS_BUILD_NUMBER_KEY)
     if not git_commit:
         missing.append(JENKINS_GIT_COMMIT_KEY)
     if not git_url:
@@ -149,6 +153,7 @@ def detect_jenkins_context(env: Mapping[str, str]) -> dict[str, str] | None:
             f"{', '.join(missing)}."
         )
     assert job_name is not None and git_commit is not None and git_url is not None
+    assert build_number is not None
 
     owner_repo = _parse_owner_repo_from_git_url(git_url)
     if owner_repo is None:
@@ -158,19 +163,12 @@ def detect_jenkins_context(env: Mapping[str, str]) -> dict[str, str] | None:
     owner, name = owner_repo
 
     # BUILD_DISPLAY_NAME is usually '#<n>'; fall back to '#<BUILD_NUMBER>' when unset.
-    display_name = env.get(JENKINS_BUILD_DISPLAY_NAME_KEY)
-    if not display_name:
-        build_number = env.get(JENKINS_BUILD_NUMBER_KEY)
-        display_name = f"#{build_number}" if build_number else None
-    if not display_name:
-        raise JenkinsContextError(
-            "Running inside Jenkins but neither "
-            f"{JENKINS_BUILD_DISPLAY_NAME_KEY} nor {JENKINS_BUILD_NUMBER_KEY} is set."
-        )
+    display_name = env.get(JENKINS_BUILD_DISPLAY_NAME_KEY) or f"#{build_number}"
 
     context = {
         "job_full_name": job_name,
         "build_display_name": display_name,
+        "run_id": f"{job_name}-{build_number}",
         "head_sha": git_commit,
         "repository_owner": owner,
         "repository_name": name,
@@ -181,6 +179,12 @@ def detect_jenkins_context(env: Mapping[str, str]) -> dict[str, str] | None:
     build_url = env.get(JENKINS_BUILD_URL_KEY)
     if build_url:
         context["build_url"] = build_url
+    # Set by the withSmartTests pipeline step when it can resolve the repository's default
+    # branch from Jenkins' own branch-source metadata; absent when that metadata isn't
+    # available (e.g. non-Git SCM sources), so this is best-effort, not required.
+    default_branch = env.get(JENKINS_DEFAULT_BRANCH_KEY)
+    if default_branch:
+        context["default_branch"] = default_branch
     return context
 
 
@@ -708,6 +712,7 @@ class Subset(TestPathWriter):
             payload["fromJenkins"] = True
             payload["jenkinsJobFullName"] = self.jenkins_context["job_full_name"]
             payload["jenkinsBuildDisplayName"] = self.jenkins_context["build_display_name"]
+            payload["jenkinsRunId"] = self.jenkins_context["run_id"]
             payload["headSha"] = self.jenkins_context["head_sha"]
             payload["repositoryName"] = self.jenkins_context["repository_name"]
             payload["repositoryOwner"] = self.jenkins_context["repository_owner"]
@@ -715,6 +720,8 @@ class Subset(TestPathWriter):
                 payload["headBranch"] = self.jenkins_context["head_branch"]
             if "build_url" in self.jenkins_context:
                 payload["jenkinsBuildUrl"] = self.jenkins_context["build_url"]
+            if "default_branch" in self.jenkins_context:
+                payload["defaultBranch"] = self.jenkins_context["default_branch"]
         else:
             payload["session"] = {
                 # expecting just the last component, not the whole path
