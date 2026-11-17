@@ -1299,18 +1299,19 @@ class SubsetTest(CliTestCase):
         payload = self.decode_request_body(request.request.body)
         # The Jenkins flow sends Jenkins/repo identifiers instead of a client-side session.
         self.assertNotIn("session", payload)
-        self.assertEqual(payload.get("fromJenkins"), True)
-        self.assertEqual(payload.get("jenkinsJobFullName"), "my-folder/my-job")
-        self.assertEqual(payload.get("jenkinsBuildDisplayName"), "#42")
-        self.assertEqual(payload.get("jenkinsRunId"), "my-folder/my-job-42")
-        self.assertEqual(payload.get("headSha"), "abc123")
-        self.assertEqual(payload.get("headBranch"), "main")
+        self.assertNotIn("fromJenkins", payload)
+        jenkins = payload.get("jenkins")
+        self.assertEqual(jenkins.get("jobFullName"), "my-folder/my-job")
+        self.assertEqual(jenkins.get("buildDisplayName"), "#42")
+        self.assertEqual(jenkins.get("runId"), "my-folder/my-job-42")
+        self.assertEqual(jenkins.get("headSha"), "abc123")
+        self.assertEqual(jenkins.get("headBranch"), "main")
         self.assertEqual(payload.get("repositoryOwner"), "cloudbees-oss")
         self.assertEqual(payload.get("repositoryName"), "smart-tests-cli")
-        self.assertEqual(payload.get("jenkinsBuildUrl"), "https://jenkins.example.com/job/my-job/42/")
+        self.assertEqual(jenkins.get("buildUrl"), "https://jenkins.example.com/job/my-job/42/")
         # SMART_TESTS_DEFAULT_BRANCH is unset in jenkins_env, so defaultBranch is omitted rather
         # than sent as some guessed value.
-        self.assertNotIn("defaultBranch", payload)
+        self.assertNotIn("defaultBranch", jenkins)
         self.assertIn("Smart Tests created subset", result.stderr)
         self.assertNotIn("None/None", result.stderr)
         # The build/session summary line is omitted when there is no client-side session.
@@ -1346,7 +1347,7 @@ class SubsetTest(CliTestCase):
         payload = self.decode_request_body(request.request.body)
         # SMART_TESTS_DEFAULT_BRANCH is injected by the withSmartTests pipeline step when it can
         # resolve the repository's default branch from Jenkins' own branch-source metadata.
-        self.assertEqual(payload.get("defaultBranch"), "main")
+        self.assertEqual(payload.get("jenkins").get("defaultBranch"), "main")
 
     # Jenkins env with only an OIDC token and no org/workspace: the plugin authenticates via the
     # signed JWT and the server resolves the workspace from its subject, so no SMART_TESTS_TOKEN or
@@ -1375,7 +1376,7 @@ class SubsetTest(CliTestCase):
         self.assertEqual(request.request.url, f"{get_base_url()}/intake/jenkins/subset")
         self.assertEqual(request.request.headers["Authorization"], "Bearer signed.jwt.token")
         payload = self.decode_request_body(request.request.body)
-        self.assertEqual(payload.get("fromJenkins"), True)
+        self.assertIn("jenkins", payload)
 
     @responses.activate
     @mock.patch.dict(os.environ, jenkins_env, clear=True)
@@ -1409,7 +1410,7 @@ class SubsetTest(CliTestCase):
                               mix_stderr=False, input="test_1.py\ntest_2.py\n")
         self.assert_success(result)
         payload = self.decode_request_body(self.find_request('/jenkins/subset').request.body)
-        return payload.get("headBranch")
+        return payload.get("jenkins", {}).get("headBranch")
 
     @responses.activate
     def test_subset_from_jenkins_strips_origin_prefix_once_from_nested_branch(self):
@@ -1444,7 +1445,7 @@ class SubsetTest(CliTestCase):
                           mix_stderr=False, input="test_1.py\ntest_2.py\n")
         self.assert_success(result)
         payload = self.decode_request_body(self.find_request('/jenkins/subset').request.body)
-        self.assertEqual(payload.get("jenkinsBuildDisplayName"), "#42")
+        self.assertEqual(payload.get("jenkins").get("buildDisplayName"), "#42")
 
     @responses.activate
     @mock.patch.dict(os.environ, {**jenkins_env, "GITHUB_ACTIONS": "true"}, clear=True)

@@ -712,19 +712,21 @@ class Subset(TestPathWriter):
             # Jenkins (GitHub App combination): the server resolves-or-creates the build + test
             # session from these fields (no client-supplied session id) and reuses the GitHub App
             # collectors to ingest commit/history/embeddings via repositoryOwner/repositoryName.
-            payload["fromJenkins"] = True
-            payload["jenkinsJobFullName"] = self.jenkins_context["job_full_name"]
-            payload["jenkinsBuildDisplayName"] = self.jenkins_context["build_display_name"]
-            payload["jenkinsRunId"] = self.jenkins_context["run_id"]
-            payload["headSha"] = self.jenkins_context["head_sha"]
+            jenkins = {
+                "jobFullName": self.jenkins_context["job_full_name"],
+                "buildDisplayName": self.jenkins_context["build_display_name"],
+                "runId": self.jenkins_context["run_id"],
+                "headSha": self.jenkins_context["head_sha"],
+            }
+            if "head_branch" in self.jenkins_context:
+                jenkins["headBranch"] = self.jenkins_context["head_branch"]
+            if "build_url" in self.jenkins_context:
+                jenkins["buildUrl"] = self.jenkins_context["build_url"]
+            if "default_branch" in self.jenkins_context:
+                jenkins["defaultBranch"] = self.jenkins_context["default_branch"]
+            payload["jenkins"] = jenkins
             payload["repositoryName"] = self.jenkins_context["repository_name"]
             payload["repositoryOwner"] = self.jenkins_context["repository_owner"]
-            if "head_branch" in self.jenkins_context:
-                payload["headBranch"] = self.jenkins_context["head_branch"]
-            if "build_url" in self.jenkins_context:
-                payload["jenkinsBuildUrl"] = self.jenkins_context["build_url"]
-            if "default_branch" in self.jenkins_context:
-                payload["defaultBranch"] = self.jenkins_context["default_branch"]
         else:
             payload["session"] = {
                 # expecting just the last component, not the whole path
