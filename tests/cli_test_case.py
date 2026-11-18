@@ -62,6 +62,11 @@ class CliTestCase(unittest.TestCase):
             status=200)
         responses.add(
             responses.POST,
+            f"{get_base_url()}/intake/jenkins/subset",
+            json={'testPaths': [], 'rest': [], 'subsettingId': 456},
+            status=200)
+        responses.add(
+            responses.POST,
             f"{get_base_url()}/intake/organizations/{self.organization}/workspaces/{self.workspace}"
             f"/subset/{self.subsetting_id}/slice",
             json={'testPaths': [], 'rest': [], 'subsettingId': 456},

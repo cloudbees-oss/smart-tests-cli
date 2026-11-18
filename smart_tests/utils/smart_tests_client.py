@@ -9,20 +9,28 @@ from smart_tests.utils.http_client import _HttpClient, _join_paths
 from smart_tests.utils.tracking import Tracking, TrackingClient  # type: ignore
 
 from ..app import Application
-from .authentication import ensure_org_workspace
+from .authentication import ensure_org_workspace, get_org_workspace
 from .env_keys import REPORT_ERROR_KEY
 
 
 class SmartTestsClient:
     def __init__(self, tracking_client: TrackingClient | None = None, base_url: str = "", session: Session | None = None,
-                 app: Application | None = None):
+                 app: Application | None = None, require_org_workspace: bool = True):
         self.http_client = _HttpClient(
             base_url=base_url,
             session=session,
             app=app
         )
         self.tracking_client = tracking_client
-        self.organization, self.workspace = ensure_org_workspace()
+        # Workspace-unscoped flows (e.g. the OIDC-only Jenkins subset, where the server resolves the
+        # workspace from the token subject) don't need org/workspace, and requiring it would force
+        # redundant configuration. Such callers pass require_org_workspace=False; org/workspace then
+        # stay whatever the environment provides (possibly None) and are simply not used to build a
+        # workspace-scoped path.
+        if require_org_workspace:
+            self.organization, self.workspace = ensure_org_workspace()
+        else:
+            self.organization, self.workspace = get_org_workspace()
         self._workspace_state_cache: Dict[str, str | bool] | None = None
         self._cbp_workspace_cache: tuple[str, str] | None = None
 
@@ -35,11 +43,20 @@ class SmartTestsClient:
         timeout: tuple[int, int] = (5, 60),
         compress: bool = False,
         additional_headers: dict | None = None,
+        workspace_scoped: bool = True,
     ) -> requests.Response:
-        path = _join_paths(
-            f"/intake/organizations/{self.organization}/workspaces/{self.workspace}",
-            sub_path
-        )
+        # Most endpoints live under /intake/organizations/{org}/workspaces/{ws}, where RESTAuthFilter
+        # authenticates the caller against the URL workspace. A few endpoints (e.g. the OIDC-only
+        # Jenkins subset at /intake/jenkins/subset) resolve the workspace from the presented token's
+        # subject instead, so they must NOT carry org/workspace in the path: pass
+        # workspace_scoped=False for those.
+        if workspace_scoped:
+            path = _join_paths(
+                f"/intake/organizations/{self.organization}/workspaces/{self.workspace}",
+                sub_path
+            )
+        else:
+            path = _join_paths("/intake", sub_path)
 
         # report an error and bail out
         def track(event_name: Tracking.ErrorEvent, e: Exception):
@@ -133,6 +150,10 @@ class SmartTestsClient:
         """
         if self._workspace_state_cache is not None:
             return self._workspace_state_cache
+        # Workspace state lives at a workspace-scoped path; without an org/workspace (e.g. the
+        # OIDC-only Jenkins flow) there is nothing to query, so fall back to defaults.
+        if not self.organization or not self.workspace:
+            return {}
         try:
             res = self.request("get", "state")
             res.raise_for_status()

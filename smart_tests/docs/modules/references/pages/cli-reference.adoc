@@ -517,6 +517,11 @@ The `--session` parameter is required and must use the session name that was reg
 |No
 
 // GENERATED. MODIFY IN CLI SOURCE CODE
+|`--from-jenkins`
+|Required to identify Jenkins (GitHub App combination) mode. Cannot be used with --session.
+|No
+
+// GENERATED. MODIFY IN CLI SOURCE CODE
 |`--goal-spec` GOAL_SPEC
 |Subsetting by programmatic goal definition
 |No
