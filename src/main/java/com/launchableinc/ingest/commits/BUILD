@@ -11,6 +11,7 @@ java_library(
         "@maven//:com_fasterxml_jackson_core_jackson_core",
         "@maven//:com_fasterxml_jackson_core_jackson_databind",
         "@maven//:com_google_guava_guava",
+        "@maven//:com_knuddels_jtokkit",
         "@maven//:commons_io_commons_io",
         "@maven//:org_apache_commons_commons_compress",
         "@maven//:org_apache_httpcomponents_httpclient",

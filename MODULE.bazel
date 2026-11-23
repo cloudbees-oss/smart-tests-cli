@@ -15,6 +15,7 @@ maven.install(
         "com.fasterxml.jackson.core:jackson-core:2.18.2",
         "com.fasterxml.jackson.core:jackson-databind:2.18.2",
         "com.google.guava:guava:33.3.1-jre",
+        "com.knuddels:jtokkit:1.1.0",
         "org.apache.commons:commons-compress:1.27.1",
         "org.apache.httpcomponents:httpclient:4.5.14",
         # This is the last release that produce Java 8 class files.

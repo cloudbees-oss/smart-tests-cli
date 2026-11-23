@@ -14,7 +14,8 @@ from ... import args4p
 from ...app import Application
 from ...utils.commands import Command
 from ...utils.commit_ingester import upload_commits
-from ...utils.env_keys import COMMIT_TIMEOUT, REPORT_ERROR_KEY
+from ...utils.embedding import EmbeddingOptions
+from ...utils.env_keys import COMMIT_TIMEOUT, EMBEDDING_API_KEY, EMBEDDING_ENDPOINT, REPORT_ERROR_KEY
 from ...utils.fail_fast_mode import set_fail_fast_mode, warn_and_exit_if_fail_fast_mode
 from ...utils.git_log_parser import parse_git_log
 from ...utils.http_client import get_base_url
@@ -22,6 +23,9 @@ from ...utils.java import cygpath, get_java_command
 from ...utils.logger import LOG_LEVEL_AUDIT, Logger
 
 jar_file_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../jar/exe_deploy.jar"))
+
+# Exit status of the jar when client-side embedding cannot go on. Keep in sync with Main.EXIT_EMBEDDING_FAILED.
+JAR_EXIT_EMBEDDING_FAILED = 3
 
 
 @args4p.command(help="Record commit information")
@@ -63,11 +67,13 @@ def commit(
     # Commit messages are not collected in the default.
     is_collect_message = False
     is_collect_files = False
+    embedding_config: EmbeddingOptions | None = None  # None: options call failed
     try:
         res = client.request("get", "commits/collect/options")
         res.raise_for_status()
         is_collect_message = res.json().get("commitMessage", False)
         is_collect_files = res.json().get("files", False)
+        embedding_config = EmbeddingOptions.from_collect_options(res.json())
     except Exception as e:
         tracking_client.send_error_event(
             event_name=Tracking.ErrorEvent.INTERNAL_CLI_ERROR,
@@ -76,21 +82,46 @@ def commit(
         )
         client.print_exception_and_recover(e)
 
+    # embedding_config is None only when the collect/options call failed. Treat that like server mode.
+    # Embeddings are only needed when the workspace wants file content (`files` in the options), so a
+    # workspace without it has nothing to embed, whatever its embedding mode is.
+    is_client_embedding = is_collect_files and embedding_config is not None and embedding_config.is_client_mode
+    if is_client_embedding:
+        # Only warns when the LLM credentials are missing.
+        _check_embedding_env()
+
     cwd = os.path.abspath(source)
     if not name:
         name = os.path.basename(cwd)
     try:
-        exec_jar(name, cwd, max_days, app, is_collect_message, is_collect_files)
+        # In client mode the jar never falls back to server-side embedding (collect/files is not called).
+        exec_jar(name, cwd, max_days, app, is_collect_message, is_collect_files,
+                 embedding_config if is_client_embedding else None)
     except Exception as e:
         if os.getenv(REPORT_ERROR_KEY):
             raise e
+        elif isinstance(e, subprocess.CalledProcessError) and e.returncode == JAR_EXIT_EMBEDDING_FAILED:
+            # The jar has already said what is wrong. Blaming the git directory here would send the user the wrong impression.
+            warn_and_exit_if_fail_fast_mode("Client-side embedding failed.")
         else:
             warn_and_exit_if_fail_fast_mode(
                 "Couldn't get commit history from `{}`. Do you run command root of git-controlled directory? "
                 "If not, please set a directory use by --source option.\nerror: {}".format(cwd, e))
 
 
-def exec_jar(name: str, source: str, max_days: int, app: Application, is_collect_message: bool, is_collect_files: bool):
+def _check_embedding_env() -> bool:
+    """True if the LLM credentials are present. Otherwise warn (exit 1 in fail-fast mode)."""
+    missing = [k for k in (EMBEDDING_ENDPOINT, EMBEDDING_API_KEY) if not os.getenv(k)]
+    if missing:
+        warn_and_exit_if_fail_fast_mode(
+            "This workspace uses client-side embeddings but {} is not set. "
+            "No commits will be recorded until it is.".format(", ".join(missing)))
+        return False
+    return True
+
+
+def exec_jar(name: str, source: str, max_days: int, app: Application, is_collect_message: bool, is_collect_files: bool,
+             embedding_config: EmbeddingOptions | None):
     java = get_java_command()
 
     if not java:
@@ -124,6 +155,19 @@ def exec_jar(name: str, source: str, max_days: int, app: Application, is_collect
         command.append("-commit-message")
     if is_collect_files:
         command.append("-files")
+    if embedding_config is not None and embedding_config.is_client_mode:
+        # Embeddings are generated client-side, so the jar skips the collect/files upload. The model details
+        # are not secret, so they can be on the command line. The endpoint and the API key are not passed
+        # here: the jar reads them from its own environment, where `ps` can't show them.
+        command.append("-client-embedding")
+        for flag, value in (
+            ("-embedding-provider", embedding_config.provider),
+            ("-embedding-model-name", embedding_config.model_name),
+            ("-embedding-model-id", embedding_config.model_id),
+            ("-embedding-dimensions", embedding_config.dimensions),
+        ):
+            if value is not None:
+                command.extend([flag, str(value)])
     if os.getenv(COMMIT_TIMEOUT):
         command.append("-enable-timeout")
     command.append(name)

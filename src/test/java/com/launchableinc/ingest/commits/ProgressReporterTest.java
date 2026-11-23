@@ -92,4 +92,21 @@ public class ProgressReporterTest {
     assertThat(ProgressReporter.pad(15,3)).isEqualTo(" 15");
     assertThat(ProgressReporter.pad(1234,3)).isEqualTo("1234");
   }
+
+  @Test
+  public void incrementCompletedCountsAWholeBatchAtOnce() {
+    List<String> printed = new ArrayList<>();
+    // a negative interval makes every call due, so each one prints
+    ProgressReporter reporter = new ProgressReporter(Duration.ofSeconds(-1)) {
+      @Override
+      protected void print(int c, int w) {
+        printed.add(c + "/" + w);
+      }
+    };
+
+    reporter.incrementCompleted(1024);
+    reporter.incrementCompleted(452);
+
+    assertThat(printed).containsExactly("1024/0", "1476/0").inOrder();
+  }
 }

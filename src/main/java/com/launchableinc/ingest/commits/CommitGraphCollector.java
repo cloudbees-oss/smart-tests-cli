@@ -10,6 +10,7 @@ import com.google.common.collect.ImmutableList;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.config.RequestConfig;
@@ -68,6 +69,8 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.zip.GZIPOutputStream;
 
+import com.google.common.collect.ImmutableMap;
+
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Arrays.stream;
 import static org.eclipse.jgit.lib.Constants.OBJ_BLOB;
@@ -97,7 +100,25 @@ public class CommitGraphCollector {
 
   private final AtomicInteger commitsSent = new AtomicInteger(), filesSent = new AtomicInteger();
 
+  /** Number of files whose embeddings were sent to the server (client-side embedding mode). */
+  private final AtomicInteger embeddedFiles = new AtomicInteger();
+
+  /** Number of files that could not be embedded in this run. They are offered again on the next run. */
+  private final AtomicInteger skippedFiles = new AtomicInteger();
+
   private boolean collectCommitMessage, collectFiles;
+
+  /** When true, file contents are never uploaded to collect/files; they are embedded locally. */
+  private boolean clientEmbedding;
+
+  /** Model details sent along with the vectors to collect/embeddings. Set with {@link #setEmbedding}. */
+  private EmbeddingConfig embeddingConfig;
+
+  /**
+   * Turns files into vectors with the customer's LLM. Null in client mode means embedding cannot
+   * run (credentials missing or provider unsupported), so the whole file step is skipped.
+   */
+  private BatchEmbedder embedder;
 
   private int maxDays;
 
@@ -140,6 +161,14 @@ public class CommitGraphCollector {
     return filesSent.get();
   }
 
+  public int getEmbeddedFiles() {
+    return embeddedFiles.get();
+  }
+
+  public int getSkippedFiles() {
+    return skippedFiles.get();
+  }
+
   private String dumpHeaderAsJson(Header[] headers) throws JsonProcessingException {
     ObjectNode header = objectMapper.createObjectNode();
     for (Header h : headers) {
@@ -179,6 +208,8 @@ public class CommitGraphCollector {
         (ContentProducer commits) -> sendCommits(service, client, commits),
         new TreeReceiverImpl(service, client),
         (ContentProducer files) -> sendFiles(service, client, files),
+        (tree, selected) -> sendSummaries(service, client, tree, selected),
+        vectors -> sendEmbeddings(service, client, vectors),
         1024);
     }
   }
@@ -195,13 +226,128 @@ public class CommitGraphCollector {
           "AUDIT:launchable:%ssend request method:post path:%s headers:%s"
               + " args:",
           dryRunPrefix(), url, dumpHeaderAsJson(request.getAllHeaders()));
-      commits.writeTo(System.err);
+      // the writer closes its stream, and closing System.err would silence every later message
+      commits.writeTo(CloseShieldOutputStream.wrap(System.err));
       System.err.println();
     }
     if (dryRun) {
       return;
     }
     client.httpPost(request).close();
+  }
+
+  /** Sends a batch of selected files to collect/summaries and fetch the summaries. */
+  private JSSummariesResponse sendSummaries(
+      URL service, LaunchableHttpClient client, List<String> tree, List<String> selectedFiles)
+      throws IOException {
+    URL url = new URL(service, "collect/summaries");
+    Map<String, Object> body = new HashMap<>();
+    body.put("tree", tree);
+    body.put("selectedFiles", selectedFiles);
+
+    HttpPost request = new HttpPost(url.toExternalForm());
+    request.setHeader("Content-Type", "application/json");
+    request.setHeader("Content-Encoding", "gzip");
+    request.setEntity(new EntityTemplate(raw -> {
+      try (OutputStream os = new GZIPOutputStream(raw)) {
+        objectMapper.writeValue(os, body);
+      }
+    }));
+
+    if (outputAuditLog()) {
+      System.err.printf(
+          "AUDIT:launchable:%ssend request method:post path:%s headers:%s args:",
+          dryRunPrefix(), url, dumpHeaderAsJson(request.getAllHeaders()));
+      System.err.print(objectMapper.writeValueAsString(body));
+      System.err.println();
+    }
+
+    if (dryRun) {
+      return new JSSummariesResponse();
+    }
+
+    return readResponse(client.httpPost(request), JSSummariesResponse.class);
+  }
+
+  /**
+   * Uploads vectors to collect/embeddings, then waits for the server's background ingest to finish.
+   *
+   * @return how many files the server accepted
+   */
+  private int sendEmbeddings(URL service, LaunchableHttpClient client, List<FileEmbedding> files)
+      throws IOException {
+    URL url = new URL(service, "collect/embeddings");
+    Map<String, Object> body = new HashMap<>();
+    body.put("modelId", embeddingConfig.modelId);
+    body.put("dimensions", embeddingConfig.dimensions);
+    body.put("files", files);
+
+    HttpPost request = new HttpPost(url.toExternalForm());
+    request.setHeader("Content-Type", "application/json");
+    request.setHeader("Content-Encoding", "gzip");
+    request.setEntity(new EntityTemplate(raw -> {
+      try (OutputStream os = new GZIPOutputStream(raw)) {
+        objectMapper.writeValue(os, body);
+      }
+    }));
+
+    if (outputAuditLog()) {
+      // only the file names: the vectors are large and add nothing to an audit
+      List<String> names = new ArrayList<>();
+      for (FileEmbedding f : files) {
+        names.add(f.fileName);
+      }
+      System.err.printf(
+          "AUDIT:launchable:%ssend request method:post path:%s headers:%s args:",
+          dryRunPrefix(), url, dumpHeaderAsJson(request.getAllHeaders()));
+      System.err.print(objectMapper.writeValueAsString(
+          ImmutableMap.of("modelId", embeddingConfig.modelId, "dimensions", embeddingConfig.dimensions, "files", names)));
+      System.err.println();
+    }
+    if (dryRun) {
+      return 0;
+    }
+
+    int workId = readResponse(client.httpPost(request), JSAsyncFileCollectionResponse.class).workId;
+    return waitForEmbeddingIngest(service, client, workId);
+  }
+
+  /**
+   * The server stores the uploaded vectors in the background. Polls collect/embeddings/work/{workId}
+   * until that is done.
+   *
+   * @return how many files the server accepted
+   */
+  private int waitForEmbeddingIngest(URL service, LaunchableHttpClient client, int workId) throws IOException {
+    URL workUrl = new URL(service, "collect/embeddings/work/" + workId);
+    while (true) {
+      try {
+        Thread.sleep(PROGRESS_REPORT_INTERVAL);
+      } catch (InterruptedException e) {
+        // not expecting this to happen, sufficient to fail
+        throw new IOException("Interrupted while waiting for the embedding upload", e);
+      }
+      JSEmbeddingIngestProgress status = readResponse(client.httpGet(workUrl), JSEmbeddingIngestProgress.class);
+      switch (status.status) {
+      case IN_PROGRESS:
+        break;  // keep polling
+      case SUCCEEDED:
+        reportRejected(status);
+        return status.ingestedCount;
+      default:
+        reportRejected(status);
+        throw new IOException(String.format("Embedding upload (work ID %d) ended with status %s", workId, status.status));
+      }
+    }
+  }
+
+  private void reportRejected(JSEmbeddingIngestProgress status) {
+    if (status.rejectedFiles == null) {
+      return;
+    }
+    for (JSEmbeddingIngestProgress.RejectedFile f : status.rejectedFiles) {
+      System.err.printf("The server rejected the embedding for %s: %s%n", f.fileName, f.reason);
+    }
   }
 
   private void sendFiles(URL service, LaunchableHttpClient client, ContentProducer files) throws IOException {
@@ -319,6 +465,30 @@ public class CommitGraphCollector {
   public void transfer(
     Collection<ObjectId> advertised, IOConsumer<ContentProducer> commitSender, TreeReceiver treeReceiver, IOConsumer<ContentProducer> fileSender, int chunkSize)
       throws IOException {
+    transfer(advertised, commitSender, treeReceiver, fileSender, null, null, chunkSize);
+  }
+
+  /** Sends one batch of selected files to collect/summaries. Used in client-side embedding mode. */
+  interface SummariesSender {
+    JSSummariesResponse send(List<String> tree, List<String> selectedFiles) throws IOException;
+  }
+
+  /** Uploads vectors to collect/embeddings. Used in client-side embedding mode. */
+  interface EmbeddingsSender {
+    /** @return how many files the server accepted */
+    int send(List<FileEmbedding> files) throws IOException;
+  }
+
+  /**
+   * @param summariesSender Fetches the repository and folder summaries from the server. Only used
+   *     in client-side embedding mode, so it may be null otherwise.
+   * @param embeddingsSender Uploads the vectors to the server. Only used in client-side embedding
+   *     mode, so it may be null otherwise.
+   */
+  public void transfer(
+    Collection<ObjectId> advertised, IOConsumer<ContentProducer> commitSender, TreeReceiver treeReceiver, IOConsumer<ContentProducer> fileSender,
+    SummariesSender summariesSender, EmbeddingsSender embeddingsSender, int chunkSize)
+      throws IOException {
     ByRepository r = new ByRepository(root, rootName);
 
     /*
@@ -357,12 +527,36 @@ public class CommitGraphCollector {
           // this way, if the file collection fails, the server won't see this commit, so the future
           // "record commit" invocation will retry the file collection, thereby making the behavior idempotent.
 
-          // ConcurrentConsumer parallelizes file sending within a repository. When it leads the try block
-          // it ensures all the submissions have completed.
-          try (ConcurrentConsumer<ContentProducer> parallel = new ConcurrentConsumer<>(fileSender, transferPool);
-               FileChunkStreamer fs = new FileChunkStreamer(r::buildHeader, parallel, chunkSize);
-               FlushableConsumer<VirtualFile> fsr = fileTransferProgressReporter.newProducer(fs)) {
-            br.collectFiles(advertised, treeReceiver, fsr);
+          if (clientEmbedding) {
+            // Client mode: file contents are never uploaded to collect/files. The files the server
+            // selected via collect/tree are embedded locally and the vectors are sent to
+            // collect/embeddings instead.
+            if (embedder != null) {
+              if (summariesSender == null || embeddingsSender == null) {
+                throw new IllegalStateException("Client-side embedding requires summaries and embeddings senders");
+              }
+
+              ClientEmbeddingConsumer job = new ClientEmbeddingConsumer(
+                  br.listAllPaths(), summariesSender, embedder, embeddingsSender,
+                  embeddedFiles::addAndGet, skippedFiles::addAndGet, fileTransferProgressReporter::incrementCompleted, dryRun);
+              try (ConcurrentConsumer<List<VirtualFile>> parallel = new ConcurrentConsumer<>(job, transferPool);
+                  FlushableConsumer<VirtualFile> batcher = new BatchingConsumer<>(parallel, chunkSize);
+                  // counts the selected files, like the file upload does. A dry run embeds nothing, so it has no progress
+                  FlushableConsumer<VirtualFile> counted =
+                      dryRun ? batcher : fileTransferProgressReporter.newProducer(batcher)) {
+                  br.collectFiles(advertised, treeReceiver, counted);
+              }
+              job.warnIfNothingWorked();
+              job.failIfAnyBatchFailed();
+            }
+          } else {
+            // ConcurrentConsumer parallelizes file sending within a repository. When it leads the try block
+            // it ensures all the submissions have completed.
+            try (ConcurrentConsumer<ContentProducer> parallel = new ConcurrentConsumer<>(fileSender, transferPool);
+                 FileChunkStreamer fs = new FileChunkStreamer(r::buildHeader, parallel, chunkSize);
+                 FlushableConsumer<VirtualFile> fsr = fileTransferProgressReporter.newProducer(fs)) {
+              br.collectFiles(advertised, treeReceiver, fsr);
+            }
           }
         }
 
@@ -400,6 +594,19 @@ public class CommitGraphCollector {
 
   public void collectFiles(boolean collectFiles) {
     this.collectFiles = collectFiles;
+  }
+
+  public void setClientEmbedding(boolean clientEmbedding) {
+    this.clientEmbedding = clientEmbedding;
+  }
+
+  /**
+   * @param config the model details sent along with the vectors
+   * @param embedder turns files into vectors, or null if embedding cannot run in this invocation
+   */
+  public void setEmbedding(EmbeddingConfig config, BatchEmbedder embedder) {
+    this.embeddingConfig = config;
+    this.embedder = embedder;
   }
 
   /** Process commits per repository. */
@@ -576,7 +783,10 @@ public class CommitGraphCollector {
 
         for (VirtualFile f : files) {
           fileReceiver.accept(f);
-          filesSent.incrementAndGet();
+          if (!clientEmbedding) {
+            // filesSent counts uploads; in client mode nothing is uploaded.
+            filesSent.incrementAndGet();
+          }
         }
 
         fileReceiver.flush();
@@ -624,6 +834,20 @@ public class CommitGraphCollector {
       }
     }
 
+    /** Every file path at HEAD, with no filtering. */
+    List<String> listAllPaths() throws IOException {
+      List<String> paths = new ArrayList<>();
+      try (TreeWalk tw = new TreeWalk(git)) {
+        tw.addTree(git.parseCommit(headId).getTree());
+        tw.setRecursive(true);
+
+        while (tw.next()) {
+          paths.add(tw.getPathString());
+        }
+      }
+      return paths;
+    }
+
     /**
      * Creates a per repository "header" file as a {@link VirtualFile}.
      * Currently, this is just the list of files in the repository.
@@ -635,15 +859,10 @@ public class CommitGraphCollector {
         w.writeStartObject();
         {
           w.writeArrayFieldStart("tree");
-          try (TreeWalk tw = new TreeWalk(git)) {
-            tw.addTree(git.parseCommit(headId).getTree());
-            tw.setRecursive(true);
-
-            while (tw.next()) {
-              w.writeStartObject();
-              w.writeStringField("path", tw.getPathString());
-              w.writeEndObject();
-            }
+          for (String path : listAllPaths()) {
+            w.writeStartObject();
+            w.writeStringField("path", path);
+            w.writeEndObject();
           }
           w.writeEndArray();
 
@@ -815,7 +1034,7 @@ public class CommitGraphCollector {
           System.err.printf(
               "AUDIT:launchable:%ssend request method:post path:%s headers:%s args:",
               dryRunPrefix(), url, dumpHeaderAsJson(request.getAllHeaders()));
-          writeJsonTo(System.err);
+          writeJsonTo(CloseShieldOutputStream.wrap(System.err));
           System.err.println();
         }
 

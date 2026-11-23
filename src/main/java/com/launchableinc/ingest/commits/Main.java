@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import org.eclipse.jgit.api.Git;
@@ -47,6 +48,28 @@ public class Main {
   public boolean collectFiles;
 
   @Option(
+      name = "-client-embedding",
+      usage = "Enable client-side embedding mode")
+  public boolean clientEmbedding;
+
+  // The model details below come from the server's collect/options. They are not secret, so they
+  // can be on the command line. The endpoint and the API key are read from the environment.
+  @Option(name = "-embedding-provider", usage = "Provider of the embedding model, e.g. OpenAI")
+  public String embeddingProvider;
+
+  @Option(name = "-embedding-model-name", usage = "Name of the embedding model, e.g. text-embedding-3-small")
+  public String embeddingModelName;
+
+  @Option(name = "-embedding-model-id", usage = "The server's ID of the embedding model")
+  public int embeddingModelId;
+
+  @Option(name = "-embedding-dimensions", usage = "Number of entries in each embedding vector")
+  public int embeddingDimensions;
+
+  /** Where environment variables come from. Replaced in tests. */
+  @VisibleForTesting Function<String, String> getenv = System::getenv;
+
+  @Option(
       name = "-max-days",
       usage = "The maximum number of days to collect commits retroactively.")
   public int maxDays = 30;
@@ -63,6 +86,17 @@ public class Main {
 
   public Main() throws CmdLineException, MalformedURLException {}
 
+  /**
+   * Exit status when client-side embedding cannot go on. The Python CLI tells it apart from a
+   * failure to read the git repository.
+   */
+  static final int EXIT_EMBEDDING_FAILED = 3;
+
+  /** Environment variables that carry the customer's LLM endpoint and key. Keep in sync with env_keys.py. */
+  static final String EMBEDDING_ENDPOINT_ENV = "SMART_TESTS_EMBEDDING_ENDPOINT";
+
+  static final String EMBEDDING_API_KEY_ENV = "SMART_TESTS_EMBEDDING_API_KEY";
+
   public static void main(String[] args) throws Exception {
     Main ingester = new Main();
     CmdLineParser parser = new CmdLineParser(ingester);
@@ -73,6 +107,10 @@ public class Main {
       // signals error meant to be gracefully handled
       System.err.println(e.getMessage());
       System.exit(2);
+    } catch (EmbeddingRunFailedException e) {
+      // also meant to be gracefully handled: the message says what is wrong, a stack trace would not
+      System.err.println(e.getMessage());
+      System.exit(EXIT_EMBEDDING_FAILED);
     }
   }
 
@@ -160,13 +198,107 @@ public class Main {
       cgc.setDryRun(dryRun);
       cgc.collectCommitMessage(commitMessage);
       cgc.collectFiles(collectFiles);
-      cgc.transfer(endpoint, authenticator, enableTimeout);
+      cgc.setClientEmbedding(clientEmbedding);
+      EmbeddingConfig embeddingConfig = buildEmbeddingConfig();
+      BatchEmbedder embedder = buildEmbedder(embeddingConfig);
+      cgc.setEmbedding(embeddingConfig, embedder);
+      try {
+        cgc.transfer(endpoint, authenticator, enableTimeout);
+      } catch (IOException e) {
+        // A fatal embedding error happens on a worker thread and arrives wrapped as
+        // IOException -> ExecutionException -> EmbeddingException, so look down the chain of causes for it.
+        EmbeddingRunFailedException runFailed = findCause(e, EmbeddingRunFailedException.class);
+        if (runFailed != null) {
+          throw runFailed;
+        }
+        EmbeddingException embeddingFailure = findCause(e, EmbeddingException.class);
+        if (embeddingFailure == null) {
+          throw e;
+        }
+        throw embeddingRunFailed(embeddingFailure.getMessage(), e);
+      } finally {
+        if (embedder != null) {
+          embedder.close();
+        }
+      }
       int numCommits = cgc.getCommitsSent();
-      int numFiles = cgc.getFilesSent();
-      System.out.printf("Smart Tests transferred %d more %s and %d more %s from repository %s%n",
-          numCommits, plural(numCommits, "commit"),
-          numFiles, plural(numFiles, "file"),
-          repo);
+      if (clientEmbedding) {
+        int numEmbedded = cgc.getEmbeddedFiles();
+        int numSkipped = cgc.getSkippedFiles();
+        String skipped =
+            numSkipped == 0
+                ? ""
+                : String.format(" (%d %s skipped, will be retried next run)", numSkipped, plural(numSkipped, "file"));
+        System.out.printf("Smart Tests transferred %d more %s and uploaded embeddings for %d %s%s from repository %s%n",
+            numCommits, plural(numCommits, "commit"),
+            numEmbedded, plural(numEmbedded, "file"),
+            skipped,
+            repo);
+      } else {
+        int numFiles = cgc.getFilesSent();
+        System.out.printf("Smart Tests transferred %d more %s and %d more %s from repository %s%n",
+            numCommits, plural(numCommits, "commit"),
+            numFiles, plural(numFiles, "file"),
+            repo);
+      }
+    }
+  }
+
+  private static EmbeddingRunFailedException embeddingRunFailed(String reason, Throwable cause) {
+    return new EmbeddingRunFailedException(
+        "Client-side embedding failed: " + reason + "\nFix the problem and run record commit again.", cause);
+  }
+
+  private static <T extends Throwable> T findCause(Throwable e, Class<T> type) {
+    for (Throwable t = e; t != null; t = t.getCause() == t ? null : t.getCause()) {
+      if (type.isInstance(t)) {
+        return type.cast(t);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Gathers what is needed to embed files with the customer's endpoint.
+   *
+   * @return null if embedding is not needed
+   * @throws EmbeddingRunFailedException if the endpoint or the API key is not set, or the endpoint
+   *     cannot be used, for example because it is not a URL. That is found before anything is sent, so no server credits are spent
+   */
+  private EmbeddingConfig buildEmbeddingConfig() throws EmbeddingRunFailedException {
+    if (!collectFiles || !clientEmbedding) {
+      return null;
+    }
+    String embeddingEndpoint = getenv.apply(EMBEDDING_ENDPOINT_ENV);
+    String apiKey = getenv.apply(EMBEDDING_API_KEY_ENV);
+    if (Strings.isNullOrEmpty(embeddingEndpoint) || Strings.isNullOrEmpty(apiKey)) {
+      throw embeddingRunFailed(EMBEDDING_ENDPOINT_ENV + " or " + EMBEDDING_API_KEY_ENV + " is not set in the environment", null);
+    }
+    String problem = EmbeddingAdapters.endpointProblem(embeddingEndpoint);
+    if (problem != null) {
+      throw embeddingRunFailed(problem, null);
+    }
+    if (EmbeddingAdapters.sendsUnencrypted(embeddingEndpoint)) {
+      System.err.println(
+          "Warning: " + EMBEDDING_ENDPOINT_ENV + " is not an https:// URL, so the API key and the contents of your files"
+              + " are sent unencrypted.");
+    }
+    return new EmbeddingConfig(
+        embeddingProvider, embeddingModelName, embeddingDimensions, embeddingModelId, embeddingEndpoint, apiKey);
+  }
+
+  /**
+   * @return null if there is nothing to embed
+   * @throws EmbeddingRunFailedException if the provider or model is not supported
+   */
+  private BatchEmbedder buildEmbedder(EmbeddingConfig config) throws EmbeddingRunFailedException {
+    if (config == null) {
+      return null;
+    }
+    try {
+      return BatchEmbedder.create(config);
+    } catch (UnsupportedEmbeddingException e) {
+      throw embeddingRunFailed(e.getMessage(), e);
     }
   }
 
