@@ -38,6 +38,12 @@ class ProgressReporter {
     maybePrintStatus();
   }
 
+  /** Several items are completed at once, for example a batch. */
+  public void incrementCompleted(int items) {
+    completed.addAndGet(items);
+    maybePrintStatus();
+  }
+
   /**
    * Deals with one serial stream of work.
    */

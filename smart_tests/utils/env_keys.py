@@ -25,6 +25,13 @@ SKIP_CERT_VERIFICATION = "SMART_TESTS_SKIP_CERT_VERIFICATION"
 SESSION_DIR_KEY = "SMART_TESTS_SESSION_DIR"
 CALLER_KEY = "SMART_TESTS_CALLER"
 
+# Client-side embedding (bring your own LLM). Only used when the workspace's embedding mode is
+# "client". The endpoint is the full URL of the embeddings API (for example
+# https://api.openai.com/v1/embeddings), not a base URL. The API key is read by the JVM straight
+# from its environment and must never be passed on the command line.
+EMBEDDING_ENDPOINT = "SMART_TESTS_EMBEDDING_ENDPOINT"
+EMBEDDING_API_KEY = "SMART_TESTS_EMBEDDING_API_KEY"
+
 # Legacy token key for backward compatibility
 LEGACY_TOKEN_KEY = "LAUNCHABLE_TOKEN"
 
