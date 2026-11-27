@@ -18,6 +18,11 @@ public class ModelProfilesTest {
   }
 
   @Test
+  public void textEmbedding3SmallVectorsAreStoredAsTheModelReturnsThemLikeTheServerDoes() {
+    assertThat(ModelProfiles.lookup("text-embedding-3-small").normalizeVectors).isFalse();
+  }
+
+  @Test
   public void theModelNameIsMatchedIgnoringCase() {
     assertThat(ModelProfiles.lookup("Text-Embedding-3-Small").maxTokensPerInput).isEqualTo(8100);
   }

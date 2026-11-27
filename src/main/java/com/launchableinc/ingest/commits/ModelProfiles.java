@@ -16,7 +16,9 @@ class ModelProfiles {
   static ModelProfile lookup(String modelName) {
     switch (EmbeddingAdapters.normalize(modelName)) {
       case "textembedding3small":
-        return new ModelProfile(EmbeddingText.MAX_TOKENS, 1900, 210_000, 150_000, new JtokkitTokenCounter());
+        // OpenAI's vectors are within about 0.0005 of length 1. The server stores them as returned in
+        // its own mode, so client mode does too, which keeps the scores of both modes identical.
+        return new ModelProfile(EmbeddingText.MAX_TOKENS, 1900, 210_000, 150_000, new JtokkitTokenCounter(), false);
       default:
         throw new UnsupportedEmbeddingException(
             "The embedding model '" + modelName + "' is not supported by this version of the CLI.");
