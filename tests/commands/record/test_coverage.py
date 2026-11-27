@@ -144,3 +144,135 @@ class CoverageTest(CliTestCase):
         self.assertIn("⚠ Failed to record", result.output)
 
         os.unlink(coverage_file.name)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
+    def test_testmap_alone_uploads_json_when_there_is_no_coverage_to_find(self):
+        rules = b'{"format": "testmap-v1", "mappings": {"repo": {"src/**": ["file=tests/**"]}}}'
+        testmap_file = tempfile.NamedTemporaryFile(delete=False)
+        testmap_file.write(rules)
+        testmap_file.close()
+
+        received = []
+
+        def capture(request):
+            received.append((request.headers["Content-Type"], gzip.decompress(b''.join(list(request.body)))))
+            return (200, [], "{}")
+
+        base = (f"{get_base_url()}/intake/organizations/{self.organization}/workspaces/"
+                f"{self.workspace}/builds/{self.build_name}/test_sessions/{self.session_id}")
+        responses.add_callback(responses.POST, f"{base}/testmap", callback=capture)
+
+        result = self.cli("record", "coverage", "--session", self.session, "--testmap", testmap_file.name)
+
+        self.assert_success(result)
+        self.assertEqual([("application/json", rules)], received)
+        self.assertIn("✓ Recorded successfully", result.output)
+        self.assertIn("Testmap file", result.output)
+        self.assertNotIn("Coverage Files", result.output)
+        self.assertNotIn("⚠ Failed to record", result.output)
+
+        os.unlink(testmap_file.name)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
+    def test_testmap_with_coverage_files_uploads_both(self):
+        coverage_file = tempfile.NamedTemporaryFile(delete=False)
+        coverage_file.write(b"SF:src/Foo.java\nDA:1,1\nend_of_record\n")
+        coverage_file.close()
+        testmap_file = tempfile.NamedTemporaryFile(delete=False)
+        testmap_file.write(b'{"format": "testmap-v1", "mappings": {}}')
+        testmap_file.close()
+
+        base = (f"{get_base_url()}/intake/organizations/{self.organization}/workspaces/"
+                f"{self.workspace}/builds/{self.build_name}/test_sessions/{self.session_id}")
+        responses.add(responses.POST, f"{base}/coverage", json={"sourceFilesRecorded": 1})
+        responses.add(responses.POST, f"{base}/testmap", json={})
+
+        result = self.cli("record", "coverage", "--session", self.session, "--testmap", testmap_file.name,
+                          coverage_file.name)
+
+        self.assert_success(result)
+        paths = [c.request.url.rsplit("/", 1)[1] for c in responses.calls if c.request.method == "POST"]
+        self.assertEqual(["coverage", "testmap"], paths)
+        self.assertIn("Coverage Files", result.output)
+        self.assertIn("Testmap file", result.output)
+
+        os.unlink(coverage_file.name)
+        os.unlink(testmap_file.name)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
+    def test_testmap_shows_what_the_expansion_found(self):
+        result = self._upload_testmap_answered_with({
+            "isReupload": False, "changedFiles": 20, "testsRecorded": 28, "rulesFired": 4,
+            "testsMatched": 3, "repositoriesWithoutRules": []})
+
+        self.assert_success(result)
+        self.assertIn("Tests matched", result.output)
+        self.assertIn(" 20 |", result.output)
+        self.assertIn(" 3 |", result.output)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
+    def test_testmap_does_not_suppress_auto_discovered_coverage(self):
+        # Adding --testmap to an existing `record coverage` call must not silently stop uploading
+        # coverage: one invocation uploads both.
+        testmap_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
+        testmap_file.write(b'{"format": "testmap-v1", "mappings": {}}')
+        testmap_file.close()
+
+        with tempfile.TemporaryDirectory() as workspace:
+            target_dir = os.path.join(workspace, "bazel-testlogs", "net", "AllTests")
+            os.makedirs(target_dir)
+            with open(os.path.join(target_dir, "coverage.dat"), "wb") as f:
+                f.write(b"SF:src/net/URIs.java\nDA:1,1\nend_of_record\n")
+
+            base = (f"{get_base_url()}/intake/organizations/{self.organization}/workspaces/"
+                    f"{self.workspace}/builds/{self.build_name}/test_sessions/{self.session_id}")
+            responses.add(responses.POST, f"{base}/coverage", json={"sourceFilesRecorded": 1})
+            responses.add(responses.POST, f"{base}/testmap", json={})
+
+            cwd = os.getcwd()
+            os.chdir(workspace)
+            try:
+                result = self.cli("record", "coverage", "--session", self.session,
+                                  "--testmap", testmap_file.name)
+            finally:
+                os.chdir(cwd)
+
+        self.assert_success(result)
+        paths = [c.request.url.rsplit("/", 1)[1] for c in responses.calls if c.request.method == "POST"]
+        self.assertEqual(["coverage", "testmap"], paths)
+        self.assertIn("Coverage Files", result.output)
+        self.assertIn("Testmap file", result.output)
+
+        os.unlink(testmap_file.name)
+
+    @responses.activate
+    @mock.patch.dict(os.environ, {"SMART_TESTS_TOKEN": CliTestCase.smart_tests_token})
+    def test_no_coverage_and_no_testmap_is_still_an_error(self):
+        # Coverage was the point of the call, so finding none must still fail.
+        with tempfile.TemporaryDirectory() as workspace:
+            cwd = os.getcwd()
+            os.chdir(workspace)
+            try:
+                result = self.cli("record", "coverage", "--session", self.session)
+            finally:
+                os.chdir(cwd)
+
+        self.assertIn("⚠ Failed to record", result.output)
+
+    def _upload_testmap_answered_with(self, response_body: dict):
+        testmap_file = tempfile.NamedTemporaryFile(delete=False)
+        testmap_file.write(b'{"format": "testmap-v1", "mappings": {}}')
+        testmap_file.close()
+        responses.add(
+            responses.POST,
+            f"{get_base_url()}/intake/organizations/{self.organization}/workspaces/"
+            f"{self.workspace}/builds/{self.build_name}/test_sessions/{self.session_id}/testmap",
+            json=response_body)
+        try:
+            return self.cli("record", "coverage", "--session", self.session, "--testmap", testmap_file.name)
+        finally:
+            os.unlink(testmap_file.name)

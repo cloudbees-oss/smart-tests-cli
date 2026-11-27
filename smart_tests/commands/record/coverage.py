@@ -2,7 +2,7 @@ import glob
 import os
 from io import BytesIO
 from pathlib import Path
-from typing import Annotated, List, Optional, Tuple
+from typing import Annotated, Any, Dict, List, Optional, Tuple
 
 import click
 from tabulate import tabulate
@@ -12,6 +12,7 @@ from smart_tests.utils.session import SessionId, get_session
 
 from ... import args4p
 from ...app import Application
+from ...args4p.converters import path
 from ...utils.smart_tests_client import SmartTestsClient
 
 
@@ -23,7 +24,10 @@ class CoverageStatus:
 @args4p.command(help="Record coverage data (LCOV format) related to a test session. "
                 "Passing COVERAGE_FILES is optional for bazel; "
                 "files are auto discovered when the command is run inside project root. "
-                "Other test runners must pass their coverage report file(s) directly.")
+                "Other test runners must pass their coverage report file(s) directly. "
+                "Additionally use --testmap to upload your own source-to-test mapping rules (testmap-v1 JSON), "
+                "useful for source files that coverage cannot attribute to tests (for example, code "
+                "exercised by end-to-end tests where coverage instrumentation is not possible).")
 def coverage(
     app: Application,
     session: Annotated[SessionId, SessionId.as_option()],
@@ -32,35 +36,68 @@ def coverage(
         required=False,
         help="Coverage report files to upload (LCOV format)"
     )] = [],
+    testmap: Annotated[Path | None, typer.Option(
+        "--testmap",
+        type=path(exists=True, dir_okay=False),
+        help="JSON file (format: testmap-v1), mapping source file globs to the tests relevant to them. "
+             "Useful for source files that coverage cannot attribute to tests (for example, code "
+             "exercised by end-to-end tests where coverage instrumentation is not possible). Coverage "
+             "reports are still uploaded alongside it; when there are none to find, only the testmap "
+             "is uploaded.",
+        metavar="FILE"
+    )] = None,
 ):
     client = SmartTestsClient(app=app)
     sources: List[str] = []
+    coverage_expected = bool(coverage_files) or testmap is None
+    status: Optional[str] = None
+    files_recorded: Optional[int] = None
+    is_reupload = False
+    testmap_status: Optional[str] = None
+    testmap_summary: Dict[str, Any] = {}
 
     try:
         # Assert test session exists
         get_session(session, client)
+        testmap_content = _read(testmap) if testmap is not None else None
 
+        blocks: List[bytes] = []
         if coverage_files:
             sources = list(coverage_files)
             blocks = [_read(f) for f in sources]
         else:
-            # No files given: auto-discover from the current directory
+            # No files given: auto-discover from the current directory.
             # Auto discovery is Bazel only for now.
-            sources, blocks = discover_bazel_coverage(Path("."))
+            try:
+                sources, blocks = discover_bazel_coverage(Path("."))
+            except click.UsageError:
+                if testmap_content is None:
+                    raise
+                click.echo("No coverage report found; uploading the testmap only.", err=True)
 
-        # LCOV tracefiles are just a sequence of SF:...end_of_record blocks, so concatenating
-        # multiple files is itself a valid tracefile. Send them as one upload rather than one
-        # request per file. The server already unions repeated SF: blocks for the same file within
-        # one upload, so this is correct even when the inputs cover overlapping files (e.g. one
-        # report from a unit-test run, another from an integration-test run touching the same
-        # source file)
-        content = b"\n".join(blocks)
-        status, files_recorded, is_reupload = post_coverage(client, session, content)
+        if blocks:
+            # LCOV tracefiles are just a sequence of SF:...end_of_record blocks, so concatenating
+            # multiple files is itself a valid tracefile. Send them as one upload rather than one
+            # request per file. The server already unions repeated SF: blocks for the same file
+            # within one upload, so this is correct even when the inputs cover overlapping files
+            # (e.g. one report from a unit-test run, another from an integration-test run touching
+            # the same source file)
+            content = b"\n".join(blocks)
+            status, files_recorded, is_reupload = post_coverage(client, session, content)
+
+        if testmap_content is not None:
+            testmap_status, testmap_summary = post_testmap(client, session, testmap_content)
     except Exception as e:
         client.print_exception_and_recover(e)
-        status, files_recorded, is_reupload = CoverageStatus.FAILED, None, False
+        if coverage_expected and status is None:
+            status = CoverageStatus.FAILED
+        if testmap is not None and testmap_status is None:
+            testmap_status = CoverageStatus.FAILED
 
-    display_summary(sources, status, files_recorded, is_reupload)
+    if status is not None:
+        display_summary(sources, status, files_recorded, is_reupload)
+    if testmap is not None:
+        display_testmap_summary(str(testmap), testmap_status or CoverageStatus.FAILED, testmap_summary)
 
 
 def discover_bazel_coverage(workspace: "str | Path") -> Tuple[List[str], List[bytes]]:
@@ -102,8 +139,8 @@ def _tag_with_test_name(content: bytes, label: str) -> bytes:
     return b"".join(tagged)
 
 
-def _read(path: str) -> bytes:
-    with open(path, mode='rb') as f:
+def _read(file: "str | Path") -> bytes:
+    with open(file, mode='rb') as f:
         return f.read()
 
 
@@ -118,6 +155,69 @@ def post_coverage(client: SmartTestsClient, session: SessionId, content: bytes) 
     except Exception as e:
         click.echo("Failed to upload coverage report: {}".format(str(e)), err=True)
         return CoverageStatus.FAILED, None, False
+
+
+def post_testmap(client: SmartTestsClient, session: SessionId, content: bytes) -> Tuple[str, Dict[str, Any]]:
+    try:
+        res = client.request(
+            "post", session.subpath("testmap"), compress=True, payload=BytesIO(content),
+            additional_headers={"Content-Type": "application/json"})
+        res.raise_for_status()
+        return CoverageStatus.SUCCESS, res.json()
+    except Exception as e:
+        click.echo("Failed to upload testmap: {}".format(str(e)), err=True)
+        return CoverageStatus.FAILED, {}
+
+
+def display_testmap_summary(testmap: str, status: str, summary: Optional[Dict[str, Any]] = None):
+    summary = summary or {}
+
+    def count(key: str) -> Any:
+        value = summary.get(key)
+        return "-" if value is None else value
+
+    click.echo(tabulate(
+        [[testmap, count("changedFiles"), count("testsRecorded"), count("rulesFired"), count("testsMatched"), status]],
+        ["Testmap file", "Changed files", "Tests recorded", "Rules fired", "Tests matched", "Status"],
+        tablefmt="github"))
+
+    if summary.get("isReupload"):
+        click.echo(
+            click.style(
+                "⚠ This session already had a testmap recorded. The previous upload was overwritten.",
+                fg="yellow"),
+            err=True)
+
+    if status != CoverageStatus.SUCCESS:
+        return
+
+    without_rules = summary.get("repositoriesWithoutRules") or []
+    hint = _zero_match_hint(summary, without_rules)
+    if hint:
+        click.echo(click.style("⚠ The testmap matched no tests. " + hint, fg="yellow"), err=True)
+    elif without_rules:
+        click.echo(
+            "Changed files in repositories the testmap has no rules for: {}".format(", ".join(without_rules)),
+            err=True)
+
+
+def _zero_match_hint(summary: Dict[str, Any], without_rules: List[str]) -> Optional[str]:
+    if summary.get("testsMatched") != 0:
+        return None
+    if summary.get("changedFiles") == 0:
+        return ("The session has no changed files to match against: it made no `subset` request, "
+                "or its build changed nothing.")
+    if summary.get("testsRecorded") == 0:
+        return ("No tests are recorded for this session yet. Run `record tests` before "
+                "`record coverage --testmap`, then upload again.")
+    if summary.get("rulesFired") == 0:
+        message = "None of its source globs matched a changed file."
+        if without_rules:
+            message += (" The changed files are in repositories it has no key for: {}. A key must equal the "
+                        "name given to `record build --source NAME=DIR` exactly, including case."
+                        ).format(", ".join(without_rules))
+        return message
+    return "Its rules matched changed files, but no test glob matched a test recorded for this session."
 
 
 def display_summary(sources: List[str], status: str, source_files: Optional[int], is_reupload: bool = False):
