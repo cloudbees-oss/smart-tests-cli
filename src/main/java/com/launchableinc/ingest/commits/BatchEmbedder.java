@@ -190,7 +190,7 @@ class BatchEmbedder implements Closeable {
     List<FileEmbedding> results = new ArrayList<>(sent.size());
     for (int i = 0; i < sent.size(); i++) {
       EmbeddingInput input = sent.get(i);
-      float[] vector = EmbeddingVectors.normalize(vectors.get(i), dimensions);
+      float[] vector = EmbeddingVectors.prepare(vectors.get(i), dimensions, profile.normalizeVectors);
       if (vector == null) {
         System.err.printf("Skipping %s: the embedding endpoint returned an unusable vector%n", input.fileName);
         continue;

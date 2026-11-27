@@ -132,6 +132,19 @@ public class BatchEmbedderTest {
   }
 
   @Test
+  public void aModelWhoseVectorsNeedNoScalingIsUploadedAsReturnedUnlessTheServerWouldRejectIt() throws IOException {
+    ModelProfile profile = new ModelProfile(10_000, 100, 1_000_000, 1_000_000, String::length, false);
+    ScriptedAdapter adapter =
+        new ScriptedAdapter().then(texts -> Arrays.asList(new float[] {0.6f, 0.8004f}, new float[] {3, 4}));
+    BatchEmbedder embedder = new BatchEmbedder(adapter, profile, DIMENSIONS, RateLimiter.create(1e9), millis -> {});
+
+    BatchEmbedder.Result result = embedder.embed(Arrays.asList(input("near", "x"), input("far", "x")));
+
+    assertThat(result.embeddings.get(0).embedding).isEqualTo(new float[] {0.6f, 0.8004f}); // kept
+    assertThat(result.embeddings.get(1).embedding).usingTolerance(1e-6).containsExactly(0.6f, 0.8f).inOrder(); // scaled
+  }
+
+  @Test
   public void retriesRateLimitingAndServerErrorsWithGrowingWaits() throws IOException {
     List<Long> sleeps = new ArrayList<>();
     ScriptedAdapter adapter = new ScriptedAdapter().thenFail(429, true, false).thenFail(503, true, false);
